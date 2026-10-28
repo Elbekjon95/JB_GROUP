@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UZW - Zamonaviy Omborxona va Zaxira Boshqaruvi</title>
+  <meta name="description" content="UZW - Mahsulotlar, omborlar va saqlash tariflarini boshqarish uchun oq va ko'k ranglardagi minimalist omborxona platformasi">
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Asosiy uslublar -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===================================================================
+       1. AUTENTIFIKATSIYA EKRANI (KIRISH VA RO'YXATDAN O'TISH)
+       =================================================================== -->
+  <div id="authScreen" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-badge">
+          <!-- Omborxona Box SVG ikonka -->
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+        </div>
+        <h1>UZW <span>System</span></h1>
+        <p>Universal Omborxona va Zaxira Boshqaruvi</p>
+      </div>
+
+      <!-- Tablar: Kirish / Ro'yxatdan o'tish -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tabLoginBtn" onclick="AuthUI.switchTab('login')">Kirish</button>
+        <button type="button" class="auth-tab-btn" id="tabRegisterBtn" onclick="AuthUI.switchTab('register')">Ro'yxatdan o'tish</button>
+      </div>
+
+      <!-- Kirish Formasi -->
+      <form id="loginForm" class="auth-form" onsubmit="AuthUI.handleLogin(event)">
+        <div class="form-group">
+          <label for="loginEmail">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Elektron pochta
+          </label>
+          <div class="input-with-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            <input type="email" id="loginEmail" placeholder="admin@uzw.uz" required value="admin@uzw.uz">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="loginPassword">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            Maxfiy parol
+          </label>
+          <div class="input-with-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <input type="password" id="loginPassword" placeholder="••••••••" required value="password123">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px;">
+          Tizimga kirish
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+
+        <div class="demo-credentials-box">
+          <div>🔑 <strong>Sinov uchun demo hisob:</strong></div>
+          <div>Email: <code>admin@uzw.uz</code> | Parol: <code>password123</code></div>
+          <span class="demo-quick-btn" onclick="AuthUI.fillDemo('admin@uzw.uz', 'password123')">Bir bosishda to'ldirish</span>
+        </div>
+      </form>
+
+      <!-- Ro'yxatdan O'tish Formasi -->
+      <form id="registerForm" class="auth-form" style="display: none;" onsubmit="AuthUI.handleRegister(event)">
+        <div class="form-group">
+          <label for="regFullName">Ism va familiya</label>
+          <input type="text" id="regFullName" class="form-input" placeholder="Akmal Rahimov" required>
+        </div>
+
+        <div class="form-group">
+          <label for="regCompany">Korxona yoki tashkilot nomi</label>
+          <input type="text" id="regCompany" class="form-input" placeholder="Toshkent Logistika MCHJ">
+        </div>
+
+        <div class="form-group">
+          <label for="regEmail">Elektron pochta</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="siz@kompaniya.uz" required>
+        </div>
+
+        <div class="form-group">
+          <label for="regPassword">Yangi maxfiy parol</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="Kamida 6 ta belgi" minlength="6" required>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px;">
+          Ro'yxatdan o'tish
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================
+       2. ASOSIY ILOVA LAYOUTI (SIDEBAR + MAIN DASHBOARD)
+       =================================================================== -->
+  <div id="mainApp" class="app-container" style="display: none;">
+    <!-- Yon navigatsiya paneli (Sidebar) -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+        </div>
+        <div class="sidebar-title">
+          <h2>UZW Ombor</h2>
+          <p>Boshqaruv Tizimi</p>
+        </div>
+      </div>
+
+      <!-- Sahifalar Navigatsiyasi -->
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-item active" id="nav-dashboard" onclick="Router.navigate('dashboard')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Boshqaruv paneli
+        </a>
+
+        <a href="#warehouses" class="nav-item" id="nav-warehouses" onclick="Router.navigate('warehouses')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          Omborlar ro'yxati
+        </a>
+
+        <a href="#products" class="nav-item" id="nav-products" onclick="Router.navigate('products')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline></svg>
+          Mahsulotlar katalogi
+        </a>
+
+        <a href="#tariffs" class="nav-item" id="nav-tariffs" onclick="Router.navigate('tariffs')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+          Saqlash tariflari
+        </a>
+
+        <a href="#calculator" class="nav-item" id="nav-calculator" onclick="Router.navigate('calculator')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>
+          Tarif Kalkulyatori
+        </a>
+      </nav>
+
+      <!-- Foydalanuvchi qismi -->
+      <div class="sidebar-footer">
+        <div class="user-profile-badge">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div class="user-meta">
+            <div class="user-name" id="userNameDisplay">Foydalanuvchi</div>
+            <div class="user-role" id="userRoleDisplay">Menejer</div>
+          </div>
+          <button class="btn-logout-icon" title="Tizimdan chiqish" onclick="Auth.logout()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Asosiy Ish Maydoni -->
+    <main class="main-content">
+      <!-- Yuqori panel (Top Bar) -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <div class="page-heading">
+            <h1 id="pageTitleText">Boshqaruv paneli</h1>
+            <p id="pageSubtitleText">Omborlar va tovarlar holati to'g'risida umumiy ma'lumot</p>
+          </div>
+        </div>
+
+        <div class="top-bar-right">
+          <div class="date-indicator">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span id="currentDateDisplay">2026-yil</span>
+          </div>
+
+          <button class="btn-primary" onclick="UI.openModal('addProductModal')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Mahsulot qo'shish
+          </button>
+        </div>
+      </header>
+
+      <!-- Sahifalar Konteyneri -->
+      <div class="page-container">
+        
+        <!-- ==========================================
+             SAHIFA 1: DASHBOARD (BOSHQARUV PANELI)
+             ========================================== -->
+        <section id="view-dashboard" class="view-section">
+          <!-- Tezkor Harakatlar Banderoli -->
+          <div class="quick-action-strip">
+            <div>
+              <h3>UZW Omborxona Tizimiga Xush Kelibsiz!</h3>
+              <p>Omborlaringiz sig'imi, saqlanayotgan mahsulotlar va joriy tariflarni boshqaring.</p>
+            </div>
+            <div class="quick-action-btns">
+              <button onclick="UI.openModal('addWarehouseModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Yangi ombor yaratish
+              </button>
+              <button onclick="UI.openModal('addTariffModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Yangi tarif kiritish
+              </button>
+            </div>
+          </div>
+
+          <!-- Statistika Kartalari -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-info">
+                <p>Jami Omborlar</p>
+                <h3 id="statTotalWarehouses">0</h3>
+                <span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                  Faol omborxonalar
+                </span>
+              </div>
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <p>Mahsulot Turlari</p>
+                <h3 id="statTotalProducts">0</h3>
+                <span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Katalogda mavjud
+                </span>
+              </div>
+              <div class="stat-icon icon-accent">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <p>Faol Saqlash Foydasi (Est.)</p>
+                <h3 id="statEstimatedRevenue">0 UZS</h3>
+                <span>Kunlik hisoblangan</span>
+              </div>
+              <div class="stat-icon icon-purple">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-info">
+                <p>Mavjud Saqlash Sig'imi</p>
+                <h3 id="statCapacityUsage">0%</h3>
+                <span id="statCapacityText">Yuklangan</span>
+              </div>
+              <div class="stat-icon icon-orange">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Asosiy 2 Ustunli qism -->
+          <div class="dashboard-grid">
+            <!-- Chap tomon: So'nggi kiritilgan tovarlar -->
+            <div class="card-box">
+              <div class="card-box-header">
+                <h2>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                  So'nggi kiritilgan mahsulotlar
+                </h2>
+                <button class="btn-outline-blue" onclick="Router.navigate('products')">Hammasini ko'rish &rarr;</button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Mahsulot Nomi</th>
+                      <th>Artikul (SKU)</th>
+                      <th>Ombor</th>
+                      <th>Miqdori</th>
+                      <th>Tarif</th>
+                      <th>Kiritilgan sana</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboardRecentProductsTable">
+                    <!-- Dinamik to'ldiriladi -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- O'ng tomon: Omborlar sig'imi & So'nggi amallar -->
+            <div style="display: flex; flex-direction: column; gap: 24px;">
+              <div class="card-box">
+                <div class="card-box-header">
+                  <h2>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                    Omborlar holati
+                  </h2>
+                  <button class="btn-outline-blue" onclick="Router.navigate('warehouses')">Omborlar</button>
+                </div>
+                <div id="dashboardWarehousesList" style="display: flex; flex-direction: column; gap: 14px;">
+                  <!-- Dinamik to'ldiriladi -->
+                </div>
+              </div>
+
+              <div class="card-box">
+                <div class="card-box-header">
+                  <h2>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Harakatlar jurnali
+                  </h2>
+                </div>
+                <div id="dashboardLogsList" style="display: flex; flex-direction: column; gap: 10px;">
+                  <!-- Dinamik to'ldiriladi -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- ==========================================
+             SAHIFA 2: OMBORLAR RO'YXATI & YARATISH
+             ========================================== -->
+        <section id="view-warehouses" class="view-section" style="display: none;">
+          <div class="filter-toolbar">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="warehouseSearchInput" placeholder="Ombor nomi yoki shahar bo'yicha qidirish..." oninput="WarehousesUI.render()">
+            </div>
+            <div class="filter-controls">
+              <button class="btn-primary" onclick="UI.openModal('addWarehouseModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Yangi ombor yaratish
+              </button>
+            </div>
+          </div>
+
+          <div class="warehouses-grid" id="warehousesGrid">
+            <!-- Dinamik generatsiya qilinadi -->
+          </div>
+        </section>
+
+
+        <!-- ==========================================
+             SAHIFA 3: MAHSULOTLAR KATALOGI
+             ========================================== -->
+        <section id="view-products" class="view-section" style="display: none;">
+          <div class="filter-toolbar">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="productSearchInput" placeholder="Mahsulot nomi yoki artikul bo'yicha qidirish..." oninput="ProductsUI.render()">
+            </div>
+            <div class="filter-controls">
+              <select id="productFilterWarehouse" class="form-select" style="min-width: 180px;" onchange="ProductsUI.render()">
+                <option value="">Barcha omborlar</option>
+              </select>
+              <button class="btn-primary" onclick="UI.openModal('addProductModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Mahsulot kiritish
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Mahsulot Nomi</th>
+                  <th>Artikul (SKU)</th>
+                  <th>Kategoriya</th>
+                  <th>Saqlanadigan Ombor</th>
+                  <th>Miqdor & Birlik</th>
+                  <th>Saqlash Tarifi</th>
+                  <th>Holati</th>
+                  <th>Amallar</th>
+                </tr>
+              </thead>
+              <tbody id="productsTableBody">
+                <!-- Dinamik to'ldiriladi -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+
+        <!-- ==========================================
+             SAHIFA 4: SAQLASH TARIFLARI
+             ========================================== -->
+        <section id="view-tariffs" class="view-section" style="display: none;">
+          <div class="filter-toolbar">
+            <div>
+              <h2 style="font-size: 18px; font-weight: 800;">Omborda Saqlash Narxlari va Shartlari</h2>
+              <p style="font-size: 13px; color: var(--text-muted);">Mahsulotlar saqlanishiga mos tariflarni kiritish va tahrirlash</p>
+            </div>
+            <div class="filter-controls">
+              <button class="btn-primary" onclick="UI.openModal('addTariffModal')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Yangi saqlash tarifi kiritish
+              </button>
+            </div>
+          </div>
+
+          <!-- Tariflar kartalari -->
+          <div class="tariffs-grid" id="tariffsGrid">
+            <!-- Dinamik generatsiya qilinadi -->
+          </div>
+        </section>
+
+
+        <!-- ==========================================
+             SAHIFA 5: TARIF KALKULYATORI
+             ========================================== -->
+        <section id="view-calculator" class="view-section" style="display: none;">
+          <div class="card-box" style="max-width: 900px; margin: 0 auto;">
+            <div class="card-box-header">
+              <h2>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line></svg>
+                Saqlash Xarajatini Real Vaqtda Hisoblash Kalkulyatori
+              </h2>
+            </div>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">
+              Mahsulot miqdori, tanlangan ombor tarifi va saqlash muddatiga qarab umumiy hisob-kitobni darhol aniqlang.
+            </p>
+
+            <div class="calc-grid">
+              <div class="form-group">
+                <label for="calcTariffSelect">Saqlash Tarifini Tanlang</label>
+                <select id="calcTariffSelect" class="form-select" onchange="CalculatorUI.calculate()">
+                  <!-- Dinamik tariflar keladi -->
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="calcQuantity">Mahsulot Miqdori / Hajmi</label>
+                <input type="number" id="calcQuantity" class="form-input" value="10" min="1" oninput="CalculatorUI.calculate()">
+              </div>
+
+              <div class="form-group">
+                <label for="calcDuration">Saqlash Muddati (Kun / Oy)</label>
+                <input type="number" id="calcDuration" class="form-input" value="30" min="1" oninput="CalculatorUI.calculate()">
+              </div>
+
+              <div class="calc-result-box">
+                <span class="calc-result-title">Jami Saqlash Qiymati</span>
+                <span class="calc-result-sum" id="calcResultDisplay">0 UZS</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 24px; padding: 14px; background: var(--bg-subtle); border-radius: var(--radius-md); border: 1px dashed #bfdbfe; font-size: 13px; color: var(--text-muted);">
+              💡 <strong>Tavsiya:</strong> Uzoq muddatli (3 oydan ortiq) saqlashlar uchun "Oylik Katta Hajmli Tarif" eng tejamkor hisoblanadi.
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+
+  <!-- ===================================================================
+       3. MODALLAR (YANGI OMBOR, MAHSULOT, TARIF QO'SHISH)
+       =================================================================== -->
+
+  <!-- Modal 1: Mahsulot Nomini va Ma'lumotlarini Kiritish -->
+  <div id="addProductModal" class="modal-backdrop">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="productModalTitle">Yangi Mahsulot Kiritish</h3>
+        <button class="btn-close-modal" onclick="UI.closeModal('addProductModal')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <form id="addProductForm" onsubmit="ProductsUI.handleSubmit(event)">
+        <input type="hidden" id="editProductId" value="">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="pName">Mahsulot Nomi *</label>
+            <input type="text" id="pName" class="form-input" placeholder="Masalan: Oq qand 50kg yoki Alyuminiy profil" required>
+          </div>
+
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="pSku">Artikul / SKU Kodi</label>
+              <input type="text" id="pSku" class="form-input" placeholder="UZ-PR-001">
+            </div>
+            <div class="form-group">
+              <label for="pCategory">Kategoriyasi</label>
+              <select id="pCategory" class="form-select">
+                <option value="Oziq-ovqat">Oziq-ovqat</option>
+                <option value="Go'sht mahsulotlari">Go'sht mahsulotlari</option>
+                <option value="Tekstil & Kiyim-kechak">Tekstil & Kiyim-kechak</option>
+                <option value="Qurilish mollari">Qurilish mollari</option>
+                <option value="Texnika & Elektronika">Texnika & Elektronika</option>
+                <option value="Boshqa">Boshqa</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="pWarehouse">Saqlanadigan Ombor *</label>
+            <select id="pWarehouse" class="form-select" required>
+              <!-- Dinamik omborlar yuklanadi -->
+            </select>
+          </div>
+
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="pQuantity">Miqdori *</label>
+              <input type="number" id="pQuantity" class="form-input" min="1" placeholder="100" required>
+            </div>
+            <div class="form-group">
+              <label for="pUnit">O'lchov Birligi</label>
+              <select id="pUnit" class="form-select">
+                <option value="dona">Dona</option>
+                <option value="kg">Kilogramm (kg)</option>
+                <option value="tonna">Tonna</option>
+                <option value="pallet">Pallet</option>
+                <option value="quti">Quti</option>
+                <option value="qop">Qop</option>
+                <option value="m3">Kub metr (m³)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="pTariff">Omborda Saqlash Tarifi *</label>
+            <select id="pTariff" class="form-select" required>
+              <!-- Dinamik saqlash tariflari yuklanadi -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="pNotes">Saqlash talablari / Qo'shimcha izoh</label>
+            <textarea id="pNotes" class="form-textarea" rows="2" placeholder="Masalan: Maxsus haroratda yoki quruq joyda saqlansin"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="UI.closeModal('addProductModal')">Bekor qilish</button>
+          <button type="submit" class="btn-primary" id="pSubmitBtn">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 2: Yangi Ombor Yaratish -->
+  <div id="addWarehouseModal" class="modal-backdrop">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="warehouseModalTitle">Yangi Omborxona Yaratish</h3>
+        <button class="btn-close-modal" onclick="UI.closeModal('addWarehouseModal')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <form id="addWarehouseForm" onsubmit="WarehousesUI.handleSubmit(event)">
+        <input type="hidden" id="editWarehouseId" value="">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="whName">Ombor Nomi *</label>
+            <input type="text" id="whName" class="form-input" placeholder="Masalan: Toshkent Chilonzor Ombori" required>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="whCity">Joylashuvi / Manzili *</label>
+            <input type="text" id="whCity" class="form-input" placeholder="Shahar, tuman, ko'cha nomi" required>
+          </div>
+
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="whType">Ombor Turi</label>
+              <select id="whType" class="form-select">
+                <option value="Standart Quruq Ombor">Standart Quruq Ombor</option>
+                <option value="Muzlatkichli Ombor (-18°C)">Muzlatkichli Ombor (-18°C)</option>
+                <option value="Sovutiladigan Ombor (+2°C...+6°C)">Sovutiladigan Ombor (+2°C...+6°C)</option>
+                <option value="Ochiq Maydon Ombori">Ochiq Maydon Ombori</option>
+                <option value="Farmatsevtika Ombori">Farmatsevtika Ombori</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="whCapacity">Umumiy Sig'imi (m³) *</label>
+              <input type="number" id="whCapacity" class="form-input" min="10" placeholder="3000" required>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="whManager">Mas'ul Shaxs (Menejer)</label>
+              <input type="text" id="whManager" class="form-input" placeholder="Ism Familiya">
+            </div>
+            <div class="form-group">
+              <label for="whPhone">Telefon Raqami</label>
+              <input type="text" id="whPhone" class="form-input" placeholder="+998 90 123 45 67">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="UI.closeModal('addWarehouseModal')">Bekor qilish</button>
+          <button type="submit" class="btn-primary" id="whSubmitBtn">Omborni yaratish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal 3: Yangi Saqlash Tarifini Kiritish -->
+  <div id="addTariffModal" class="modal-backdrop">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tariffModalTitle">Yangi Saqlash Tarifini Kiritish</h3>
+        <button class="btn-close-modal" onclick="UI.closeModal('addTariffModal')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <form id="addTariffForm" onsubmit="TariffsUI.handleSubmit(event)">
+        <input type="hidden" id="editTariffId" value="">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="trName">Tarif Nomi *</label>
+            <input type="text" id="trName" class="form-input" placeholder="Masalan: Ekspress Pallet Saqlash" required>
+          </div>
+
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="trPrice">Narxi (UZS) *</label>
+              <input type="number" id="trPrice" class="form-input" min="100" placeholder="20000" required>
+            </div>
+            <div class="form-group">
+              <label for="trPeriod">Hisoblash Davri</label>
+              <select id="trPeriod" class="form-select">
+                <option value="kunlik">Kunlik (har kun uchun)</option>
+                <option value="oylik">Oylik (har oy uchun)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="trUnitType">O'lchov Mezoni</label>
+            <select id="trUnitType" class="form-select">
+              <option value="pallet">Pallet hisobida</option>
+              <option value="m3">Kub metr (m³) hisobida</option>
+              <option value="dona">Dona / Mahsulot hisobida</option>
+              <option value="kg">Kilogramm (kg) hisobida</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="trDescription">Tarif Tavsifi</label>
+            <textarea id="trDescription" class="form-textarea" rows="2" placeholder="Ushbu tarif qanday mahsulotlar va ombor sharoitlariga mo'ljallangan?"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="trFeatures">Xususiyatlar (har bir qatorda bittadan)</label>
+            <textarea id="trFeatures" class="form-textarea" rows="3" placeholder="24/7 video nazorat&#10;Yong'in xavfsizligi kafolati&#10;Yuk ortish-tushirish bepul"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="UI.closeModal('addTariffModal')">Bekor qilish</button>
+          <button type="submit" class="btn-primary" id="trSubmitBtn">Tarifni saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Toast Bildirishnomalar Idishi -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Skriptlar ketma-ketligi -->
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

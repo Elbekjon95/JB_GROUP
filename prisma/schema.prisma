@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  password            String   // bcrypt hash
+  fullName            String
+  role                String   @default("USER") // SUPER_ADMIN, ADMIN, USER, ACCOUNTANT
+  company             String?  @default("UZW Logistics")
+  avatar              String?
+  permissions         Json?    // UserPermissions obyekti
+  canManageTariffs    Boolean  @default(false)
+  canCreateProducts   Boolean  @default(false)
+  canDeleteProducts   Boolean  @default(false)
+  canManageWarehouses Boolean  @default(false)
+  canStockMovement    Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Warehouse {
+  id               String    @id @default(uuid())
+  name             String
+  city             String
+  address          String?
+  type             String    @default("Standart Quruq Ombor")
+  totalCapacity    Float     // m³
+  occupiedCapacity Float     @default(0) // m³
+  manager          String?
+  phone            String?
+  status           String    @default("Faol")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  products         Product[]
+  sectors          Sector[]
+}
+
+model Sector {
+  id                String     @id @default(uuid())
+  warehouseId       String?
+  warehouse         Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  name              String     // "A Sektor", "B Sektor", etc.
+  code              String?
+  type              String     @default("Standart Quruq")
+  temperature       String?
+  capacity          Float      @default(500)
+  occupied          Float      @default(0)
+  subSections       String?
+  description       String?
+  allowedCargoTypes String[]   @default([])
+  status            String     @default("Faol")
+  tariffId          String?
+  tariffName        String?
+  notes             String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  products          Product[]
+}
+
+model Tariff {
+  id               String    @id @default(uuid())
+  name             String
+  targetSectorType String?
+  billingPeriod    String?   @default("kunlik")
+  pricePerUnit     Float?    // UZS
+  unitName         String?
+  unitType         String?   // "pallet", "m3", "dona", "kg"
+  pricePerUnitDay  Float?
+  currency         String    @default("UZS")
+  minDays          Int       @default(1)
+  description      String?
+  features         String[]  @default([])
+  isPopular        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  products         Product[]
+}
+
+model Client {
+  id                String           @id @default(uuid())
+  name              String           // Kompaniya yoki Mijoz nomi
+  inn               String?          @unique // STIR / INN
+  contractNumber    String?          // SH-2026/01
+  contractStartDate String?          // YYYY-MM-DD
+  contractEndDate   String?          // YYYY-MM-DD
+  contactPerson     String?          // Mas'ul shaxs
+  phone             String?
+  email             String?
+  address           String?
+  status            String           @default("Faol")
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  products          Product[]
+  invoices          StorageInvoice[]
+}
+
+model CustomsService {
+  id          String   @id @default(uuid())
+  itemNo      Float
+  category    String   // UNLOADING_LOADING, STORAGE, ADDITIONAL
+  name        String
+  nameUz      String?
+  unit        String
+  basePrice   Float
+  vatRate     Float    @default(0.12)
+  vatAmount   Float
+  totalPrice  Float
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id                      String             @id @default(uuid())
+  name                    String
+  sku                     String?            @unique
+  category                String             @default("Umumiy")
+  initialQuantity         Float?             @default(0)
+  quantity                Float              @default(0)
+  unit                    String             @default("dona")
+  initialWeightKg         Float?             @default(0)
+  weightKg                Float?             @default(0)
+  unitVolume              Float?             @default(0.05)
+  unitVolumeM3            Float?             @default(0.05)
+  totalVolumeM3           Float?             @default(0.05)
+  minStock                Float?             @default(10)
+  dailyRatePerUnit        Float?             @default(0)
+  storageTariffId         String?
+  storageTariffName       String?
+  storageTariffRate       Float?
+  storageTariffItemNo     Float?
+  storageTariffUnit       String?
+  tariffId                String?
+  tariffName              String?
+  tariff                  Tariff?            @relation(fields: [tariffId], references: [id], onDelete: SetNull)
+  warehouseId             String?
+  warehouse               Warehouse?         @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  sectorId                String?
+  sector                  Sector?            @relation(fields: [sectorId], references: [id], onDelete: SetNull)
+  sectorName              String?
+  clientId                String?
+  client                  Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientName              String?
+  contractNumber          String?
+  contractEndDate         String?
+  entryDate               DateTime           @default(now())
+  entryTime               String?
+  placedBy                String?
+  placedByRole            String?
+  obrabotkaService        String?
+  obrabotkaCost           Float?
+  obrabotkaVat            Float?
+  kirimAdditionalServices Json?
+  exitHistory             Json?
+  notes                   String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  transactions            StockTransaction[]
+  invoices                StorageInvoice[]
+}
+
+model CargoMovement {
+  id                 String   @id @default(uuid())
+  invoiceNo          String?
+  productId          String?
+  sectorId           String?
+  sectorName         String?
+  productName        String
+  type               String   // IN, OUT
+  quantity           Float
+  initialQuantity    Float?
+  remainingQuantity  Float?
+  unit               String
+  weightKg           Float?
+  initialWeightKg    Float?
+  remainingWeightKg  Float?
+  userName           String
+  userRole           String
+  placedBy           String?
+  placedDate         String?
+  date               String   // YYYY-MM-DD
+  time               String?  // HH:mm
+  notes              String?
+  clientName         String?
+  transportType      String?
+  unloadingType      String?
+  loadingType        String?
+  loadingCostUZS     Float?
+  obrabotkaCostUZS   Float?
+  storageCostUZS     Float?
+  storageTariffName  String?
+  storageFormula     String?
+  additionalCostUZS  Float?
+  servicesApplied    Json?
+  daysStored         Int?
+  tariffId           String?
+  tariffName         String?
+  tariffDailyRate    Float?
+  totalCostUZS       Float?
+  vatTotalUZS        Float?
+  grandTotalUZS      Float?
+  receiverInn        String?
+  receiverName       String?
+  receiverPerson     String?
+  paymentStatus      String?  @default("PENDING") // PAID, PENDING, OVERDUE
+  paidAt             String?
+  createdAt          DateTime @default(now())
+}
+
+model StockTransaction {
+  id             String    @id @default(uuid())
+  productId      String?
+  product        Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName    String    @default("Mahsulot")
+  category       String?
+  type           String    // IN, OUT
+  quantity       Float
+  unit           String
+  quantityBefore Float?
+  quantityAfter  Float?
+  warehouseId    String?
+  warehouseName  String?
+  sectorId       String?
+  sectorName     String?
+  reason         String?
+  userId         String?
+  userName       String?
+  date           DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+}
+
+model StorageInvoice {
+  id            String    @id @default(uuid())
+  invoiceNumber String    @unique
+  clientId      String?
+  client        Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  productId     String?
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  amount        Float
+  currency      String    @default("UZS")
+  daysStored    Int       @default(1)
+  tariffName    String?
+  tariffRate    Float?
+  status        String    @default("Kutilmoqda")
+  notes         String?
+  dueDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  userName    String
+  userRole    String
+  action      String
+  entity      String
+  entityId    String?
+  entityName  String?
+  details     String
+  status      String   @default("Muvaffaqiyatli")
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String
+  item      String
+  warehouse String?
+  user      String?
+  createdAt DateTime @default(now())
+}

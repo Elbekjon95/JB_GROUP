@@ -1,0 +1,597 @@
+/*!*****************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./src/app/globals.css ***!
+  \*****************************************************************************************************************************************************************************************************************************************************************/
+/* ===================================================================
+   UZW LOGISTICS - ANIQ MINIMALIZM DIZAYN TIZIMI
+   =================================================================== */
+
+:root {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --border-focus: #3b82f6;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --accent-blue: #2563eb;
+  --accent-blue-hover: #1d4ed8;
+  --accent-blue-light: #eff6ff;
+
+  --success: #059669;
+  --success-bg: #ecfdf5;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+/* Minimalist Card */
+.mini-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mini-card:hover {
+  border-color: #cbd5e1;
+}
+
+/* Minimalist Button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--accent-blue);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: var(--accent-blue-hover);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+  color: var(--text-primary);
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.btn-outline:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--accent-blue-light);
+}
+
+/* Navigation Tabs */
+.nav-tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.nav-tab-item:hover {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.nav-tab-item.active {
+  background: var(--accent-blue-light);
+  color: var(--accent-blue);
+  font-weight: 700;
+}
+
+/* Badge & Chips */
+.sector-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-cold {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-chilled {
+  background: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+
+.badge-dry {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.badge-hazardous {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.badge-security {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.badge-liquid {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #ffedd5;
+}
+
+/* Minimalist Progress Track */
+.progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Modal Backdrop & Dialog */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  -webkit-backdrop-filter: blur(4px);
+          backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.modal-dialog {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+  width: 100%;
+  max-width: 640px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin: auto;
+}
+
+.modal-dialog form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modal-header-clean {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.modal-body-clean {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex: 1 1;
+  min-height: 0;
+}
+
+.modal-footer-clean {
+  padding: 12px 22px;
+  border-top: 1px solid var(--border);
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Form Groups */
+.form-field {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.form-input-clean {
+  width: 100%;
+  padding: 9px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.form-input-clean:focus {
+  border-color: var(--border-focus);
+}
+
+.form-select-clean {
+  width: 100%;
+  padding: 9px 13px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.form-select-clean:focus {
+  border-color: var(--border-focus);
+}
+
+/* ===================================================================
+   RASMIY CHOP ETISH ELEMENTLARI (EKRANDA YASHIRIN)
+   =================================================================== */
+.accounting-official-print-header,
+.accounting-official-print-footer,
+.accounting-print-subview-title {
+  display: none;
+}
+
+/* ===================================================================
+   JB GROUP CHOP ETISH (PRINT) SOZLAMALARI:
+   1) BOJXONA NAKLADNOYI VA INVOYSI A4 FORMATDA
+   2) BUXGALTERIYA & CHIQIMLAR HISOBOTI A4 FORMATDA
+   =================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Chop etishda ko'rinmasligi kerak bo'lgan interaktiv elementlar */
+  header,
+  footer,
+  nav,
+  .no-print,
+  .modal-header-clean,
+  .modal-footer-clean,
+  button {
+    display: none !important;
+  }
+
+  /* -------------------------------------------------------------
+     REJIM 1: NAKLADNOY / INVOYS MODALI OCHIQ BO'LGANDA
+     Faqat nakladnoy ko'rinadi, asosiy sahifa (main) yashiriladi
+     ------------------------------------------------------------- */
+  body:has(#jb-group-invoice) main,
+  body:has(.invoice-print-overlay) main {
+    display: none !important;
+  }
+
+  .invoice-print-overlay,
+  .modal-overlay:has(#jb-group-invoice) {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+
+  .modal-dialog {
+    position: static !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  #jb-group-invoice,
+  .jb-invoice-print-area {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  #jb-group-invoice table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  #jb-group-invoice th,
+  #jb-group-invoice td {
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  /* -------------------------------------------------------------
+     REJIM 2: BUXGALTERIYA & CHIQIMLAR HISOBOTINI CHOP ETISH
+     Asosiy ishchi hudud (main) chop etiladi
+     ------------------------------------------------------------- */
+  main {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Nakladnoy bo'lmagan barcha modallarni yashiramiz */
+  .modal-overlay:not(.invoice-print-overlay):not(:has(#jb-group-invoice)) {
+    display: none !important;
+  }
+
+  /* Buxgalteriya print maydoni */
+  .accounting-print-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  /* Rasmiy hisobot blanka sarlavhasi (faqat printda ko'rsatiladi) */
+  .accounting-official-print-header {
+    display: block !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 2px solid #0f2b48 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .accounting-print-subview-title {
+    display: block !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    color: #0f2b48 !important;
+    margin-bottom: 8px !important;
+    padding-bottom: 4px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  /* 4 ta KPI kartalar paneli */
+  .accounting-kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    grid-gap: 8px !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .accounting-kpi-card {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Hisobot jadvallari */
+  .accounting-print-table-card {
+    border: 1px solid #94a3b8 !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+    margin-bottom: 14px !important;
+  }
+
+  .accounting-print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+  }
+
+  .accounting-print-table thead {
+    display: table-header-group !important;
+  }
+
+  .accounting-print-table th {
+    background: #f1f5f9 !important;
+    color: #0f2b48 !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 5px 6px !important;
+    font-size: 9.5px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .accounting-print-table td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 5px 6px !important;
+    font-size: 9.5px !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+  }
+
+  .accounting-print-table tr {
+    page-break-inside: avoid !important;
+  }
+
+  .accounting-table-total-row td,
+  .accounting-print-table tr.accounting-table-total-row td,
+  .accounting-print-table tfoot td {
+    background: #f1f5f9 !important;
+    border-bottom: 2px solid #94a3b8 !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+  }
+
+  /* Xodimlar kartalari print ko'rinishi */
+  .accounting-employee-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-gap: 10px !important;
+    gap: 10px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .accounting-employee-card {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    padding: 10px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Rasmiy tasdiqlash imzolari va muhr bloki */
+  .accounting-official-print-footer {
+    display: block !important;
+    margin-top: 20px !important;
+    padding-top: 14px !important;
+    border-top: 1.5px solid #0f2b48 !important;
+    page-break-inside: avoid !important;
+  }
+}
+
+
