@@ -5,8 +5,44 @@ import {
   CargoMovement,
   Tariff,
   CustomsService,
-  ContractPayer
+  ContractPayer,
+  ProductEditLog
 } from './types';
+
+export interface MonthlyActivityReport {
+  userName: string;
+  userRole: string;
+  inCount: number;
+  outCount: number;
+  totalOperations: number;
+  inQuantity: number;
+  outQuantity: number;
+  inWeightKg: number;
+  outWeightKg: number;
+  totalInAmount: number;
+  totalOutAmount: number;
+  totalAmount: number;
+  uniqueProductsIn: number;
+  uniqueProductsOut: number;
+  uniqueClientsIn: number;
+  uniqueClientsOut: number;
+  dailyActivity: { date: string; in: number; out: number }[];
+}
+
+export interface MonthlyActivitySummary {
+  month: string;
+  totalUsers: number;
+  totalInOperations: number;
+  totalOutOperations: number;
+  totalOperations: number;
+  totalInQuantity: number;
+  totalOutQuantity: number;
+  totalInWeightKg: number;
+  totalOutWeightKg: number;
+  totalInAmount: number;
+  totalOutAmount: number;
+  totalAmount: number;
+}
 
 // Standart fetch wrapper
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -36,6 +72,19 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   auth: {
+    checkSetup: async () => {
+      return request<{ needsSetup: boolean; userCount: number }>('/api/auth/setup');
+    },
+    setupSuperAdmin: async (fullName: string, email: string, password: string) => {
+      const data = await request<{ success: boolean; user: User; token: string }>('/api/auth/setup', {
+        method: 'POST',
+        body: JSON.stringify({ fullName, email, password })
+      });
+      if (typeof window !== 'undefined' && data.token) {
+        localStorage.setItem('uzw_token', data.token);
+      }
+      return data;
+    },
     login: async (email: string, password: string) => {
       const data = await request<{ success: boolean; user: User; token: string }>('/api/auth/login', {
         method: 'POST',
@@ -53,6 +102,7 @@ export const api = {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('uzw_token');
         localStorage.removeItem('uzw_active_user');
+        fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
       }
     }
   },
@@ -61,10 +111,16 @@ export const api = {
     get: async () => {
       return request<{ warehouse: Warehouse }>('/api/warehouse');
     },
-    update: async (warehouse: Partial<Warehouse>) => {
+    update: async (warehouse: Partial<Warehouse> & { sector?: any }) => {
       return request<{ warehouse: Warehouse }>('/api/warehouse', {
         method: 'PUT',
         body: JSON.stringify(warehouse)
+      });
+    },
+    upsertSector: async (sector: any, warehouseId = 'wh-main') => {
+      return request<{ warehouse: Warehouse }>('/api/warehouse', {
+        method: 'PUT',
+        body: JSON.stringify({ id: warehouseId, sector })
       });
     }
   },
@@ -91,7 +147,7 @@ export const api = {
       });
     },
     update: async (id: string, data: any) => {
-      return request<{ product: StoredProduct }>(`/api/products/${id}`, {
+      return request<{ success?: boolean; product: StoredProduct; editLog?: ProductEditLog }>(`/api/products/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data)
       });
@@ -133,6 +189,12 @@ export const api = {
     create: async (data: Partial<Tariff>) => {
       return request<{ tariff: Tariff }>('/api/tariffs', {
         method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+    update: async (data: Partial<Tariff>) => {
+      return request<{ tariff: Tariff }>('/api/tariffs', {
+        method: 'PUT',
         body: JSON.stringify(data)
       });
     }
@@ -188,6 +250,19 @@ export const api = {
       return request<{ success: boolean }>(`/api/users/${id}`, {
         method: 'DELETE'
       });
+    }
+  },
+
+  reports: {
+    getMonthlyActivity: async (month?: string) => {
+      const params = month ? `?month=${month}` : '';
+      return request<{ report: MonthlyActivityReport[]; summary: MonthlyActivitySummary }>(`/api/reports/monthly-activity${params}`);
+    }
+  },
+
+  editLogs: {
+    getAll: async () => {
+      return request<{ editLogs: ProductEditLog[] }>('/api/edit-logs');
     }
   }
 };

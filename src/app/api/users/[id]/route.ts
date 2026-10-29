@@ -9,7 +9,7 @@ export async function PUT(
 ) {
   try {
     const user = await getUserFromRequest(req);
-    if (user && user.role !== 'SUPER_ADMIN') {
+    if (!user || user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Faqat Bosh Rahbar tahrirlay oladi' }, { status: 403 });
     }
 
@@ -55,7 +55,7 @@ export async function DELETE(
 ) {
   try {
     const user = await getUserFromRequest(req);
-    if (user && user.role !== 'SUPER_ADMIN') {
+    if (!user || user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Faqat Bosh Rahbar o\'chira oladi' }, { status: 403 });
     }
 

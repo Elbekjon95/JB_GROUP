@@ -6,8 +6,8 @@ import { getUserFromRequest } from '@/lib/auth';
 export async function GET(req: Request) {
   try {
     const user = await getUserFromRequest(req);
-    // Faqat SUPER_ADMIN yoki ADMIN ko'rishi mumkin
-    if (user && user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
+    // Faqat SUPER_ADMIN xodimlar ro'yxati va loginlarini ko'rishi mumkin
+    if (!user || user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Ruxsat berilmagan' }, { status: 403 });
     }
 
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await getUserFromRequest(req);
-    if (user && user.role !== 'SUPER_ADMIN') {
+    if (!user || user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Faqat Bosh Rahbar xodim qo\'sha oladi' }, { status: 403 });
     }
 

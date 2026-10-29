@@ -95,7 +95,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                     </span>
                   )}
                 </div>
-                <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#002d62', margin: '2px 0 6px 0' }}>
+                <h2 data-no-translate="true" style={{ fontSize: '20px', fontWeight: 900, color: '#002d62', margin: '2px 0 6px 0' }}>
                   {product.name}
                 </h2>
                 <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '2px' }}>

@@ -1,16 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, UserRole, UserPermissions, Sector, SectorType, Warehouse, CargoMovement, Tariff, StoredProduct, CustomsService, CustomsServiceCategory, AppliedService, ProductExitRecord, ContractPayer } from '@/lib/types';
+import { User, UserRole, UserPermissions, Sector, SectorType, Warehouse, CargoMovement, Tariff, StoredProduct, CustomsService, CustomsServiceCategory, AppliedService, ProductExitRecord, ContractPayer, Language, ProductEditLog, ProductEditChange } from '@/lib/types';
 import { INITIAL_USERS, INITIAL_WAREHOUSE, INITIAL_STORED_PRODUCTS, INITIAL_MOVEMENTS, INITIAL_TARIFFS, INITIAL_CUSTOMS_SERVICES, INITIAL_PAYERS } from '@/lib/initial-data';
-import { Header } from '@/components/common/Header';
+import { Header, MenuTab } from '@/components/common/Header';
 import { LoginOverlay } from '@/components/common/LoginOverlay';
+import { AutoDomTranslator } from '@/components/common/AutoDomTranslator';
 import { InvoiceReceiptModal } from '@/components/modals/InvoiceReceiptModal';
 import { PayerModal } from '@/components/modals/PayerModal';
-import { UserModal } from '@/components/modals/UserModal';
+import { UserModal, UserFormState } from '@/components/modals/UserModal';
 import { CustomsServiceModal } from '@/components/modals/CustomsServiceModal';
 import { ProductHistoryModal } from '@/components/modals/ProductHistoryModal';
+import { EditProductModal, EditProductFormState } from '@/components/modals/EditProductModal';
+import { EditLogsReportView } from '@/components/views/EditLogsReportView';
 import { api } from '@/lib/api-client';
+import { t, translateTextNode } from '@/lib/i18n';
+import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from '@/lib/date-utils';
 
 // Saqlangan kunlar sonini aniq hisoblash (kamida 1 kun)
 function calculateDaysStored(entryDateStr: string): number {
@@ -26,13 +31,42 @@ function calculateDaysStored(entryDateStr: string): number {
 }
 
 export default function Home() {
-  // 1. Avtorizatsiya holati
+  // 0. Til holati (O'zbek, Rus, Ingliz)
+  const [lang, setLangState] = useState<Language>('uz');
+  const setLang = (newLang: Language) => {
+    setLangState(newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('uzw_lang', newLang);
+    }
+  };
+
+  // 1. Avtorizatsiya holati va bir martalik dastlabki Super Admin registratsiyasi
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [needsInitialSetup, setNeedsInitialSetup] = useState(false);
+  const [setupFullName, setSetupFullName] = useState('');
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState('');
 
-  // 2. Navigatsiya menyusi: Ombor, Tarix, To'lovchilar, Buxgalteriya, Tariflar va Xodimlar
-  const [activeMenu, setActiveMenu] = useState<'warehouse' | 'history' | 'payers' | 'dashboard' | 'tariffs' | 'users' | 'accounting'>('warehouse');
+  // 2. Navigatsiya menyusi: Ombor, Tarix, To'lovchilar, Buxgalteriya, Tariflar, Tahrirlar va Xodimlar
+  const [activeMenu, setActiveMenu] = useState<MenuTab>('warehouse');
+  const [editLogs, setEditLogs] = useState<ProductEditLog[]>([]);
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<StoredProduct | null>(null);
+  const [editProductForm, setEditProductForm] = useState<EditProductFormState>({
+    id: '',
+    name: '',
+    category: 'Umumiy',
+    sectorId: '',
+    quantity: '',
+    unit: 'dona',
+    weightKg: '',
+    payerId: '',
+    clientName: '',
+    storageTariffId: 'cs-12',
+    notes: '',
+    reason: ''
+  });
   const [payers, setPayers] = useState<ContractPayer[]>(INITIAL_PAYERS);
   const [isPayerModalOpen, setIsPayerModalOpen] = useState(false);
   const [editingPayer, setEditingPayer] = useState<ContractPayer | null>(null);
@@ -69,6 +103,7 @@ export default function Home() {
   const [customsCategoryFilter, setCustomsCategoryFilter] = useState<'ALL' | CustomsServiceCategory>('ALL');
   const [customsSearch, setCustomsSearch] = useState('');
   const [historyFilter, setHistoryFilter] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
+  const [historySectorFilter, setHistorySectorFilter] = useState<'ALL' | string>('ALL');
   const [historySearch, setHistorySearch] = useState<string>('');
 
   // 3.2. Bojxona xizmatini tahrirlash / yangi xizmat qo'shish modali
@@ -103,6 +138,7 @@ export default function Home() {
   // 3.5. Chiqim amali uchun transport turi (Omborga tushirish / Разгрузка va Yukni ortish / Погрузка)
   const [includeExitUnloading, setIncludeExitUnloading] = useState<boolean>(true); // Chiqimda tushirish xizmati to'lovini yoqish/o'chirish
   const [includeExitLoading, setIncludeExitLoading] = useState<boolean>(true); // Chiqimda yuk ortish xizmati to'lovini yoqish/o'chirish
+  const [exitLoadingCount, setExitLoadingCount] = useState<number>(1); // Chiqimda yuk ortilgan mashinalar (transport) soni
   const [selectedUnloadingServiceId, setSelectedUnloadingServiceId] = useState<string>('cs-8'); // Kirimda ko'rsatilgan tushirish xizmati
   const [selectedStorageTariffId, setSelectedStorageTariffId] = useState<string>('cs-12'); // 2-rasm Saqlash tarifi (10-19 bandlar)
   const [selectedLoadingServiceId, setSelectedLoadingServiceId] = useState<string>('cs-8'); // Standart fura kara bilan yuklash
@@ -216,30 +252,20 @@ export default function Home() {
   // 10. Xodimlarni qo'shish va huquqlarini boshqarish modali (Faqat Super Admin uchun)
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userForm, setUserForm] = useState<{
-    fullName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    canManageTariffs: boolean;
-    canManageWarehouse: boolean;
-    canLinkTariffs: boolean;
-    canHandleHazardous: boolean;
-    allowedSectorIds: string[];
-    canStockMovement: boolean;
-    canViewFinances: boolean;
-  }>({
+  const [userForm, setUserForm] = useState<UserFormState>({
     fullName: '',
     email: '',
-    password: 'password123',
+    password: '',
     role: 'USER',
     canManageTariffs: false,
     canManageWarehouse: false,
     canLinkTariffs: false,
     canHandleHazardous: false,
-    allowedSectorIds: ['sec-2', 'sec-3'],
+    allowedSectorIds: ['sec-b', 'sec-c'],
     canStockMovement: true,
-    canViewFinances: false
+    canViewFinances: false,
+    canEditProducts: false,
+    canViewEditLogs: false
   });
 
   // Xabarnoma (Toast)
@@ -251,69 +277,67 @@ export default function Home() {
 
   // PostgreSQL bazasidan va brauzer xotirasidan yuklash
   useEffect(() => {
+    // Eski imitatsiya (mock) kesh kalitlarini tozalash
+    ['jb_stored_products_v9_active', 'jb_users_list_v8', 'jb_movements_v9_yearly', 'jb_payers_v8', 'jb_edit_logs_v1'].forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
+
     // 1. Dastlabki tezkor yuklash (localStorage cache)
-    const savedUser = localStorage.getItem('uzw_active_user');
-    if (savedUser) {
-      try { setCurrentUser(JSON.parse(savedUser)); } catch { setCurrentUser(null); }
-    }
-    const savedWh = localStorage.getItem('jb_warehouse_v8');
-    if (savedWh) {
-      try {
-        const parsed = JSON.parse(savedWh);
-        setWarehouse(parsed);
-        if (parsed.sectors?.length > 0) setSelectedSector(parsed.sectors[1] || parsed.sectors[0]);
-      } catch {}
-    }
-    const savedProds = localStorage.getItem('jb_stored_products_v9_active');
-    if (savedProds) {
-      try { setStoredProducts(JSON.parse(savedProds)); } catch {}
-    }
-    const savedTariffs = localStorage.getItem('jb_tariffs_v8');
-    if (savedTariffs) {
-      try { setTariffs(JSON.parse(savedTariffs)); } catch {}
-    }
-    const savedUsers = localStorage.getItem('jb_users_list_v8');
-    if (savedUsers) {
-      try { setUsersList(JSON.parse(savedUsers)); } catch {}
-    }
-    const savedMoves = localStorage.getItem('jb_movements_v9_yearly');
-    if (savedMoves) {
-      try { setMovements(JSON.parse(savedMoves)); } catch {}
-    }
-    const savedPayers = localStorage.getItem('jb_payers_v8');
-    if (savedPayers) {
-      try { setPayers(JSON.parse(savedPayers)); } catch {}
-    }
-    const savedCustoms = localStorage.getItem('jb_customs_services_v1');
-    if (savedCustoms) {
-      try { setCustomsServices(JSON.parse(savedCustoms)); } catch {}
+    const savedLang = localStorage.getItem('uzw_lang') as Language | null;
+    if (savedLang && ['uz', 'ru', 'en'].includes(savedLang)) {
+      setLangState(savedLang);
     }
 
     // 2. PostgreSQL Server API dan to'liq va eng so'nggi ma'lumotlarni sinxronlash
     async function syncFromDatabase() {
       try {
+        // 0. Dastlabki bir martalik Super Admin registratsiyasi kerakmi yoki yo'qligini tekshirish
+        const setupRes = await api.auth.checkSetup().catch(() => null);
+        if (setupRes?.needsSetup) {
+          setNeedsInitialSetup(true);
+          setCurrentUser(null);
+          setUsersList([]);
+          setStoredProducts([]);
+          setMovements([]);
+          setPayers([]);
+          setEditLogs([]);
+          localStorage.removeItem('uzw_active_user');
+          localStorage.removeItem('uzw_token');
+        } else {
+          setNeedsInitialSetup(false);
+          // Server JWT token orqali joriy foydalanuvchi va huquqlarini tekshirish
+          const meRes = await api.auth.me().catch(() => null);
+          if (meRes?.user) {
+            setCurrentUser(meRes.user);
+            localStorage.setItem('uzw_active_user', JSON.stringify(meRes.user));
+          } else {
+            setCurrentUser(null);
+            localStorage.removeItem('uzw_active_user');
+          }
+        }
+
         // Warehouse & Sectors
         const whRes = await api.warehouse.get().catch(() => null);
         if (whRes?.warehouse) {
           setWarehouse(whRes.warehouse);
           if (whRes.warehouse.sectors?.length > 0) {
-            setSelectedSector(whRes.warehouse.sectors[1] || whRes.warehouse.sectors[0]);
+            setSelectedSector(whRes.warehouse.sectors[0]);
           }
-          localStorage.setItem('jb_warehouse_v8', JSON.stringify(whRes.warehouse));
+          localStorage.setItem('jb_warehouse_v10', JSON.stringify(whRes.warehouse));
         }
 
         // Stored Products
         const prodRes = await api.products.getAll().catch(() => null);
-        if (prodRes?.products && prodRes.products.length > 0) {
+        if (prodRes?.products) {
           setStoredProducts(prodRes.products);
-          localStorage.setItem('jb_stored_products_v9_active', JSON.stringify(prodRes.products));
+          localStorage.setItem('jb_stored_products_v10', JSON.stringify(prodRes.products));
         }
 
         // Payers
         const payersRes = await api.payers.getAll().catch(() => null);
-        if (payersRes?.payers && payersRes.payers.length > 0) {
+        if (payersRes?.payers) {
           setPayers(payersRes.payers);
-          localStorage.setItem('jb_payers_v8', JSON.stringify(payersRes.payers));
+          localStorage.setItem('jb_payers_v10', JSON.stringify(payersRes.payers));
         }
 
         // Customs Services
@@ -325,9 +349,9 @@ export default function Home() {
 
         // Movements
         const movRes = await api.movements.getAll().catch(() => null);
-        if (movRes?.movements && movRes.movements.length > 0) {
+        if (movRes?.movements) {
           setMovements(movRes.movements);
-          localStorage.setItem('jb_movements_v9_yearly', JSON.stringify(movRes.movements));
+          localStorage.setItem('jb_movements_v10', JSON.stringify(movRes.movements));
         }
 
         // Tariffs
@@ -339,9 +363,16 @@ export default function Home() {
 
         // Users
         const usersRes = await api.users.getAll().catch(() => null);
-        if (usersRes?.users && usersRes.users.length > 0) {
+        if (usersRes?.users) {
           setUsersList(usersRes.users);
-          localStorage.setItem('jb_users_list_v8', JSON.stringify(usersRes.users));
+          localStorage.setItem('jb_users_list_v10', JSON.stringify(usersRes.users));
+        }
+
+        // Edit Logs (Tahrirlar tarixi)
+        const editLogsRes = await api.editLogs.getAll().catch(() => null);
+        if (editLogsRes?.editLogs) {
+          setEditLogs(editLogsRes.editLogs);
+          localStorage.setItem('jb_edit_logs_v10', JSON.stringify(editLogsRes.editLogs));
         }
       } catch (e) {
         console.warn('PostgreSQL sinxronlashda xatolik:', e);
@@ -354,12 +385,12 @@ export default function Home() {
   // Ma'lumotlarni doimiy saqlash
   const saveWarehouseData = (updatedWh: Warehouse) => {
     setWarehouse(updatedWh);
-    localStorage.setItem('jb_warehouse_v8', JSON.stringify(updatedWh));
+    localStorage.setItem('jb_warehouse_v10', JSON.stringify(updatedWh));
   };
 
   const saveProductsData = (updatedProds: StoredProduct[]) => {
     setStoredProducts(updatedProds);
-    localStorage.setItem('jb_stored_products_v9_active', JSON.stringify(updatedProds));
+    localStorage.setItem('jb_stored_products_v10', JSON.stringify(updatedProds));
   };
 
   const saveTariffsData = (updatedTariffs: Tariff[]) => {
@@ -369,22 +400,27 @@ export default function Home() {
 
   const saveUsersData = (updatedUsers: User[]) => {
     setUsersList(updatedUsers);
-    localStorage.setItem('jb_users_list_v8', JSON.stringify(updatedUsers));
+    localStorage.setItem('jb_users_list_v10', JSON.stringify(updatedUsers));
   };
 
   const savePayersData = (updatedPayers: ContractPayer[]) => {
     setPayers(updatedPayers);
-    localStorage.setItem('jb_payers_v8', JSON.stringify(updatedPayers));
+    localStorage.setItem('jb_payers_v10', JSON.stringify(updatedPayers));
   };
 
   const saveMovementsData = (updatedMoves: CargoMovement[]) => {
     setMovements(updatedMoves);
-    localStorage.setItem('jb_movements_v9_yearly', JSON.stringify(updatedMoves));
+    localStorage.setItem('jb_movements_v10', JSON.stringify(updatedMoves));
   };
 
   const saveCustomsServicesData = (updatedCustoms: CustomsService[]) => {
     setCustomsServices(updatedCustoms);
     localStorage.setItem('jb_customs_services_v1', JSON.stringify(updatedCustoms));
+  };
+
+  const saveEditLogsData = (updatedLogs: ProductEditLog[]) => {
+    setEditLogs(updatedLogs);
+    localStorage.setItem('jb_edit_logs_v10', JSON.stringify(updatedLogs));
   };
 
   // =========================================================================
@@ -409,6 +445,10 @@ export default function Home() {
   const canStockMovement = isSuperAdmin || (currentUser?.permissions ? Boolean(currentUser.permissions.canStockMovement) : (currentUser?.role !== 'ACCOUNTANT'));
   // 💰 Pul va to'lov ma'lumotlarini ko'rish vakolati (Super Admin, Buxgalter yoki moliya ruxsati berilgan xodimlar)
   const canViewFinances = isSuperAdmin || isAccountant || Boolean(currentUser?.permissions?.canViewFinances);
+  // ✏️ Kiritilgan yukni tahrirlash (xatoni to'g'rilash) huquqi (Super Admin yoki ruxsat berilgan xodim)
+  const canEditProducts = isSuperAdmin || Boolean(currentUser?.permissions?.canEditProducts);
+  // 📋 1 oylik tahrirlar (to'g'rilangan yuklar) hisobotini ko'rish huquqi
+  const canViewEditLogs = isSuperAdmin || Boolean(currentUser?.permissions?.canViewEditLogs);
 
   // =========================================================================
   // BUXGALTERIYA VA CHIQIMLAR TAHLILI (KUNLIK, OYLIK VA XODIMLAR BO'YICHA)
@@ -668,35 +708,38 @@ export default function Home() {
 
   // Chiqim to'lov holatini o'zgartirish (Buxgalter uchun: To'langan / Kutilmoqda)
   const handleTogglePaymentStatus = (movementId: string) => {
+    let targetStatus: 'PAID' | 'PENDING' = 'PAID';
     const updatedMoves = movements.map(m => {
       if (m.id === movementId) {
         const nextStatus = m.paymentStatus === 'PAID' ? 'PENDING' : 'PAID';
+        targetStatus = nextStatus as 'PAID' | 'PENDING';
         return {
           ...m,
-          paymentStatus: nextStatus as 'PAID' | 'PENDING',
-          paidAt: nextStatus === 'PAID' ? new Date().toISOString() : undefined
+          paymentStatus: targetStatus,
+          paidAt: targetStatus === 'PAID' ? new Date().toISOString() : undefined
         };
       }
       return m;
     });
     saveMovementsData(updatedMoves);
+    api.movements.updatePayment(movementId, targetStatus).catch(err => console.warn('Payment status sync error:', err));
     showToast("To'lov holati muvaffaqiyatli o'zgartirildi!");
   };
 
-  // Sektor bilan ishlash huquqini tekshirish
+  // Sektor bilan ishlash va undagi yuklarni ko'rish huquqini tekshirish
   const checkSectorAccess = (sector: Sector | null, user: User | null): { allowed: boolean; reason?: string } => {
     if (!user || !sector) return { allowed: false, reason: 'Tizimga kiring yoki sektorni tanlang' };
     if (user.role === 'SUPER_ADMIN') return { allowed: true };
 
     // 1. XAVFLI YUKLAR BILAN ISHLAY OLMAYDIGAN XODIM TEKSHIRUVI:
-    if (sector.type === 'HAZARDOUS' && !user.permissions?.canHandleHazardous) {
+    if (sector.type === 'HAZARDOUS' && !user.permissions?.canHandleHazardous && user.role !== 'ACCOUNTANT') {
       return {
         allowed: false,
         reason: 'Ushbu sektor "Xavfli Yuklar & Kimyoviy" toifasiga kiradi. Sizda xavfli yuklar bilan ishlash ruxsati (sertifikati) yo\'q!'
       };
     }
 
-    // 2. USER FAQAT O'ZIDA HUQUQI BO'LGAN OMBORLARGA QO'YA OLADI:
+    // 2. XODIM FAQAT O'ZIDA HUQUQI BO'LGAN OMBORLARNI VA ULARDAGI YUKLARNI KO'RA OLADI:
     const allowed = user.permissions?.allowedSectorIds || [];
     if (!allowed.includes('ALL') && !allowed.includes(sector.id)) {
       return {
@@ -708,12 +751,173 @@ export default function Home() {
     return { allowed: true };
   };
 
-  // Har bir sektor ichidagi jami tovarlar soni va birliklar yig'indisi (avtomatik hisob)
+  // Joriy xodimga ruxsat berilgan sektorlar, mahsulotlar va harakatlar (Yopilgan sklad yuklari ko'rinmaydi)
+  const accessibleSectors = useMemo(() => {
+    return warehouse.sectors.filter(sec => checkSectorAccess(sec, currentUser).allowed);
+  }, [warehouse.sectors, currentUser]);
+
+  const accessibleSectorIds = useMemo(() => {
+    return new Set(accessibleSectors.map(sec => sec.id));
+  }, [accessibleSectors]);
+
+  const accessibleProducts = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'SUPER_ADMIN') return storedProducts;
+    return storedProducts.filter(p => accessibleSectorIds.has(p.sectorId));
+  }, [storedProducts, currentUser, accessibleSectorIds]);
+
+  const accessibleMovements = useMemo(() => {
+    if (!currentUser) return [];
+    const allowedNames = new Set(accessibleSectors.map(s => s.name.toLowerCase().trim()));
+    const productNamesSet = new Set(accessibleProducts.map(p => (p.name || '').toLowerCase().trim()));
+    const productIdsSet = new Set(accessibleProducts.map(p => p.id));
+
+    // 1. Mavjud movements ro'yxatidan faqat ruxsat etilgan sektorlarga tegishli haqiqiy harakatlarni olish
+    const realMoves = movements.filter(m => {
+      // Sektor ruxsati tekshiruvi
+      let inAllowedSector = false;
+      if ((m as any).sectorId) {
+        inAllowedSector = accessibleSectorIds.has((m as any).sectorId);
+      } else {
+        const secName = (m.sectorName || '').toLowerCase().trim();
+        inAllowedSector = Boolean(secName && allowedNames.has(secName));
+      }
+      if (!inAllowedSector) return false;
+
+      // Agar eski demo/seed yozuvi bo'lsa (mov-2025... / mov-2026...) va u ombordagi haqiqiy yukka tegishli bo'lmasa, chiqarib tashlash
+      const isMockSeed = /^mov-202[56]/i.test(m.id || '') && !m.productId;
+      if (isMockSeed) {
+        const mProdName = (m.productName || '').toLowerCase().trim();
+        if (!productNamesSet.has(mProdName)) return false;
+      }
+
+      if (m.productId && !productIdsSet.has(m.productId) && currentUser.role !== 'SUPER_ADMIN') {
+        const mProdName = (m.productName || '').toLowerCase().trim();
+        if (!productNamesSet.has(mProdName)) return false;
+      }
+
+      return true;
+    });
+
+    // 2. Ruxsat berilgan sektordagi barcha haqiqiy yuklarning Kirim (IN) va Chiqim (exitHistory) harakatlarini to'liq aks ettirish
+    const combined: CargoMovement[] = [...realMoves];
+    const hasInForProduct = new Set(
+      realMoves.filter(m => m.type === 'IN').map(m => m.productId || (m.productName || '').toLowerCase().trim())
+    );
+    const hasOutKey = new Set(
+      realMoves.filter(m => m.type === 'OUT').map(m => m.invoiceNo || `${(m.productName || '').toLowerCase().trim()}_${m.date}_${m.quantity}`)
+    );
+
+    accessibleProducts.forEach(prod => {
+      const prodKey = prod.id;
+      const prodNameKey = (prod.name || '').toLowerCase().trim();
+      if (!hasInForProduct.has(prodKey) && !hasInForProduct.has(prodNameKey)) {
+        combined.push({
+          id: `in-${prod.id}`,
+          invoiceNo: `NAK-IN-${prod.id.toUpperCase()}`,
+          productId: prod.id,
+          sectorId: prod.sectorId,
+          sectorName: prod.sectorName,
+          productName: prod.name,
+          type: 'IN',
+          quantity: prod.initialQuantity || prod.quantity,
+          initialQuantity: prod.initialQuantity || prod.quantity,
+          remainingQuantity: prod.quantity,
+          unit: prod.unit,
+          weightKg: prod.initialWeightKg || prod.weightKg,
+          initialWeightKg: prod.initialWeightKg || prod.weightKg,
+          remainingWeightKg: prod.weightKg,
+          userName: prod.placedBy || 'Omborchi',
+          userRole: prod.placedByRole || 'ADMIN',
+          placedBy: prod.placedBy || 'Omborchi',
+          placedDate: prod.entryDate,
+          date: prod.entryDate,
+          time: prod.entryTime || '09:00',
+          clientName: prod.clientName,
+          transportType: prod.obrabotkaService,
+          obrabotkaCostUZS: (prod.obrabotkaCost || 0) + (prod.obrabotkaVat || 0),
+          notes: prod.notes || 'Kirim amali muvaffaqiyatli bajarildi'
+        });
+      }
+
+      if (Array.isArray(prod.exitHistory)) {
+        prod.exitHistory.forEach(rec => {
+          const outKey = rec.invoiceNo || `${prodNameKey}_${rec.exitDate}_${rec.quantity}`;
+          if (!hasOutKey.has(outKey)) {
+            combined.push({
+              id: `out-${prod.id}-${rec.id}`,
+              invoiceNo: rec.invoiceNo,
+              productId: prod.id,
+              sectorId: prod.sectorId,
+              sectorName: prod.sectorName,
+              productName: prod.name,
+              type: 'OUT',
+              quantity: rec.quantity,
+              initialQuantity: prod.initialQuantity || prod.quantity,
+              remainingQuantity: rec.remainingQuantity,
+              unit: prod.unit,
+              weightKg: rec.weightKg,
+              initialWeightKg: prod.initialWeightKg || prod.weightKg,
+              remainingWeightKg: rec.remainingWeightKg,
+              userName: rec.exitedBy || 'Omborchi',
+              userRole: rec.exitedByRole || 'ADMIN',
+              placedBy: prod.placedBy || 'Omborchi',
+              placedDate: prod.entryDate,
+              date: rec.exitDate,
+              time: rec.exitTime || '12:00',
+              clientName: prod.clientName,
+              daysStored: rec.daysStored,
+              loadingType: rec.loadingService,
+              loadingCostUZS: rec.loadingCost,
+              storageCostUZS: (rec.storageBaseCost || 0) + (rec.storageVat || 0),
+              totalCostUZS: rec.totalCost,
+              grandTotalUZS: rec.totalCost,
+              receiverInn: rec.receiverInn,
+              receiverName: rec.receiverName,
+              receiverPerson: rec.receiverPerson,
+              notes: rec.notes || 'Chiqim amali muvaffaqiyatli bajarildi'
+            });
+          }
+        });
+      }
+    });
+
+    return combined.sort((a, b) => {
+      const dtA = `${a.date || ''} ${a.time || '00:00'}`;
+      const dtB = `${b.date || ''} ${b.time || '00:00'}`;
+      return dtB.localeCompare(dtA);
+    });
+  }, [movements, currentUser, accessibleSectorIds, accessibleSectors, accessibleProducts]);
+
+  // Agar xodim almashganda tanlangan sektor yopiq bo'lsa, ruxsat berilgan sektorga o'tkazish
+  useEffect(() => {
+    if (!currentUser) return;
+    if (selectedSector && !checkSectorAccess(selectedSector, currentUser).allowed) {
+      setSelectedSector(accessibleSectors[0] || null);
+    }
+    if (selectedSectorFilter !== 'ALL' && !accessibleSectorIds.has(selectedSectorFilter)) {
+      setSelectedSectorFilter('ALL');
+    }
+    if (historySectorFilter !== 'ALL' && !accessibleSectorIds.has(historySectorFilter)) {
+      setHistorySectorFilter('ALL');
+    }
+  }, [currentUser, accessibleSectors, accessibleSectorIds, selectedSector, selectedSectorFilter, historySectorFilter]);
+
+  // Har bir sektor ichidagi jami tovarlar soni va birliklar yig'indisi (avtomatik hisob, yopiq sektorlar yashiriladi)
   const sectorStockMap = useMemo(() => {
     const map: Record<string, { totalItems: number; unitsSummary: string }> = {};
 
     warehouse.sectors.forEach(sec => {
-      const prods = storedProducts.filter(p => p.sectorId === sec.id);
+      const access = checkSectorAccess(sec, currentUser);
+      if (!access.allowed) {
+        map[sec.id] = {
+          totalItems: 0,
+          unitsSummary: '🔒 Yopiq sektor (Yuklarni ko\'rish taqiqlangan)'
+        };
+        return;
+      }
+
+      const prods = accessibleProducts.filter(p => p.sectorId === sec.id);
       const unitsMap: Record<string, number> = {};
       prods.forEach(p => {
         const u = p.unit.toLowerCase().trim();
@@ -731,27 +935,27 @@ export default function Home() {
     });
 
     return map;
-  }, [warehouse.sectors, storedProducts]);
+  }, [warehouse.sectors, accessibleProducts, currentUser]);
 
-  // Jami ombordagi barcha tovarlarning umumiy qoldig'i (birliklar kesimida)
+  // Jami ombordagi ruxsat etilgan tovarlarning umumiy qoldig'i (birliklar kesimida)
   const globalUnitsSummary = useMemo(() => {
     const summary: Record<string, number> = {};
-    storedProducts.forEach(p => {
+    accessibleProducts.forEach(p => {
       const u = (p.unit || 'dona').toLowerCase().trim();
       summary[u] = (summary[u] || 0) + Number(p.quantity || 0);
     });
     return summary;
-  }, [storedProducts]);
+  }, [accessibleProducts]);
 
   // Tanlangan sektor ichidagi mahsulotlar
   const currentSectorProducts = useMemo(() => {
-    if (!selectedSector) return [];
-    return storedProducts.filter(p => p.sectorId === selectedSector.id);
-  }, [selectedSector, storedProducts]);
+    if (!selectedSector || !accessibleSectorIds.has(selectedSector.id)) return [];
+    return accessibleProducts.filter(p => p.sectorId === selectedSector.id);
+  }, [selectedSector, accessibleProducts, accessibleSectorIds]);
 
-  // Ombor yuklari jadvali uchun filtrlangan mahsulotlar (Sektor va Qidiruv bo'yicha)
+  // Ombor yuklari jadvali uchun filtrlangan mahsulotlar (Faqat ruxsat etilgan sektorlar + Qidiruv bo'yicha)
   const filteredWarehouseProducts = useMemo(() => {
-    return storedProducts.filter(p => {
+    return accessibleProducts.filter(p => {
       // 1. Sektor bo'yicha filtr
       if (selectedSectorFilter !== 'ALL' && p.sectorId !== selectedSectorFilter) {
         return false;
@@ -777,7 +981,7 @@ export default function Home() {
              pContract.includes(q) ||
              pObrabotka.includes(q);
     });
-  }, [storedProducts, selectedSectorFilter, productSearchQuery, payers]);
+  }, [accessibleProducts, selectedSectorFilter, productSearchQuery, payers]);
 
   // Kirim modalida to'lovchilarni korxona nomi yoki STIR (INN) bo'yicha jonli qidirish
   const filteredPayers = useMemo(() => {
@@ -964,12 +1168,14 @@ export default function Home() {
     let loadingCleanName = 'Ortish xizmatisiz (Mijoz o\'z kuchi bilan)';
 
     if (includeExitLoading) {
-      loadingCleanName = (loadingSvc.nameUz || loadingSvc.name)
+      const count = Math.max(1, Number(exitLoadingCount) || 1);
+      const baseClean = (loadingSvc.nameUz || loadingSvc.name)
         .replace('ortish / tushirish', 'ortish (Погрузка)')
         .replace('yuklash / tushirish', 'ortish (Погрузка)')
         .replace('tushirish/ortish', 'ortish (Погрузка)');
-      loadingBase = loadingSvc.basePrice;
-      loadingVat = loadingSvc.vatAmount || Math.round(loadingBase * 0.12);
+      loadingCleanName = count > 1 ? `${baseClean} (×${count} ta mashina)` : baseClean;
+      loadingBase = loadingSvc.basePrice * count;
+      loadingVat = (loadingSvc.vatAmount || Math.round(loadingSvc.basePrice * 0.12)) * count;
       loadingTotal = loadingBase + loadingVat;
     }
 
@@ -1023,10 +1229,11 @@ export default function Home() {
     });
 
     if (includeExitLoading && loadingTotal > 0) {
+      const count = Math.max(1, Number(exitLoadingCount) || 1);
       appliedExitServices.push({
         serviceId: loadingSvc.id,
-        name: `Yukni ortish (Погрузка): ${loadingCleanName} (⚡ 1 martalik to'lov)`,
-        quantity: 1,
+        name: `Yukni ortish (Погрузка): ${loadingCleanName} (⚡ ${count} ta transport)`,
+        quantity: count,
         unit: loadingSvc.unit,
         basePrice: loadingBase,
         vatAmount: loadingVat,
@@ -1078,7 +1285,7 @@ export default function Home() {
       totalVat,
       totalCost: grandTotal
     };
-  }, [selectedProductToExit, exitQuantity, exitWeightKg, includeExitUnloading, selectedUnloadingServiceId, selectedStorageTariffId, includeExitLoading, selectedLoadingServiceId, selectedChiqimAdditionalIds, customsServices]);
+  }, [selectedProductToExit, exitQuantity, exitWeightKg, includeExitUnloading, selectedUnloadingServiceId, selectedStorageTariffId, includeExitLoading, exitLoadingCount, selectedLoadingServiceId, selectedChiqimAdditionalIds, customsServices]);
 
   // Dashboard Chart uchun so'nggi 7 kunlik amallar soni
   const chartData = useMemo(() => {
@@ -1091,7 +1298,7 @@ export default function Home() {
       const dateStr = d.toISOString().slice(0, 10);
       const displayDate = `${d.getDate()}-${['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'][d.getMonth()]}`;
 
-      const dayMoves = movements.filter(m => m.date === dateStr);
+      const dayMoves = accessibleMovements.filter(m => m.date === dateStr);
       const inCount = dayMoves.filter(m => m.type === 'IN').reduce((acc, m) => acc + m.quantity, 0);
       const outCount = dayMoves.filter(m => m.type === 'OUT').reduce((acc, m) => acc + m.quantity, 0);
 
@@ -1100,7 +1307,7 @@ export default function Home() {
 
     const maxCount = Math.max(...days.map(d => Math.max(d.inCount, d.outCount, 50)), 100);
     return { days, maxCount };
-  }, [movements]);
+  }, [accessibleMovements]);
 
   // Bojxona preyskurantini filtrlash va qidiruv
   const filteredCustomsServices = useMemo(() => {
@@ -1118,6 +1325,58 @@ export default function Home() {
 
   // Kirish amali (Faqat avtorizatsiya orqali kiriladi)
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Bir martalik dastlabki Super Admin ro'yxatdan o'tish amali
+  const handleSetupSuperAdmin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanName = (setupFullName || '').trim();
+    const cleanEmail = (loginEmail || '').toLowerCase().trim();
+    const cleanPass = (loginPassword || '').trim();
+    const cleanConfirm = (setupConfirmPassword || '').trim();
+
+    if (!cleanName) {
+      showToast('Iltimos, ism-sharifingizni kiriting!');
+      return;
+    }
+    if (!cleanEmail) {
+      showToast('Iltimos, elektron pochtangizni kiriting!');
+      return;
+    }
+    if (cleanPass.length < 6) {
+      showToast('Parol kamida 6 ta belgidan iborat bo\'lishi shart!');
+      return;
+    }
+    if (cleanPass !== cleanConfirm) {
+      showToast('Kiritilgan parollar bir-biriga mos kelmadi!');
+      return;
+    }
+
+    setLoginLoading(true);
+    try {
+      const res = await api.auth.setupSuperAdmin(cleanName, cleanEmail, cleanPass);
+      if (res.success && res.user) {
+        setNeedsInitialSetup(false);
+        setCurrentUser(res.user);
+        setUsersList([res.user]);
+        setWarehouse(prev => ({ ...prev, manager: res.user.fullName }));
+        setSetupFullName('');
+        setLoginEmail('');
+        setLoginPassword('');
+        setSetupConfirmPassword('');
+        localStorage.setItem('uzw_active_user', JSON.stringify(res.user));
+        localStorage.setItem('jb_users_list_v10', JSON.stringify([res.user]));
+        showToast(`🎉 Tabriklaymiz, ${res.user.fullName}! Bosh Rahbar (Super Admin) sifatida ro'yxatdan o'tdingiz.`);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Ro\'yxatdan o\'tishda xatolik yuz berdi!');
+      // Agar allaqachon ro'yxatdan o'tilgan bo'lsa, login ekraniga o'tkazamiz
+      api.auth.checkSetup().then(s => {
+        if (s && !s.needsSetup) setNeedsInitialSetup(false);
+      }).catch(() => {});
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1138,32 +1397,41 @@ export default function Home() {
       const res = await api.auth.login(cleanEmail, cleanPass);
       if (res.success && res.user) {
         setCurrentUser(res.user);
+        setLoginEmail('');
+        setLoginPassword('');
         localStorage.setItem('uzw_active_user', JSON.stringify(res.user));
+        api.products.getAll().then((prodRes) => {
+          if (prodRes?.products) {
+            setStoredProducts(prodRes.products);
+            localStorage.setItem('jb_stored_products_v10', JSON.stringify(prodRes.products));
+          }
+        }).catch(() => {});
+        api.movements.getAll().then((movRes) => {
+          if (movRes?.movements) {
+            setMovements(movRes.movements);
+            localStorage.setItem('jb_movements_v10', JSON.stringify(movRes.movements));
+          }
+        }).catch(() => {});
+        api.payers.getAll().then((payRes) => {
+          if (payRes?.payers) {
+            setPayers(payRes.payers);
+            localStorage.setItem('jb_payers_v10', JSON.stringify(payRes.payers));
+          }
+        }).catch(() => {});
+        if (res.user.role === 'SUPER_ADMIN') {
+          api.users.getAll().then((uRes) => {
+            if (uRes?.users) {
+              setUsersList(uRes.users);
+              localStorage.setItem('jb_users_list_v10', JSON.stringify(uRes.users));
+            }
+          }).catch(() => {});
+        }
         if (res.user.role === 'ACCOUNTANT') setActiveMenu('accounting');
         else if (res.user.role === 'USER') setActiveMenu('warehouse');
         showToast(`Xush kelibsiz, ${res.user.fullName}! (${res.user.role})`);
       }
     } catch (err: any) {
-      // Local fallback for offline mode
-      const allUsers = [...usersList, ...INITIAL_USERS];
-      const found = allUsers.find(u => {
-        const uEmail = u.email.toLowerCase().trim();
-        return (
-          uEmail === cleanEmail ||
-          uEmail.replace('@jbgroup.uz', '@uzw.uz') === cleanEmail ||
-          uEmail.replace('@uzw.uz', '@jbgroup.uz') === cleanEmail
-        );
-      });
-
-      if (found && (cleanPass === 'password123' || cleanPass === found.password)) {
-        setCurrentUser(found);
-        localStorage.setItem('uzw_active_user', JSON.stringify(found));
-        if (found.role === 'ACCOUNTANT') setActiveMenu('accounting');
-        else if (found.role === 'USER') setActiveMenu('warehouse');
-        showToast(`Xush kelibsiz, ${found.fullName}! (${found.role})`);
-      } else {
-        showToast(err.message || 'Login yoki parol noto\'g\'ri!');
-      }
+      showToast(err.message || 'Login yoki parol noto\'g\'ri!');
     } finally {
       setLoginLoading(false);
     }
@@ -1173,6 +1441,8 @@ export default function Home() {
   const handleLogout = () => {
     api.auth.logout();
     setCurrentUser(null);
+    setLoginEmail('');
+    setLoginPassword('');
     showToast('Tizimdan muvaffaqiyatli chiqildi.');
   };
 
@@ -1184,15 +1454,17 @@ export default function Home() {
     setUserForm({
       fullName: '',
       email: '',
-      password: 'password123',
+      password: '',
       role: 'USER',
       canManageTariffs: false,
       canManageWarehouse: false,
       canLinkTariffs: false,
       canHandleHazardous: false,
-      allowedSectorIds: ['sec-2', 'sec-3'],
+      allowedSectorIds: ['sec-b', 'sec-c'],
       canStockMovement: true,
-      canViewFinances: false
+      canViewFinances: false,
+      canEditProducts: false,
+      canViewEditLogs: false
     });
     setIsUserModalOpen(true);
   };
@@ -1202,15 +1474,17 @@ export default function Home() {
     setUserForm({
       fullName: u.fullName,
       email: u.email,
-      password: u.password || 'password123',
+      password: '',
       role: u.role,
       canManageTariffs: u.permissions?.canManageTariffs ?? false,
       canManageWarehouse: u.permissions?.canManageWarehouse ?? false,
       canLinkTariffs: u.permissions?.canLinkTariffs ?? false,
       canHandleHazardous: u.permissions?.canHandleHazardous ?? false,
-      allowedSectorIds: u.permissions?.allowedSectorIds ?? ['sec-2'],
+      allowedSectorIds: u.permissions?.allowedSectorIds ?? ['sec-b'],
       canStockMovement: u.permissions?.canStockMovement ?? true,
-      canViewFinances: u.permissions?.canViewFinances ?? (u.role === 'SUPER_ADMIN')
+      canViewFinances: u.permissions?.canViewFinances ?? (u.role === 'SUPER_ADMIN'),
+      canEditProducts: u.permissions?.canEditProducts ?? (u.role === 'SUPER_ADMIN'),
+      canViewEditLogs: u.permissions?.canViewEditLogs ?? (u.role === 'SUPER_ADMIN')
     });
     setIsUserModalOpen(true);
   };
@@ -1229,7 +1503,9 @@ export default function Home() {
       canHandleHazardous: userForm.role === 'SUPER_ADMIN' ? true : userForm.canHandleHazardous,
       allowedSectorIds: userForm.role === 'SUPER_ADMIN' ? ['ALL'] : userForm.allowedSectorIds,
       canStockMovement: userForm.canStockMovement,
-      canViewFinances: userForm.role === 'SUPER_ADMIN' ? true : userForm.canViewFinances
+      canViewFinances: userForm.role === 'SUPER_ADMIN' ? true : userForm.canViewFinances,
+      canEditProducts: userForm.role === 'SUPER_ADMIN' ? true : userForm.canEditProducts,
+      canViewEditLogs: userForm.role === 'SUPER_ADMIN' ? true : userForm.canViewEditLogs
     };
 
     if (editingUser) {
@@ -1247,7 +1523,6 @@ export default function Home() {
             ...u,
             fullName: userForm.fullName,
             email: userForm.email,
-            password: userForm.password,
             role: userForm.role,
             permissions: perms
           };
@@ -1274,7 +1549,6 @@ export default function Home() {
         id: 'usr-' + Date.now(),
         fullName: userForm.fullName,
         email: userForm.email,
-        password: userForm.password,
         role: userForm.role,
         permissions: perms
       };
@@ -1295,10 +1569,212 @@ export default function Home() {
       return;
     }
     if (confirm(`Haqiqatan ham "${name}" xodimini tizimdan o'chirmoqchimisiz?`)) {
+      api.users.delete(userId).catch(err => console.warn('User delete error:', err));
       const updated = usersList.filter(u => u.id !== userId);
       saveUsersData(updated);
       showToast(`"${name}" tizimdan o'chirildi!`);
     }
+  };
+
+  // =========================================================================
+  // KIRITILGAN YUKNI TAHRIRLASH (XATONI TO'G'RILASH) VA OYLIK HISOBOTGA YOZISH
+  // =========================================================================
+  const handleOpenEditProduct = (prod: StoredProduct) => {
+    if (!canEditProducts) {
+      showToast('Sizda kiritilgan yukni tahrirlash (to\'g\'rilash) huquqi yo\'q! Bosh Rahbardan ruxsat so\'rang.');
+      return;
+    }
+    const matchedPayer = payers.find(p => p.id === prod.payerId || p.name.toLowerCase() === (prod.clientName || '').toLowerCase());
+    setEditingProduct(prod);
+    setEditProductForm({
+      id: prod.id,
+      name: prod.name,
+      category: prod.category || 'Oziq-ovqat',
+      sectorId: prod.sectorId,
+      quantity: prod.quantity,
+      unit: prod.unit || 'dona',
+      weightKg: prod.weightKg || prod.quantity,
+      payerId: matchedPayer?.id || prod.payerId || '',
+      clientName: prod.clientName || matchedPayer?.name || '',
+      storageTariffId: prod.storageTariffId || 'cs-12',
+      notes: prod.notes || '',
+      reason: ''
+    });
+    setIsEditProductModalOpen(true);
+  };
+
+  const handleSaveEditedProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    if (!canEditProducts) {
+      showToast('Sizda yuklarni tahrirlash huquqi yo\'q!');
+      return;
+    }
+    if (!editProductForm.reason.trim()) {
+      showToast('Iltimos, tahrirlash sababini kiriting!');
+      return;
+    }
+
+    const newQty = Math.max(1, Number(editProductForm.quantity) || editingProduct.quantity);
+    const newWeight = Math.max(0.1, Number(editProductForm.weightKg) || editingProduct.weightKg);
+    const targetSec = warehouse.sectors.find(s => s.id === editProductForm.sectorId) || warehouse.sectors[0];
+    const targetPayer = payers.find(p => p.id === editProductForm.payerId);
+    const targetStorageSvc = customsServices.find(s => s.id === editProductForm.storageTariffId) || customsServices.find(s => s.id === 'cs-12');
+
+    const newClientName = targetPayer ? targetPayer.name : editProductForm.clientName.trim();
+    const newSectorName = targetSec ? targetSec.name : editingProduct.sectorName;
+    const newStorageName = targetStorageSvc ? (targetStorageSvc.nameUz || targetStorageSvc.name) : editingProduct.storageTariffName;
+
+    // O'zgarishlarni solishtirish
+    const changes: ProductEditChange[] = [];
+    if (editProductForm.name.trim() !== editingProduct.name) {
+      changes.push({ field: 'name', label: 'Yuk nomi', oldValue: editingProduct.name, newValue: editProductForm.name.trim() });
+    }
+    if (newSectorName !== editingProduct.sectorName) {
+      changes.push({ field: 'sectorName', label: 'Sektor', oldValue: editingProduct.sectorName, newValue: newSectorName });
+    }
+    if (newQty !== editingProduct.quantity) {
+      changes.push({ field: 'quantity', label: 'Miqdori (soni)', oldValue: `${editingProduct.quantity} ${editingProduct.unit}`, newValue: `${newQty} ${editProductForm.unit}` });
+    } else if (editProductForm.unit !== editingProduct.unit) {
+      changes.push({ field: 'unit', label: 'Birligi', oldValue: editingProduct.unit, newValue: editProductForm.unit });
+    }
+    if (newWeight !== editingProduct.weightKg) {
+      changes.push({ field: 'weightKg', label: 'Og\'irligi (kg)', oldValue: `${editingProduct.weightKg} kg`, newValue: `${newWeight} kg` });
+    }
+    if (newClientName !== (editingProduct.clientName || '')) {
+      changes.push({ field: 'clientName', label: 'Mijoz / To\'lovchi', oldValue: editingProduct.clientName || '-', newValue: newClientName || '-' });
+    }
+    if ((newStorageName || '') !== (editingProduct.storageTariffName || '')) {
+      changes.push({ field: 'storageTariffName', label: 'Saqlash tarifi', oldValue: editingProduct.storageTariffName || '-', newValue: newStorageName || '-' });
+    }
+    if ((editProductForm.notes.trim() || '') !== (editingProduct.notes || '')) {
+      changes.push({ field: 'notes', label: 'Hujjat / Izoh', oldValue: editingProduct.notes || '-', newValue: editProductForm.notes.trim() || '-' });
+    }
+
+    if (changes.length === 0) {
+      showToast('Hech qanday ma\'lumot o\'zgartirilmadi!');
+      return;
+    }
+
+    const hasExited = Boolean(editingProduct.exitHistory && editingProduct.exitHistory.length > 0);
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 5);
+
+    const updatedProd: StoredProduct = {
+      ...editingProduct,
+      name: editProductForm.name.trim(),
+      category: editProductForm.category.trim() || 'Umumiy',
+      sectorId: targetSec.id,
+      sectorName: newSectorName,
+      quantity: newQty,
+      initialQuantity: hasExited ? editingProduct.initialQuantity : newQty,
+      unit: editProductForm.unit,
+      weightKg: newWeight,
+      initialWeightKg: hasExited ? editingProduct.initialWeightKg : newWeight,
+      payerId: targetPayer?.id || editProductForm.payerId,
+      clientName: newClientName,
+      contractNumber: targetPayer?.contractNumber || editingProduct.contractNumber,
+      contractEndDate: targetPayer?.contractEndDate || editingProduct.contractEndDate,
+      storageTariffId: targetStorageSvc?.id || editProductForm.storageTariffId,
+      storageTariffName: newStorageName,
+      storageTariffRate: targetStorageSvc?.basePrice || editingProduct.storageTariffRate,
+      storageTariffItemNo: targetStorageSvc?.itemNo || editingProduct.storageTariffItemNo,
+      storageTariffUnit: targetStorageSvc?.unit || editingProduct.storageTariffUnit,
+      dailyRatePerUnit: targetStorageSvc?.basePrice || editingProduct.dailyRatePerUnit,
+      notes: editProductForm.notes.trim()
+    };
+
+    const updatedList = storedProducts.map(p => p.id === editingProduct.id ? updatedProd : p);
+    saveProductsData(updatedList);
+
+    const localLog: ProductEditLog = {
+      id: 'edit-' + Date.now(),
+      productId: editingProduct.id,
+      productName: updatedProd.name,
+      sectorName: updatedProd.sectorName,
+      clientName: updatedProd.clientName,
+      userId: currentUser?.id,
+      userName: currentUser?.fullName || 'Mas\'ul xodim',
+      userRole: currentUser?.role || 'USER',
+      date: dateStr,
+      time: timeStr,
+      month: dateStr.slice(0, 7),
+      reason: editProductForm.reason.trim(),
+      changes
+    };
+
+    try {
+      const res = await api.products.update(editingProduct.id, {
+        ...updatedProd,
+        reason: editProductForm.reason.trim(),
+        editedBy: currentUser?.fullName,
+        editedByRole: currentUser?.role,
+        editedById: currentUser?.id
+      });
+      if (res?.editLog) {
+        saveEditLogsData([res.editLog, ...editLogs]);
+      } else {
+        saveEditLogsData([localLog, ...editLogs]);
+      }
+    } catch (err) {
+      console.warn('Product edit API sync error:', err);
+      saveEditLogsData([localLog, ...editLogs]);
+    }
+
+    setIsEditProductModalOpen(false);
+    setEditingProduct(null);
+    showToast(`✅ "${updatedProd.name}" ma'lumotlari to'g'rilandi va oylik tahrirlar hisobotiga yozildi!`);
+  };
+
+  // Oylik tahrirlar hisobotini Excel (CSV) formatida yuklab olish
+  const exportEditLogsToCSV = (logsToExport: ProductEditLog[], month: string) => {
+    if (logsToExport.length === 0) {
+      showToast('Eksport qilish uchun tahrirlar topilmadi!');
+      return;
+    }
+
+    const headers = [
+      '№',
+      'Sana',
+      'Vaqt',
+      'Tahrirlagan_Xodim',
+      'Xodim_Roli',
+      'Yuk_Nomi',
+      'Sektor',
+      'Mijoz_Tolovchi',
+      'Ozgartirilgan_Maydonlar',
+      'Tahrirlash_Sababi'
+    ];
+
+    const rows = logsToExport.map((l, idx) => {
+      const changesStr = (l.changes || [])
+        .map(c => `${c.label}: ${c.oldValue} -> ${c.newValue}`)
+        .join(' | ');
+      return [
+        idx + 1,
+        l.date,
+        l.time,
+        `"${(l.userName || '').replace(/"/g, '""')}"`,
+        `"${l.userRole || ''}"`,
+        `"${(l.productName || '').replace(/"/g, '""')}"`,
+        `"${(l.sectorName || '').replace(/"/g, '""')}"`,
+        `"${(l.clientName || '').replace(/"/g, '""')}"`,
+        `"${changesStr.replace(/"/g, '""')}"`,
+        `"${(l.reason || '').replace(/"/g, '""')}"`
+      ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `JB_GROUP_Tahrirlar_Hisoboti_${month || 'Barchasi'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Tahrirlar hisoboti Excel (CSV) formatida yuklab olindi!');
   };
 
   // =========================================================================
@@ -1383,14 +1859,14 @@ export default function Home() {
     }
     setEditingSector(sector);
     setSectorForm({
-      name: sector.name,
+      name: translateTextNode(sector.name, lang),
       code: sector.code,
       type: sector.type,
       temperature: sector.temperature || '',
       capacity: sector.capacity,
       status: sector.status,
-      allowedCargoTypes: sector.allowedCargoTypes.join(', '),
-      description: sector.description || ''
+      allowedCargoTypes: sector.allowedCargoTypes.map(item => translateTextNode(item, lang)).join(', '),
+      description: translateTextNode(sector.description || '', lang)
     });
     setIsSectorModalOpen(true);
   };
@@ -1403,14 +1879,14 @@ export default function Home() {
     }
     setEditingSector(null);
     setSectorForm({
-      name: `Yangi Sektor (${warehouse.sectors.length + 1})`,
+      name: translateTextNode(`Yangi Sektor (${warehouse.sectors.length + 1})`, lang),
       code: `SEC-0${warehouse.sectors.length + 1}`,
       type: 'DRY_STANDARD',
       temperature: '+18°C ... +22°C',
       capacity: 3000,
       status: 'Faol',
-      allowedCargoTypes: 'Quruq tovarlar, qadoqlangan yuklar',
-      description: 'Yangi saqlash bo\'linmasi'
+      allowedCargoTypes: translateTextNode('Quruq tovarlar, qadoqlangan yuklar', lang),
+      description: translateTextNode('Yangi saqlash bo\'linmasi', lang)
     });
     setIsSectorModalOpen(true);
   };
@@ -1429,23 +1905,20 @@ export default function Home() {
       .filter(Boolean);
 
     if (editingSector) {
-      const updatedSectors = warehouse.sectors.map(sec => {
-        if (sec.id === editingSector.id) {
-          return {
-            ...sec,
-            name: sectorForm.name,
-            code: sectorForm.code,
-            type: sectorForm.type,
-            temperature: sectorForm.temperature,
-            capacity: Number(sectorForm.capacity),
-            status: sectorForm.status,
-            allowedCargoTypes: allowedArr,
-            description: sectorForm.description
-          };
-        }
-        return sec;
-      });
+      const updatedSecObj: Sector = {
+        ...editingSector,
+        name: sectorForm.name,
+        code: sectorForm.code,
+        type: sectorForm.type,
+        temperature: sectorForm.temperature,
+        capacity: Number(sectorForm.capacity),
+        status: sectorForm.status,
+        allowedCargoTypes: allowedArr,
+        description: sectorForm.description
+      };
+      const updatedSectors = warehouse.sectors.map(sec => sec.id === editingSector.id ? updatedSecObj : sec);
 
+      api.warehouse.upsertSector(updatedSecObj, warehouse.id).catch(err => console.warn('Sector update sync error:', err));
       saveWarehouseData({ ...warehouse, sectors: updatedSectors });
       showToast(`"${sectorForm.name}" sektori sozlamalari yangilandi!`);
     } else {
@@ -1462,6 +1935,7 @@ export default function Home() {
       };
 
       const updatedSectors = [...warehouse.sectors, newSec];
+      api.warehouse.upsertSector(newSec, warehouse.id).catch(err => console.warn('Sector create sync error:', err));
       saveWarehouseData({ ...warehouse, sectors: updatedSectors });
       setSelectedSector(newSec);
       showToast(`Yangi "${sectorForm.name}" sektori qo'shildi!`);
@@ -1574,19 +2048,17 @@ export default function Home() {
     const featArr = tariffForm.features.split(',').map(f => f.trim()).filter(Boolean);
 
     if (editingTariff) {
-      const updatedTariffs = tariffs.map(t => {
-        if (t.id === editingTariff.id) {
-          return {
-            ...t,
-            name: tariffForm.name,
-            unitName: tariffForm.unitName,
-            pricePerUnitDay: Number(tariffForm.pricePerUnitDay),
-            minDays: Number(tariffForm.minDays),
-            features: featArr
-          };
-        }
-        return t;
-      });
+      const updatedTariffObj: Tariff = {
+        ...editingTariff,
+        name: tariffForm.name,
+        unitName: tariffForm.unitName,
+        pricePerUnitDay: Number(tariffForm.pricePerUnitDay),
+        minDays: Number(tariffForm.minDays),
+        features: featArr
+      };
+      api.tariffs.update(updatedTariffObj).catch(err => console.warn('Tariff update sync error:', err));
+
+      const updatedTariffs = tariffs.map(t => t.id === editingTariff.id ? updatedTariffObj : t);
 
       const updatedSectors = warehouse.sectors.map(sec => {
         if (sec.tariffId === editingTariff.id) {
@@ -1609,6 +2081,7 @@ export default function Home() {
         features: featArr
       };
 
+      api.tariffs.create(newTariff).catch(err => console.warn('Tariff create sync error:', err));
       saveTariffsData([...tariffs, newTariff]);
       showToast(`Yangi "${newTariff.name}" tarifi yaratildi!`);
     }
@@ -1811,11 +2284,14 @@ export default function Home() {
     }
 
     // 3. Tushirish va Ortish xizmatlarini boshlang'ich yoqilganlik holati
-    const hadUnloading = prod.obrabotkaService 
+    // Agar yukdan avval ham qisman chiqim qilingan bo'lsa, tushirish xizmati 2-marta hisoblanmasligi uchun default o'chiq bo'ladi
+    const isSubsequentExit = Boolean(prod.exitHistory && prod.exitHistory.length > 0);
+    const hadUnloading = !isSubsequentExit && (prod.obrabotkaService 
       ? (!prod.obrabotkaService.includes('xizmatisiz') && (prod.obrabotkaCost !== undefined ? prod.obrabotkaCost > 0 : true)) 
-      : true;
+      : true);
     setIncludeExitUnloading(hadUnloading);
     setIncludeExitLoading(true);
+    setExitLoadingCount(1);
 
     setIsExitModalOpen(true);
   };
@@ -2051,22 +2527,40 @@ export default function Home() {
     setIsCustomsServiceModalOpen(false);
   };
 
-  // Agar foydalanuvchi tizimga kirmagan bo'lsa: JB GROUP Login oynasi
+  // Agar foydalanuvchi tizimga kirmagan bo'lsa: JB GROUP Login yoki Bir Martalik Super Admin Registratsiyasi oynasi
   if (!currentUser) {
     return (
-      <LoginOverlay
-        loginEmail={loginEmail}
-        setLoginEmail={setLoginEmail}
-        loginPassword={loginPassword}
-        setLoginPassword={setLoginPassword}
-        onSubmit={handleLogin}
-        loading={loginLoading}
-      />
+      <>
+        <AutoDomTranslator lang={lang} />
+        {toastMsg && (
+          <div style={{ position: 'fixed', bottom: '24px', right: '24px', background: '#0f172a', color: '#ffffff', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🔔</span>
+            <span>{toastMsg}</span>
+          </div>
+        )}
+        <LoginOverlay
+          loginEmail={loginEmail}
+          setLoginEmail={setLoginEmail}
+          loginPassword={loginPassword}
+          setLoginPassword={setLoginPassword}
+          onSubmit={handleLogin}
+          loading={loginLoading}
+          lang={lang}
+          setLang={setLang}
+          needsInitialSetup={needsInitialSetup}
+          setupFullName={setupFullName}
+          setSetupFullName={setSetupFullName}
+          setupConfirmPassword={setupConfirmPassword}
+          setSetupConfirmPassword={setSetupConfirmPassword}
+          onSetupSubmit={handleSetupSuperAdmin}
+        />
+      </>
     );
   }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <AutoDomTranslator lang={lang} />
       {/* Toast xabari */}
       {toastMsg && (
         <div style={{ position: 'fixed', bottom: '24px', right: '24px', background: '#0f172a', color: '#ffffff', padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2086,6 +2580,9 @@ export default function Home() {
         isAccountant={isAccountant}
         canManageTariffs={canManageTariffs}
         canViewFinances={canViewFinances}
+        canViewEditLogs={canViewEditLogs}
+        lang={lang}
+        setLang={setLang}
       />
 
       {/* Asosiy Ishchi Hudud */}
@@ -2147,10 +2644,12 @@ export default function Home() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {canStockMovement && (
+                  {canStockMovement && accessibleSectors.length > 0 && (
                     <button
                       onClick={() => {
-                        const sec = selectedSector || warehouse.sectors[0];
+                        const sec = (selectedSector && accessibleSectorIds.has(selectedSector.id))
+                          ? selectedSector
+                          : accessibleSectors[0];
                         const defStorageTariff = sec?.type === 'COLD_FREEZER' || sec?.type === 'CHILLED' ? 'cs-21' : 'cs-12';
                         setProductForm({
                           sectorId: sec?.id || '',
@@ -2186,14 +2685,14 @@ export default function Home() {
                 <div>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Ombordagi Jami Tovarlar:</span>
                   <div style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
-                    {storedProducts.length} xil mahsulot partiyasi
+                    {accessibleProducts.length} xil mahsulot partiyasi
                   </div>
                 </div>
 
                 <div>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Faol Sektorlar Soni:</span>
                   <div style={{ fontSize: '22px', fontWeight: 800, color: '#2563eb', marginTop: '2px' }}>
-                    {warehouse.sectors.length} ta ixtisoslashgan sektor
+                    {accessibleSectors.length} ta ixtisoslashgan sektor
                   </div>
                 </div>
 
@@ -2223,7 +2722,7 @@ export default function Home() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                    Ombor Sektorlari ({warehouse.sectors.length})
+                    Ombor Sektorlari ({accessibleSectors.length})
                   </span>
                   <span style={{ fontSize: '11px', color: '#94a3b8' }}>Ko&apos;rish uchun bosing:</span>
                 </div>
@@ -2250,12 +2749,12 @@ export default function Home() {
                             Barcha Sektorlar (Hammasi)
                           </h4>
                           <span style={{ fontSize: '11px', color: '#64748b' }}>
-                            Umumiy: {storedProducts.length} xil yuk partiyasi
+                            Umumiy: {accessibleProducts.length} xil yuk partiyasi
                           </span>
                         </div>
                       </div>
                       <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: selectedSectorFilter === 'ALL' ? '#2563eb' : '#f1f5f9', color: selectedSectorFilter === 'ALL' ? '#ffffff' : '#1d4ed8', fontWeight: 800 }}>
-                        {storedProducts.length} ta yuk
+                        {accessibleProducts.length} ta yuk
                       </span>
                     </div>
                   </div>
@@ -2263,22 +2762,27 @@ export default function Home() {
                   {warehouse.sectors.map(sec => {
                     const meta = getSectorMeta(sec.type);
                     const stockInfo = sectorStockMap[sec.id] || { totalItems: 0, unitsSummary: '' };
-                    const isSelected = selectedSectorFilter === sec.id || (selectedSectorFilter === 'ALL' && selectedSector?.id === sec.id);
                     const access = checkSectorAccess(sec, currentUser);
+                    const isSelected = access.allowed && (selectedSectorFilter === sec.id || (selectedSectorFilter === 'ALL' && selectedSector?.id === sec.id));
 
                     return (
                       <div
                         key={sec.id}
                         onClick={() => {
+                          if (!access.allowed) {
+                            showToast('Ushbu ombor sektoriga kirish va undagi yuklarni ko\'rish ruxsatingiz yopilgan.');
+                            return;
+                          }
                           setSelectedSector(sec);
                           setSelectedSectorFilter(sec.id);
                         }}
                         style={{
-                          background: isSelected && selectedSectorFilter !== 'ALL' ? '#ffffff' : '#fafafa',
-                          border: isSelected && selectedSectorFilter !== 'ALL' ? '2px solid #2563eb' : !access.allowed ? '1px dashed #fca5a5' : '1px solid #e2e8f0',
+                          background: !access.allowed ? '#fef2f2' : (isSelected && selectedSectorFilter !== 'ALL' ? '#ffffff' : '#fafafa'),
+                          border: !access.allowed ? '1.5px dashed #fca5a5' : (isSelected && selectedSectorFilter !== 'ALL' ? '2px solid #2563eb' : '1px solid #e2e8f0'),
                           borderRadius: '10px',
                           padding: '12px 14px',
-                          cursor: 'pointer',
+                          cursor: access.allowed ? 'pointer' : 'not-allowed',
+                          opacity: access.allowed ? 1 : 0.78,
                           boxShadow: isSelected && selectedSectorFilter !== 'ALL' ? '0 4px 12px rgba(37, 99, 235, 0.12)' : 'none',
                           transition: 'all 0.15s ease',
                           position: 'relative'
@@ -2289,16 +2793,16 @@ export default function Home() {
                             <span style={{ fontSize: '18px' }}>{meta.icon}</span>
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <h4 style={{ fontSize: '14px', fontWeight: 900, color: '#002d62', margin: 0 }}>
+                                <h4 style={{ fontSize: '14px', fontWeight: 900, color: access.allowed ? '#002d62' : '#991b1b', margin: 0 }}>
                                   {sec.name}
                                 </h4>
                                 {!access.allowed && (
-                                  <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                                  <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }}>
                                     {sec.type === 'HAZARDOUS' ? '☣️ Ruxsatsiz' : '🔒 Ruxsat yo\'q'}
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: '11px', fontWeight: 700, color: '#0284c7', marginTop: '1px' }}>
+                              <div style={{ fontSize: '11px', fontWeight: 700, color: access.allowed ? '#0284c7' : '#94a3b8', marginTop: '1px' }}>
                                 📐 Hajmi: {sec.capacity.toLocaleString('uz-UZ')} m²
                               </div>
                               {sec.subSections && (
@@ -2313,16 +2817,24 @@ export default function Home() {
                           </span>
                         </div>
 
-                        {/* Tizim avtomatik hisoblagan tovarlar miqdori */}
-                        <div style={{ marginTop: '6px', padding: '6px 8px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#64748b' }}>
-                            <span>Mavjud tovarlar: <strong style={{ color: '#0f172a' }}>{stockInfo.totalItems} xil</strong></span>
-                            <span style={{ color: '#059669', fontWeight: 700 }}>● {sec.status}</span>
+                        {/* Tizim avtomatik hisoblagan tovarlar miqdori (Yopilgan sektorda yuk ko'rinmaydi) */}
+                        {access.allowed ? (
+                          <div style={{ marginTop: '6px', padding: '6px 8px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#64748b' }}>
+                              <span>Mavjud tovarlar: <strong style={{ color: '#0f172a' }}>{stockInfo.totalItems} xil</strong></span>
+                              <span style={{ color: '#059669', fontWeight: 700 }}>● {sec.status}</span>
+                            </div>
+                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#2563eb', marginTop: '1px' }}>
+                              {stockInfo.unitsSummary}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '11px', fontWeight: 800, color: '#2563eb', marginTop: '1px' }}>
-                            {stockInfo.unitsSummary}
+                        ) : (
+                          <div style={{ marginTop: '6px', padding: '6px 8px', background: '#fff1f2', borderRadius: '6px', border: '1px solid #fecdd3' }}>
+                            <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#be123c' }}>
+                              🔒 Yopiq sektor (Yuklarni ko&apos;rish taqiqlangan)
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Sektor Sozlash tugmasi */}
                         {canManageWarehouse && (
@@ -2367,7 +2879,7 @@ export default function Home() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <h3 style={{ fontSize: '18px', fontWeight: 900, color: '#002d62', margin: 0 }}>
                             {selectedSectorFilter === 'ALL' 
-                              ? 'Barcha Sektorlardagi Yuklar Ro\'yxati (Umumiy Baza)'
+                              ? t(lang, 'warehouseAllCargoTitle')
                               : selectedSector ? selectedSector.name : 'Sektor'}
                           </h3>
                           {selectedSectorFilter !== 'ALL' && selectedSector && (
@@ -2378,7 +2890,7 @@ export default function Home() {
                         </div>
                         <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>
                           {selectedSectorFilter === 'ALL' ? (
-                            <span>Ombor majmuasidagi barcha 6 ta sektor bo&apos;yicha jamlangan tovarlar hisobi</span>
+                            <span>{t(lang, 'warehouseAllCargoSub')}</span>
                           ) : selectedSector ? (
                             <>
                               <strong style={{ color: '#0284c7' }}>📐 Maydon: {selectedSector.capacity.toLocaleString('uz-UZ')} m²</strong>
@@ -2393,12 +2905,12 @@ export default function Home() {
                     </div>
 
                     {/* Sektorga yangi yuk kiritish tugmasi */}
-                    {canStockMovement && (
+                    {canStockMovement && accessibleSectors.length > 0 && (
                       <button
                         onClick={() => {
                           const targetSec = selectedSectorFilter !== 'ALL' 
-                            ? warehouse.sectors.find(s => s.id === selectedSectorFilter) || selectedSector || warehouse.sectors[0]
-                            : selectedSector || warehouse.sectors[0];
+                            ? accessibleSectors.find(s => s.id === selectedSectorFilter) || accessibleSectors[0]
+                            : (selectedSector && accessibleSectorIds.has(selectedSector.id) ? selectedSector : accessibleSectors[0]);
                           const defStorageTariff = targetSec?.type === 'COLD_FREEZER' || targetSec?.type === 'CHILLED' ? 'cs-21' : 'cs-12';
                           setProductForm({
                             sectorId: targetSec?.id || '',
@@ -2418,7 +2930,7 @@ export default function Home() {
                         style={{ fontSize: '12px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
                       >
                         <span>📥</span>
-                        <span>+ Yangi Yuk Kirim Qilish</span>
+                        <span>{t(lang, 'btnNewCargoEntry')}</span>
                       </button>
                     )}
                   </div>
@@ -2444,7 +2956,7 @@ export default function Home() {
                         type="text"
                         className="form-input-clean"
                         style={{ paddingLeft: '36px', background: '#ffffff', fontSize: '12.5px' }}
-                        placeholder="Yuk nomi, nakladnoy, korxona (to'lovchi), STIR (INN) yoki sektor bo'yicha qidiruv..."
+                        placeholder={t(lang, 'searchCargoPlaceholder')}
                         value={productSearchQuery}
                         onChange={e => setProductSearchQuery(e.target.value)}
                       />
@@ -2459,7 +2971,7 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* Sektor bo'yicha filter dropdown */}
+                    {/* Sektor bo'yicha filter dropdown (Faqat ruxsat etilgan sektorlar) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Sektor:</span>
                       <select
@@ -2468,12 +2980,12 @@ export default function Home() {
                         onChange={e => setSelectedSectorFilter(e.target.value)}
                         style={{ background: '#ffffff', fontSize: '12px', padding: '6px 10px', width: 'auto' }}
                       >
-                        <option value="ALL">🏢 Barcha Sektorlar ({storedProducts.length} ta)</option>
-                        {warehouse.sectors.map(sec => {
-                          const count = storedProducts.filter(p => p.sectorId === sec.id).length;
+                        <option value="ALL">{t(lang, 'allSectorsOption')} ({accessibleProducts.length})</option>
+                        {accessibleSectors.map(sec => {
+                          const count = accessibleProducts.filter(p => p.sectorId === sec.id).length;
                           return (
                             <option key={sec.id} value={sec.id}>
-                              {sec.name} ({count} ta yuk)
+                              {sec.name} ({count})
                             </option>
                           );
                         })}
@@ -2501,7 +3013,7 @@ export default function Home() {
                         }}
                       >
                         <span>📑</span>
-                        <span>Jadval Ko&apos;rinishi</span>
+                        <span>{t(lang, 'viewTable')}</span>
                       </button>
                       <button
                         type="button"
@@ -2522,7 +3034,7 @@ export default function Home() {
                         }}
                       >
                         <span>🗂️</span>
-                        <span>Karta Ko&apos;rinishi</span>
+                        <span>{t(lang, 'viewCards')}</span>
                       </button>
                     </div>
                   </div>
@@ -2530,11 +3042,11 @@ export default function Home() {
                   {/* Ko'rsatkichlar status paneli */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '12px' }}>
                     <span style={{ color: '#475569', fontWeight: 700 }}>
-                      📦 Ko&apos;rsatilmoqda: <strong style={{ color: '#002d62' }}>{filteredWarehouseProducts.length} ta yuk partiyasi</strong>
-                      {productSearchQuery && <span style={{ color: '#0284c7', marginLeft: '6px' }}>(Qidiruv: &quot;{productSearchQuery}&quot;)</span>}
+                      📦 {t(lang, 'showingCount')}: <strong style={{ color: '#002d62' }}>{filteredWarehouseProducts.length}</strong>
+                      {productSearchQuery && <span style={{ color: '#0284c7', marginLeft: '6px' }}>(&quot;{productSearchQuery}&quot;)</span>}
                     </span>
                     <span style={{ color: '#059669', fontWeight: 700 }}>
-                      Jami og&apos;irlik: {filteredWarehouseProducts.reduce((acc, p) => acc + (p.weightKg || p.quantity), 0).toLocaleString('uz-UZ')} kg
+                      {t(lang, 'totalWeightLabel')}: {filteredWarehouseProducts.reduce((acc, p) => acc + (p.weightKg || p.quantity), 0).toLocaleString('uz-UZ')} kg
                     </span>
                   </div>
 
@@ -2548,15 +3060,15 @@ export default function Home() {
                           <thead>
                             <tr style={{ background: '#002d62', color: '#ffffff', textTransform: 'uppercase', fontSize: '10.5px', letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
                               <th style={{ padding: '8px 6px', width: '32px', textAlign: 'center' }}>№</th>
-                              <th style={{ padding: '8px 8px' }}>Yuk (Partiya) Nomi</th>
-                              <th style={{ padding: '8px 8px' }}>Sektor</th>
-                              <th style={{ padding: '8px 8px' }}>To&apos;lovchi (Mijoz) & STIR</th>
-                              <th style={{ padding: '8px 8px', textAlign: 'right' }}>Qoldiq & Og&apos;irligi</th>
-                              <th style={{ padding: '8px 8px' }}>Kirim Sanasi & Mas&apos;ul</th>
-                              <th style={{ padding: '8px 6px', textAlign: 'center' }}>Muddati</th>
-                              <th style={{ padding: '8px 8px' }}>Saqlash Tarifi (2-rasm)</th>
-                              <th style={{ padding: '8px 8px' }}>Tushirish Xizmati</th>
-                              <th style={{ padding: '8px 6px', textAlign: 'center', width: '130px' }}>Amallar</th>
+                              <th style={{ padding: '8px 8px' }}>{t(lang, 'colCargoName')}</th>
+                              <th style={{ padding: '8px 8px' }}>{t(lang, 'colSector')}</th>
+                              <th style={{ padding: '8px 8px' }}>{t(lang, 'colPayerStir')}</th>
+                              <th style={{ padding: '8px 8px', textAlign: 'right' }}>{t(lang, 'colQtyWeight')}</th>
+                              <th style={{ padding: '8px 8px' }}>{t(lang, 'colEntryStaff')}</th>
+                              <th style={{ padding: '8px 6px', textAlign: 'center' }}>{t(lang, 'colDays')}</th>
+                              <th style={{ padding: '8px 8px' }}>{t(lang, 'colStorageTariff')}</th>
+                              <th style={{ padding: '8px 8px' }}>{t(lang, 'colUnloadingSvc')}</th>
+                              <th style={{ padding: '8px 6px', textAlign: 'center', width: '165px' }}>{t(lang, 'colActions')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2589,7 +3101,7 @@ export default function Home() {
                                       style={{ fontWeight: 800, color: '#002d62', cursor: 'pointer', textDecoration: 'underline', fontSize: '12px' }}
                                       title="Yuk tarixi va invoyslarni ochish uchun bosing"
                                     >
-                                      📦 {prod.name}
+                                      📦 <span data-no-translate="true">{prod.name}</span>
                                     </div>
                                     <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                       <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
@@ -2695,8 +3207,32 @@ export default function Home() {
                                         title="Yuk hayotiy tarixi va barcha nakladnoylarini ko'rish"
                                       >
                                         <span>📜</span>
-                                        <span>Tarix</span>
+                                        <span>{t(lang, 'btnHistory')}</span>
                                       </button>
+
+                                      {canEditProducts && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditProduct(prod)}
+                                          style={{
+                                            background: '#fffbeb',
+                                            border: '1px solid #fde68a',
+                                            color: '#b45309',
+                                            borderRadius: '5px',
+                                            padding: '4px 7px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px'
+                                          }}
+                                          title="Kiritilgan yukdagi xatoni to'g'rilash (Tahrirlash)"
+                                        >
+                                          <span>✏️</span>
+                                          <span>{t(lang, 'btnEditCargo')}</span>
+                                        </button>
+                                      )}
 
                                       {canExitThis && (
                                           <button
@@ -2718,7 +3254,7 @@ export default function Home() {
                                           title="Ombordan yuk chiqarish va rasmiy chiqim nakladnoyi shakllantirish"
                                         >
                                           <span>📤</span>
-                                          <span>Chiqim</span>
+                                          <span>{t(lang, 'btnExitCargo')}</span>
                                         </button>
                                       )}
                                     </div>
@@ -2768,7 +3304,7 @@ export default function Home() {
                                       style={{ fontSize: '16px', fontWeight: 900, color: '#002d62', margin: 0, cursor: 'pointer', textDecoration: 'underline' }}
                                       title="Yuk tarixi va barcha nakladnoylarini ko'rish uchun bosing"
                                     >
-                                      📦 {prod.name}
+                                      📦 <span data-no-translate="true">{prod.name}</span>
                                     </h4>
                                     <span style={{ fontSize: '10px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
                                       {prod.sectorName}
@@ -2817,14 +3353,26 @@ export default function Home() {
                               </div>
 
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #f8fafc', flexWrap: 'wrap', gap: '8px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedProductHistory(prod)}
-                                  className="btn-outline"
-                                  style={{ borderColor: '#bfdbfe', color: '#1d4ed8', background: '#eff6ff', fontWeight: 700, fontSize: '12px', padding: '6px 12px' }}
-                                >
-                                  {canViewFinances ? '📜 Tarix & Nakladnoylar (Invoyslar)' : '📜 Yukning Harakat Tarixi'}
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedProductHistory(prod)}
+                                    className="btn-outline"
+                                    style={{ borderColor: '#bfdbfe', color: '#1d4ed8', background: '#eff6ff', fontWeight: 700, fontSize: '12px', padding: '6px 12px' }}
+                                  >
+                                    {canViewFinances ? '📜 Tarix & Nakladnoylar (Invoyslar)' : '📜 Yukning Harakat Tarixi'}
+                                  </button>
+                                  {canEditProducts && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditProduct(prod)}
+                                      className="btn-outline"
+                                      style={{ borderColor: '#fde68a', color: '#b45309', background: '#fffbeb', fontWeight: 700, fontSize: '12px', padding: '6px 12px' }}
+                                    >
+                                      ✏️ {t(lang, 'btnEditCargo')}
+                                    </button>
+                                  )}
+                                </div>
                                 {canExitThis && (
                                   <button
                                     onClick={() => handleOpenExitModalForProduct(prod)}
@@ -2855,13 +3403,13 @@ export default function Home() {
         {/* ========================================================
             2-BO'LIM: DASHBOARD (Chart va Tarix)
             ======================================================== */}
-        {(activeMenu === 'history' || activeMenu === 'dashboard') && (
+        {(activeMenu === 'history' || activeMenu === 'dashboard' || activeMenu === 'reports') && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
               <div className="mini-card">
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Jami Mahsulotlar</span>
                 <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: '6px 0 2px 0' }}>
-                  {storedProducts.length} xil partiya
+                  {accessibleProducts.length} xil partiya
                 </div>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>{warehouse.name}</span>
               </div>
@@ -2869,9 +3417,11 @@ export default function Home() {
               <div className="mini-card">
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Faol Sektorlar</span>
                 <div style={{ fontSize: '24px', fontWeight: 800, color: '#2563eb', margin: '6px 0 2px 0' }}>
-                  {warehouse.sectors.length} ta sektor
+                  {accessibleSectors.length} ta sektor
                 </div>
-                <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: 700 }}>A, B, C, D, E, F Sektorlar (17 593 m²)</span>
+                <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: 700 }}>
+                  {accessibleSectors.map(s => s.name).join(', ')}
+                </span>
               </div>
 
               <div className="mini-card">
@@ -2926,9 +3476,20 @@ export default function Home() {
             <div className="mini-card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', marginBottom: '18px' }}>
                 <div>
-                  <h3 style={{ fontSize: '17px', fontWeight: 900, color: '#002d62', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 900, color: '#002d62', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span>📜</span>
                     <span>Barcha Yuklar Harakati, Kirim va Chiqim Tarixi</span>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      background: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #bfdbfe',
+                      padding: '2px 8px',
+                      borderRadius: '6px'
+                    }}>
+                      🏢 {accessibleSectors.map(s => s.name).join(', ')}
+                    </span>
                   </h3>
                   <span style={{ fontSize: '12px', color: '#64748b' }}>
                     Kim qabul qilgan, kim qancha chiqargan, qabul qiluvchi INN va barcha rasmiy ma&apos;lumotlar to&apos;liq arxivi
@@ -2937,6 +3498,20 @@ export default function Home() {
 
                 {/* Qidiruv va Filtrlar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {accessibleSectors.length > 1 && (
+                    <select
+                      className="form-input-clean"
+                      style={{ width: 'auto', minWidth: '150px', padding: '6px 10px', fontSize: '12px', fontWeight: 700, color: '#002d62' }}
+                      value={historySectorFilter}
+                      onChange={e => setHistorySectorFilter(e.target.value)}
+                    >
+                      <option value="ALL">Barcha Sektorlar ({accessibleSectors.length})</option>
+                      {accessibleSectors.map(sec => (
+                        <option key={sec.id} value={sec.id}>{sec.name}</option>
+                      ))}
+                    </select>
+                  )}
+
                   <input
                     type="text"
                     placeholder="🔍 Tovar, korxona, INN yoki xodim..."
@@ -3014,8 +3589,9 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {movements
+                    {accessibleMovements
                       .filter(m => {
+                        if (historySectorFilter !== 'ALL' && m.sectorId !== historySectorFilter) return false;
                         if (historyFilter === 'IN' && m.type !== 'IN') return false;
                         if (historyFilter === 'OUT' && m.type !== 'OUT') return false;
                         if (historySearch.trim()) {
@@ -3040,7 +3616,7 @@ export default function Home() {
 
                         {/* Yuk Nomi & Sektor */}
                         <td style={{ padding: '10px 12px' }}>
-                          <strong style={{ color: '#002d62', fontSize: '13px', display: 'block' }}>{m.productName}</strong>
+                          <strong data-no-translate="true" style={{ color: '#002d62', fontSize: '13px', display: 'block' }}>{m.productName}</strong>
                           <span style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>Sklad: {m.sectorName}</span>
                           {m.notes && <div style={{ fontSize: '10px', color: '#94a3b8' }}>{m.notes}</div>}
                         </td>
@@ -3956,7 +4532,7 @@ export default function Home() {
                               </td>
 
                               <td style={{ padding: '10px 14px' }}>
-                                <strong style={{ color: '#0f172a', display: 'block' }}>{m.productName}</strong>
+                                <strong data-no-translate="true" style={{ color: '#0f172a', display: 'block' }}>{m.productName}</strong>
                                 <span style={{ fontSize: '11px', color: '#0284c7' }}>🏢 {m.sectorName}</span>
                               </td>
 
@@ -4103,7 +4679,7 @@ export default function Home() {
                     </div>
 
                     <div style={{ marginTop: '10px', fontSize: '11.5px', color: '#64748b' }}>
-                      Chiqargan tovarlari: <strong>{Array.from(emp.productsList).join(', ') || 'Umumiy tovarlar'}</strong>
+                      Chiqargan tovarlari: <strong data-no-translate="true">{Array.from(emp.productsList).join(', ') || 'Umumiy tovarlar'}</strong>
                     </div>
                   </div>
                 ))}
@@ -4637,7 +5213,7 @@ export default function Home() {
                             )}
                           </div>
                           <span style={{ fontSize: '12px', color: '#64748b' }}>
-                            ✉️ {u.email} • Parol: <code>{u.password || 'password123'}</code>
+                            ✉️ {u.email} • <span style={{ color: '#059669', fontWeight: 600 }}>🔒 Parol: Shifrlangan (Maxfiy)</span>
                           </span>
                         </div>
                       </div>
@@ -4706,6 +5282,18 @@ export default function Home() {
                           <span>{(isSuper || perms?.canViewFinances) ? '💰' : '🔒'}</span>
                           <span>{(isSuper || perms?.canViewFinances) ? 'Moliyaviy to\'lovlarni ko\'ra oladi' : 'Pul ma\'lumotlari yashirilgan (faqat fakt)'}</span>
                         </div>
+
+                        {/* 7. Kiritilgan yukni tahrirlash (xatoni to'g'rilash) ruxsati */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: (isSuper || perms?.canEditProducts) ? '#b45309' : '#94a3b8' }}>
+                          <span>{(isSuper || perms?.canEditProducts) ? '✏️' : '🔒'}</span>
+                          <span>{(isSuper || perms?.canEditProducts) ? 'Kiritilgan yukni tahrirlash (xatoni to\'g\'rilash) ruxsati bor' : 'Yukni tahrirlash yopiq'}</span>
+                        </div>
+
+                        {/* 8. 1 oylik tahrirlar hisobotini ko'rish ruxsati */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: (isSuper || perms?.canViewEditLogs) ? '#1d4ed8' : '#94a3b8' }}>
+                          <span>{(isSuper || perms?.canViewEditLogs) ? '📋' : '🔒'}</span>
+                          <span>{(isSuper || perms?.canViewEditLogs) ? 'Tahrirlar hisobotini ko\'ra oladi' : 'Tahrirlar hisoboti yopiq'}</span>
+                        </div>
                       </div>
 
                       {/* Ruxsat etilgan ombor sektorlari */}
@@ -4736,6 +5324,17 @@ export default function Home() {
               })}
             </div>
           </div>
+        )}
+
+        {/* ========================================================
+            7-BO'LIM: 1 OYLIK YUK TAHRIRLARI VA TO'G'RILASHLAR HISOBOTI
+            ======================================================== */}
+        {activeMenu === 'edit_logs' && (isSuperAdmin || canViewEditLogs) && (
+          <EditLogsReportView
+            editLogs={isSuperAdmin ? editLogs : editLogs.filter(l => accessibleSectors.some(s => (l.sectorName || '').toLowerCase().startsWith(s.name.toLowerCase())))}
+            lang={lang}
+            onExportCSV={exportEditLogsToCSV}
+          />
         )}
       </main>
 
@@ -4858,7 +5457,7 @@ export default function Home() {
                     }}
                     required
                   >
-                    {warehouse.sectors.map(sec => {
+                    {accessibleSectors.map(sec => {
                       return (
                         <option key={sec.id} value={sec.id}>
                           {sec.name} ({sec.capacity.toLocaleString('uz-UZ')} m²) — {sec.temperature || sec.type}
@@ -5398,7 +5997,7 @@ export default function Home() {
                   <span>Ombordan Chiqarish & To&apos;lovni Hisoblash</span>
                 </h3>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  {selectedProductToExit.name} • {selectedProductToExit.sectorName} ({selectedProductToExit.clientName || 'Mijoz'})
+                  <span data-no-translate="true">{selectedProductToExit.name}</span> • {selectedProductToExit.sectorName} ({selectedProductToExit.clientName || 'Mijoz'})
                 </span>
               </div>
               <button onClick={() => setIsExitModalOpen(false)} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
@@ -5718,27 +6317,42 @@ export default function Home() {
 
                   {includeExitLoading ? (
                     <>
-                      <select
-                        className="form-select-clean"
-                        value={selectedLoadingServiceId}
-                        onChange={e => setSelectedLoadingServiceId(e.target.value)}
-                        required
-                        style={{ background: '#ffffff', fontWeight: 600 }}
-                      >
-                        {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                          const cleanName = (s.nameUz || s.name)
-                            .replace('ortish / tushirish', 'ortish (Погрузка)')
-                            .replace('yuklash / tushirish', 'ortish (Погрузка)')
-                            .replace('tushirish/ortish', 'ortish (Погрузка)');
-                          return (
-                            <option key={s.id} value={s.id}>
-                              {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [1 martalik]` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
-                        ⚡ 1 martalik to&apos;lov: Ushbu yuk ortish (погрузка) xizmati bir martalik bo&apos;lib, saqlangan kunlar soniga mutlaqo ko&apos;paytirilmaydi.
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '10px', alignItems: 'center' }}>
+                        <select
+                          className="form-select-clean"
+                          value={selectedLoadingServiceId}
+                          onChange={e => setSelectedLoadingServiceId(e.target.value)}
+                          required
+                          style={{ background: '#ffffff', fontWeight: 600 }}
+                        >
+                          {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
+                            const cleanName = (s.nameUz || s.name)
+                              .replace('ortish / tushirish', 'ortish (Погрузка)')
+                              .replace('yuklash / tushirish', 'ortish (Погрузка)')
+                              .replace('tushirish/ortish', 'ortish (Погрузка)');
+                            return (
+                              <option key={s.id} value={s.id}>
+                                {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS)` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>Soni:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            className="form-input-clean"
+                            style={{ background: '#ffffff', fontWeight: 800, textAlign: 'center', padding: '7px 8px' }}
+                            value={exitLoadingCount}
+                            onChange={e => setExitLoadingCount(Math.max(1, Number(e.target.value) || 1))}
+                            title="Yuk ortilgan mashinalar (transportlar) soni"
+                          />
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 600, display: 'block', marginTop: '5px' }}>
+                        🚛 Har bir chiqimda (yuk 2 yoki 3 bo&apos;lib olib chiqilsa ham) mijoz transportiga ortib berish (Погрузка) xizmati hisoblanadi. Agar bir vaqtda bir nechta mashinaga ortilsa, &quot;Soni&quot; maydonidan mashinalar sonini belgilang.
                       </span>
                     </>
                   ) : (
@@ -5973,7 +6587,7 @@ export default function Home() {
                     <span style={{ color: '#64748b', display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>
                       📦 Chiqarilayotgan Yuk:
                     </span>
-                    <strong style={{ color: '#0f172a', fontSize: '13px' }}>
+                    <strong data-no-translate="true" style={{ color: '#0f172a', fontSize: '13px' }}>
                       {selectedProductToExit.name}
                     </strong>
                     <div style={{ color: '#475569', marginTop: '4px' }}>
@@ -6192,1079 +6806,63 @@ export default function Home() {
             * Xavfli yuklar bilan ishlash ruxsati (canHandleHazardous)
             * Ruxsat etilgan sektorlar (allowedSectorIds)
           ======================================================== */}
-      {isUserModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-dialog" style={{ maxWidth: '580px' }}>
-            <div className="modal-header-clean">
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  {editingUser ? `⚙️ Xodim Huquqlari: ${editingUser.fullName}` : '➕ Yangi Xodim / Admin Qo\'shish'}
-                </h3>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  Faqat Super Admin xodimlarni qo&apos;shishi va vakolatlarini belgilashi mumkin
-                </span>
-              </div>
-              <button onClick={() => setIsUserModalOpen(false)} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
-            </div>
+      <UserModal
+        isOpen={isUserModalOpen}
+        editingUser={editingUser}
+        userForm={userForm}
+        setUserForm={setUserForm}
+        warehouse={warehouse}
+        onSave={handleSaveUser}
+        onClose={() => setIsUserModalOpen(false)}
+      />
 
-            <form onSubmit={handleSaveUser}>
-              <div className="modal-body-clean">
-                {/* Asosiy ma'lumotlar */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label className="form-label">XODIM F.I.SH *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input-clean"
-                      placeholder="Masalan: Aziz Rahimov"
-                      value={userForm.fullName}
-                      onChange={e => setUserForm({ ...userForm, fullName: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">TIZIMDAGI ROLI *</label>
-                    <select
-                      className="form-select-clean"
-                      value={userForm.role}
-                      onChange={e => {
-                        const newRole = e.target.value as UserRole;
-                        if (newRole === 'ADMIN') {
-                          setUserForm({
-                            ...userForm,
-                            role: newRole,
-                            canManageTariffs: true,
-                            canManageWarehouse: true,
-                            canLinkTariffs: true,
-                            canStockMovement: true
-                          });
-                        } else if (newRole === 'ACCOUNTANT') {
-                          setUserForm({
-                            ...userForm,
-                            role: newRole,
-                            canManageTariffs: false,
-                            canManageWarehouse: false,
-                            canLinkTariffs: false,
-                            canStockMovement: false,
-                            canHandleHazardous: false,
-                            canViewFinances: true,
-                            allowedSectorIds: ['ALL']
-                          });
-                        } else if (newRole === 'USER') {
-                          setUserForm({
-                            ...userForm,
-                            role: newRole,
-                            canManageTariffs: false,
-                            canManageWarehouse: false,
-                            canLinkTariffs: false,
-                            canStockMovement: true,
-                            canHandleHazardous: false,
-                            canViewFinances: false
-                          });
-                        } else {
-                          setUserForm({ ...userForm, role: newRole });
-                        }
-                      }}
-                    >
-                      <option value="USER">👤 USER (Omborchi / Xodim)</option>
-                      <option value="ADMIN">🛡️ ADMIN (Katta Omborchi / Boshqaruvchi)</option>
-                      <option value="ACCOUNTANT">💼 ACCOUNTANT (Bosh Buxgalter / Moliya)</option>
-                      <option value="SUPER_ADMIN">👑 SUPER ADMIN (Bosh Rahbar)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
-                  <div>
-                    <label className="form-label">ELEKTRON POCHTA (LOGIN) *</label>
-                    <input
-                      type="email"
-                      required
-                      className="form-input-clean"
-                      placeholder="xodim@uzw.uz"
-                      value={userForm.email}
-                      onChange={e => setUserForm({ ...userForm, email: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">PAROL *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input-clean"
-                      value={userForm.password}
-                      onChange={e => setUserForm({ ...userForm, password: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* VAKOLATLAR VA HUQUQLAR (SUPER ADMIN BELGILAB BERADI) */}
-                <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>🛡️</span>
-                      <span>Super Admin Belgilaydigan Huquqlar (Vakolatlar)</span>
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      Har bir xodim uchun alohida sozlanadi
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {/* 1. Omborni sozlash */}
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                      <input
-                        type="checkbox"
-                        checked={userForm.canManageWarehouse}
-                        onChange={e => setUserForm({ ...userForm, canManageWarehouse: e.target.checked })}
-                        style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                      />
-                      <div>
-                        <strong>🏢 Omborni sozlash va yangi sektorlar ochish</strong>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                          Yangi sektorlar qo&apos;shish, sektor nomlari, harorat va o&apos;lchamlarini tahrirlash huquqi.
-                        </span>
-                      </div>
-                    </label>
-
-                    {/* 2. Tarif qo'shish */}
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                      <input
-                        type="checkbox"
-                        checked={userForm.canManageTariffs}
-                        onChange={e => setUserForm({ ...userForm, canManageTariffs: e.target.checked })}
-                        style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                      />
-                      <div>
-                        <strong>🏷️ Saqlash tariflarini qo&apos;shish va narx belgilash</strong>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                          Yangi kunlik tariflar yaratish va saqlash narxlarini tahrirlash huquqi.
-                        </span>
-                      </div>
-                    </label>
-
-                    {/* 3. Tariflarni omborga bog'lash */}
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                      <input
-                        type="checkbox"
-                        checked={userForm.canLinkTariffs}
-                        onChange={e => setUserForm({ ...userForm, canLinkTariffs: e.target.checked })}
-                        style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                      />
-                      <div>
-                        <strong>🔗 Tariflarni ombor sektorlariga biriktirish / ulash</strong>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                          Istalgan tarifni xohlagan sektorlarga biriktirish vakolati.
-                        </span>
-                      </div>
-                    </label>
-
-                    {/* 4. Kirim/Chiqim */}
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                      <input
-                        type="checkbox"
-                        checked={userForm.canStockMovement}
-                        onChange={e => setUserForm({ ...userForm, canStockMovement: e.target.checked })}
-                        style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                      />
-                      <div>
-                        <strong>📦 Yuk kirim va chiqim amallarini bajarish</strong>
-                        <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                          Omborga yangi yuk kiritish va mavjud yukni chiqarish (hisob-kitob qilish) huquqi.
-                        </span>
-                      </div>
-                    </label>
-
-                    {/* 5. XAVFLI YUKLAR BILAN ISHLASH (FOYDALANUVCHINING ASOSIY TALABI) */}
-                    <div style={{ background: userForm.canHandleHazardous ? '#ecfdf5' : '#fff1f2', border: userForm.canHandleHazardous ? '1px solid #a7f3d0' : '1.5px solid #fecdd3', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canHandleHazardous ? '#065f46' : '#9f1239' }}>
-                        <input
-                          type="checkbox"
-                          checked={userForm.canHandleHazardous}
-                          onChange={e => setUserForm({ ...userForm, canHandleHazardous: e.target.checked })}
-                          style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#e11d48' }}
-                        />
-                        <div>
-                          <strong>☣️ XAVFLI YUKLAR BILAN ISHLASH RUXSATI (SERTIFIKAT)</strong>
-                          <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canHandleHazardous ? '#047857' : '#be123c', fontWeight: 600 }}>
-                            {userForm.canHandleHazardous
-                              ? '✅ Ushbu xodim xavfli yuklar va kimyoviy moddalar sektori bilan ishlay oladi.'
-                              : '⛔ DIQQAT: Ushbu ruxsat belgilanmasa, xodim xavfli yuklar sektoriga yuk kirita olmaydi va chiqara olmaydi!'}
-                          </span>
-                        </div>
-                      </label>
-                    </div>
-
-                    {/* 6. MOLIYAVIY TO'LOVLAR VA PUL MA'LUMOTLARINI KO'RISH RUXSATI (FOYDALANUVCHI TALABI) */}
-                    <div style={{ background: userForm.canViewFinances ? '#eff6ff' : '#f8fafc', border: userForm.canViewFinances ? '1.5px solid #93c5fd' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canViewFinances ? '#1e40af' : '#334155' }}>
-                        <input
-                          type="checkbox"
-                          checked={userForm.canViewFinances}
-                          onChange={e => setUserForm({ ...userForm, canViewFinances: e.target.checked })}
-                          style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                        />
-                        <div>
-                          <strong>💰 PUL VA MOLIYAVIY TO&apos;LOVLARNI KO&apos;RISH RUXSATI</strong>
-                          <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canViewFinances ? '#1d4ed8' : '#64748b', fontWeight: 600 }}>
-                            {userForm.canViewFinances
-                              ? '✅ Ushbu xodimga to\'lov summalari, tarif narxlari va to\'lov hisoblari ko\'rinadi.'
-                              : '🔒 Pul ma\'lumotlari yashirilgan: Xodimga to\'lov summalari va narxlar ko\'rsatilmaydi, u faqat yuk soni, og\'irligi va faktik ma\'lumotlarni belgilaydi.'}
-                          </span>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 6. USER FAQAT O'ZIDA HUQUQI BO'LGAN OMBORLARGA QO'YA OLADI (SEKTORLARNI BIRIKTIRISH) */}
-                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase' }}>
-                      📍 Xodimga Ruxsat Berilgan Sektorlar:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (userForm.allowedSectorIds.includes('ALL')) {
-                          setUserForm({ ...userForm, allowedSectorIds: ['sec-2'] });
-                        } else {
-                          setUserForm({ ...userForm, allowedSectorIds: ['ALL'] });
-                        }
-                      }}
-                      style={{ fontSize: '11px', color: '#2563eb', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                      {userForm.allowedSectorIds.includes('ALL') ? 'Alohida tanlash' : '⚡ Barchasiga ruxsat berish (ALL)'}
-                    </button>
-                  </div>
-
-                  <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
-                    User faqat o&apos;zida huquqi bo&apos;lgan ombor/sektorlarga yuk qo&apos;ya oladi.
-                  </p>
-
-                  {userForm.allowedSectorIds.includes('ALL') ? (
-                    <div style={{ padding: '10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '12px', color: '#1d4ed8', fontWeight: 700 }}>
-                      ✅ Barcha ombor sektorlari bilan ishlash huquqi berildi (Cheklovsiz).
-                    </div>
-                  ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      {warehouse.sectors.map(sec => {
-                        const isChecked = userForm.allowedSectorIds.includes(sec.id);
-                        return (
-                          <label
-                            key={sec.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '8px 10px',
-                              borderRadius: '6px',
-                              border: isChecked ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
-                              background: isChecked ? '#f0fdf4' : '#f8fafc',
-                              cursor: 'pointer',
-                              fontSize: '12px'
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={e => {
-                                if (e.target.checked) {
-                                  setUserForm({
-                                    ...userForm,
-                                    allowedSectorIds: [...userForm.allowedSectorIds.filter(id => id !== 'ALL'), sec.id]
-                                  });
-                                } else {
-                                  setUserForm({
-                                    ...userForm,
-                                    allowedSectorIds: userForm.allowedSectorIds.filter(id => id !== sec.id)
-                                  });
-                                }
-                              }}
-                              style={{ width: '15px', height: '15px', accentColor: '#2563eb' }}
-                            />
-                            <div>
-                              <strong style={{ color: '#0f172a', display: 'block' }}>{sec.name}</strong>
-                              <span style={{ fontSize: '10px', color: '#64748b' }}>{sec.code} • {sec.type}</span>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="modal-footer-clean">
-                <button type="button" className="btn-secondary" onClick={() => setIsUserModalOpen(false)}>Bekor qilish</button>
-                <button type="submit" className="btn-primary">
-                  {editingUser ? 'Saqlash va Tasdiqlash' : 'Xodimni Qo\'shish'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ========================================================
+          MODAL 6B: KIRITILGAN YUKNI TAHRIRLASH (XATONI TO'G'RILASH)
+          ======================================================== */}
+      <EditProductModal
+        isOpen={isEditProductModalOpen}
+        editingProduct={editingProduct}
+        editForm={editProductForm}
+        setEditForm={setEditProductForm}
+        sectors={accessibleSectors}
+        payers={payers}
+        customsServices={customsServices}
+        canViewFinances={canViewFinances}
+        lang={lang}
+        onSave={handleSaveEditedProduct}
+        onClose={() => setIsEditProductModalOpen(false)}
+      />
 
       {/* ========================================================
           MODAL 8: BOJXONA XIZMATINI QO'SHISH / TAHRIRLASH
           ======================================================== */}
-      {isCustomsServiceModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-dialog" style={{ maxWidth: '580px' }}>
-            <div className="modal-header-clean">
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  {editingCustomsService ? `✏️ Xizmat Narxini Tahrirlash: ${editingCustomsService.name}` : '➕ Yangi Bojxona Xizmati Qo\'shish'}
-                </h3>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  «JB GROUP» Bojxona ombori rasmiy preyskurantiga o&apos;zgartirish kiritish
-                </span>
-              </div>
-              <button onClick={() => setIsCustomsServiceModalOpen(false)} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
-            </div>
-
-            <form onSubmit={handleSaveCustomsService}>
-              <div className="modal-body-clean">
-                {/* Kategoriya */}
-                <div className="form-field">
-                  <label className="form-label">XIZMAT KATEGORIYASI (BO&apos;LIMI) *</label>
-                  <select
-                    className="form-select-clean"
-                    value={customsServiceForm.category}
-                    onChange={e => setCustomsServiceForm({ ...customsServiceForm, category: e.target.value as CustomsServiceCategory })}
-                    required
-                  >
-                    <option value="UNLOADING_LOADING">🏗️ Ortish-tushirish (РАЗГРУЗКА/ПОГРУЗКА)</option>
-                    <option value="STORAGE">❄️ Bojxona omborida saqlash (ХРАНЕНИЕ)</option>
-                    <option value="ADDITIONAL">🛠️ Qo&apos;shimcha xizmatlar (ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ)</option>
-                  </select>
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">XIZMAT NOMI (RUS TILIDA - PREYSKURANT BO&apos;YICHA) *</label>
-                  <input
-                    type="text"
-                    required
-                    className="form-input-clean"
-                    placeholder="Masalan: Фypa до 90 m3 (kara bilan)"
-                    value={customsServiceForm.name}
-                    onChange={e => setCustomsServiceForm({ ...customsServiceForm, name: e.target.value })}
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">XIZMAT NOMI (O&apos;ZBEK TILIDA)</label>
-                  <input
-                    type="text"
-                    className="form-input-clean"
-                    placeholder="Masalan: Fura 90 m3 gacha (kara orqali tushirish)"
-                    value={customsServiceForm.nameUz}
-                    onChange={e => setCustomsServiceForm({ ...customsServiceForm, nameUz: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label className="form-label">BAZAVIY NARX (QQS SIZ, UZS) *</label>
-                    <input
-                      type="number"
-                      min={0}
-                      required
-                      className="form-input-clean"
-                      value={customsServiceForm.basePrice}
-                      onChange={e => setCustomsServiceForm({ ...customsServiceForm, basePrice: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">O&apos;LCHOV BIRLIGI *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input-clean"
-                      placeholder="1 fura, 1 tn, 1 sutka, 1 pm"
-                      value={customsServiceForm.unit}
-                      onChange={e => setCustomsServiceForm({ ...customsServiceForm, unit: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* 12% QQS Dinamik ko'rsatkichi */}
-                <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700 }}>12% QQS (NDS) MIQDORI:</span>
-                    <strong style={{ fontSize: '13px', color: '#0070ba' }}>
-                      {Math.round(customsServiceForm.basePrice * 0.12).toLocaleString('uz-UZ')} UZS
-                    </strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '6px' }}>
-                    <span style={{ fontSize: '12px', color: '#0f172a', fontWeight: 800 }}>JAMI TO&apos;LOV (QQS BILAN):</span>
-                    <strong style={{ fontSize: '16px', color: '#047857', fontWeight: 900 }}>
-                      {Math.round(customsServiceForm.basePrice * 1.12).toLocaleString('uz-UZ')} UZS
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">QO&apos;SHIMCHA TAVSIF / SHARTLAR</label>
-                  <textarea
-                    rows={2}
-                    className="form-input-clean"
-                    placeholder="Xizmat ko'rsatish shartlari yoki texnik izohlar..."
-                    value={customsServiceForm.description}
-                    onChange={e => setCustomsServiceForm({ ...customsServiceForm, description: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer-clean">
-                <button type="button" className="btn-secondary" onClick={() => setIsCustomsServiceModalOpen(false)}>Bekor qilish</button>
-                <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)' }}>
-                  {editingCustomsService ? 'Narxni Saqlash' : 'Xizmatni Qo\'shish'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CustomsServiceModal
+        isOpen={isCustomsServiceModalOpen}
+        editingCustomsService={editingCustomsService}
+        customsServiceForm={customsServiceForm}
+        setCustomsServiceForm={setCustomsServiceForm}
+        onSave={handleSaveCustomsService}
+        onClose={() => setIsCustomsServiceModalOpen(false)}
+      />
       {/* ========================================================
           MODAL 9: YUK HARAKATI VA CHIQIMLAR TARIXI (LIFECYCLE) MODALI
           ======================================================== */}
-      {selectedProductHistory && (() => {
-        const initialQty = selectedProductHistory.initialQuantity || selectedProductHistory.quantity || 1;
-        const currentQty = selectedProductHistory.quantity;
-        const exitedQty = Math.max(0, initialQty - currentQty);
-        const initialWeight = selectedProductHistory.initialWeightKg || selectedProductHistory.weightKg || 1;
-        const currentWeight = selectedProductHistory.weightKg;
-        const exitedWeight = Math.max(0, initialWeight - currentWeight);
-        const remainPct = Math.min(100, Math.max(0, Math.round((currentQty / initialQty) * 100)));
-        const exitPct = 100 - remainPct;
-        const totalDaysStored = calculateDaysStored(selectedProductHistory.entryDate);
-        const currentSec = warehouse.sectors.find(s => s.id === selectedProductHistory.sectorId);
-
-        return (
-          <div className="modal-overlay" style={{ zIndex: 9999 }}>
-            <div
-              className="modal-dialog"
-              style={{
-                maxWidth: '860px',
-                width: '100%',
-                background: '#ffffff',
-                borderRadius: '16px',
-                padding: '0',
-                overflow: 'hidden',
-                boxShadow: '0 25px 50px -12px rgba(15, 43, 72, 0.25)'
-              }}
-            >
-              {/* Modal Header */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px 24px',
-                  background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)',
-                  color: '#ffffff'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '24px' }}>📜</span>
-                  <div>
-                    <h3 style={{ fontSize: '17px', fontWeight: 900, margin: 0, letterSpacing: '-0.01em' }}>
-                      YUKNING TO&apos;LIQ HARAKAT TARIXI VA CHIQIMLAR ZANJIRI (TIMELINE)
-                    </h3>
-                    <span style={{ fontSize: '11px', color: '#bfdbfe' }}>
-                      Partiya ID: <strong>{selectedProductHistory.id}</strong> • Sektor: <strong>{selectedProductHistory.sectorName}</strong>
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedProductHistory(null)}
-                  style={{ color: '#ffffff', fontSize: '20px', padding: '2px 8px', fontWeight: 700, background: 'transparent', border: 'none', cursor: 'pointer' }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Modal Tanasi */}
-              <div style={{ padding: '24px', maxHeight: '82vh', overflowY: 'auto' }}>
-                {/* 1. YUK PASPORTI VA ZAXIRA BALANSI (UMUMIY KARTA) */}
-                <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '14px', padding: '18px', marginBottom: '22px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
-                    <div style={{ flex: 1, minWidth: '260px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '11px', background: currentQty > 0 ? '#dcfce7' : '#fee2e2', color: currentQty > 0 ? '#15803d' : '#991b1b', fontWeight: 800, padding: '2px 8px', borderRadius: '4px' }}>
-                          {currentQty > 0 ? '🟢 OMBORDA SAQLANMOQDA' : "🔴 TO'LIQ OMBORDAN CHIQARILGAN"}
-                        </span>
-                        {selectedProductHistory.category && (
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>
-                            Toifa: <strong>{selectedProductHistory.category}</strong>
-                          </span>
-                        )}
-                      </div>
-                      <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#002d62', margin: '2px 0 6px 0' }}>
-                        {selectedProductHistory.name}
-                      </h2>
-                      <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div>
-                          Mijoz / Tovar Egasi: <strong style={{ color: '#0f172a' }}>{selectedProductHistory.clientName || "Noma'lum"}</strong>
-                        </div>
-                        <div>
-                          Sektor / Harorat: <strong style={{ color: '#0284c7' }}>{selectedProductHistory.sectorName}</strong>
-                          {currentSec?.temperature && <span style={{ marginLeft: '6px', color: '#059669', fontWeight: 700 }}>({currentSec.temperature})</span>}
-                        </div>
-                        {selectedProductHistory.contractNumber && (
-                          <div>
-                            Shartnoma raqami: <strong style={{ color: '#002d62' }}>{selectedProductHistory.contractNumber}</strong>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: 'right', background: '#ffffff', padding: '12px 18px', borderRadius: '10px', border: '1px solid #e2e8f0', minWidth: '220px' }}>
-                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                        OMBORDAGI JORIY QOLDIQ:
-                      </div>
-                      <div style={{ fontSize: '24px', fontWeight: 900, color: currentQty > 0 ? '#059669' : '#dc2626', lineHeight: 1.2 }}>
-                        {currentQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit}
-                      </div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#0070ba', marginTop: '2px' }}>
-                        ⚖️ {currentWeight.toLocaleString('uz-UZ')} kg
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', borderTop: '1px dashed #e2e8f0', paddingTop: '4px' }}>
-                        Dastlabki: <strong>{initialQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit}</strong> ({initialWeight.toLocaleString('uz-UZ')} kg)
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Vizual Zaxira / Chiqim Balansi Bar */}
-                  <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', fontWeight: 700 }}>
-                      <span style={{ color: '#059669' }}>
-                        Omborda qoldiq: {currentQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit} ({remainPct}%)
-                      </span>
-                      <span style={{ color: exitedQty > 0 ? '#dc2626' : '#94a3b8' }}>
-                        Chiqarilgan: {exitedQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit} ({exitPct}%)
-                      </span>
-                    </div>
-                    <div style={{ height: '8px', background: '#fee2e2', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${remainPct}%`, background: '#10b981', transition: 'width 0.3s' }} />
-                      <div style={{ width: `${exitPct}%`, background: '#ef4444', transition: 'width 0.3s' }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. YUKNING HAYOTIY TSIKLI VA HARAKATLARINING TO'LIQ XRONOLOGIK TARIXI (TIMELINE ZANJIRI) */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid #002d62', paddingBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '20px' }}>🕒</span>
-                      <strong style={{ fontSize: '15px', color: '#002d62', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                        YUK HARAKATINING TO&apos;LIQ XRONOLOGIK TARIXI (ZANJIR)
-                      </strong>
-                    </div>
-                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                      Kirim ➔ Saqlash ➔ Chiqim operatsiyalari
-                    </span>
-                  </div>
-
-                  {/* Vertikal Timeline Konteyneri */}
-                  <div style={{ position: 'relative', paddingLeft: '32px' }}>
-                    {/* Vertikal chiziq */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: '11px',
-                        top: '12px',
-                        bottom: '24px',
-                        width: '3px',
-                        background: '#cbd5e1',
-                        borderRadius: '2px'
-                      }}
-                    />
-
-                    {/* ========================================================
-                        BOSQICH 1: OMBORGA QABUL QILISH VA DASTLABKI KIRIM (KIRITILISH)
-                        Eslatma: Kirimda nakladnoy shakllantirilmaydi, yuk faqat kiritiladi!
-                        ======================================================== */}
-                    <div style={{ position: 'relative', marginBottom: '22px' }}>
-                      {/* Timeline nuqtasi */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '-32px',
-                          top: '0',
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: '#10b981',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          boxShadow: '0 0 0 3px #dcfce7'
-                        }}
-                      >
-                        📥
-                      </div>
-
-                      <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                          <div>
-                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 800 }}>
-                              📥 1-BOSQICH: OMBORGA QABUL QILISH VA BIRINCHI KIRITILISH (KIRIM)
-                            </span>
-                            <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px', fontWeight: 700 }}>
-                              Qabul qilingan sana va vaqt: <span style={{ color: '#002d62' }}>{selectedProductHistory.entryDate} soat {selectedProductHistory.entryTime}</span>
-                            </div>
-                          </div>
-
-                          <div style={{ fontSize: '11px', background: '#ffffff', border: '1px solid #bbf7d0', color: '#15803d', padding: '4px 10px', borderRadius: '6px', fontWeight: 700 }}>
-                            ✓ Omborga kiritilgan (Kirim)
-                          </div>
-                        </div>
-
-                        {/* Kirim tafsilotlari kartochkalari */}
-                        <div style={{ background: '#ffffff', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px', marginTop: '8px' }}>
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Kiritilgan to&apos;liq hajm:</span>
-                            <strong style={{ fontSize: '15px', color: '#0f172a' }}>
-                              {initialQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit}
-                            </strong>
-                            <span style={{ color: '#059669', fontWeight: 700, fontSize: '12px', display: 'block' }}>
-                              ⚖️ {initialWeight.toLocaleString('uz-UZ')} kg ({Math.round(initialWeight / 1000)} tn)
-                            </span>
-                          </div>
-
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Qabul qilgan mas&apos;ul xodim:</span>
-                            <strong style={{ color: '#002d62', fontSize: '13px' }}>{selectedProductHistory.placedBy}</strong>
-                            <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Lavozimi: {selectedProductHistory.placedByRole}</span>
-                          </div>
-
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Joylashtirilgan sektor & otsek:</span>
-                            <strong style={{ color: '#0284c7', fontSize: '13px' }}>{selectedProductHistory.sectorName}</strong>
-                            {currentSec?.subSections && (
-                              <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>{currentSec.subSections}</span>
-                            )}
-                          </div>
-
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Ko&apos;rsatilgan tushirish xizmati (Разгрузка):</span>
-                            <strong style={{ color: '#002d62', fontSize: '12px' }}>
-                              {selectedProductHistory.obrabotkaService || 'Standart Tushirish (Разгрузка)'}
-                            </strong>
-                            {canViewFinances ? (
-                              <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700, display: 'block' }}>
-                                To&apos;lovi: {((selectedProductHistory.obrabotkaCost || 0) + (selectedProductHistory.obrabotkaVat || 0)).toLocaleString('uz-UZ')} UZS
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>
-                                🔒 Narx moliyada hisoblanadi
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {selectedProductHistory.notes && (
-                          <div style={{ marginTop: '8px', fontSize: '11px', color: '#475569', background: '#f8fafc', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                            📄 <strong>Birlamchi qabul hujjati / Asos:</strong> {selectedProductHistory.notes}
-                          </div>
-                        )}
-
-                        <div style={{ marginTop: '6px', fontSize: '10.5px', color: '#64748b', fontStyle: 'italic' }}>
-                          💡 Eslatma: Kirim qilinganda nakladnoy shakllantirilmaydi. Yuk faqat ombor zaxirasiga kiritiladi.
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ========================================================
-                        BOSQICH 2: OMBORDA SAQLASH VA HOLAT NAZORATI
-                        ======================================================== */}
-                    <div style={{ position: 'relative', marginBottom: '22px' }}>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '-32px',
-                          top: '0',
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: '#0284c7',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          boxShadow: '0 0 0 3px #e0f2fe'
-                        }}
-                      >
-                        ⏱️
-                      </div>
-
-                      <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '12px', padding: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#e0f2fe', color: '#0369a1', fontSize: '11px', fontWeight: 800 }}>
-                            ⏱️ 2-BOSQICH: SAQLANISH REJIMI VA TARIF HISOBI
-                          </span>
-                          <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 700 }}>
-                            Hozirgacha: {totalDaysStored} kun saqlandi
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', fontSize: '12px' }}>
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px' }}>Harorat va Sektor rejimi:</span>
-                            <strong style={{ display: 'block', color: '#002d62' }}>
-                              {currentSec?.temperature ? `${selectedProductHistory.sectorName} (${currentSec.temperature})` : selectedProductHistory.sectorName}
-                            </strong>
-                          </div>
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px' }}>Amaldagi kunlik tarif:</span>
-                            <strong style={{ display: 'block', color: '#0284c7' }}>
-                              {canViewFinances ? `${selectedProductHistory.dailyRatePerUnit.toLocaleString('uz-UZ')} UZS / ${selectedProductHistory.unit} / kun` : '🔒 Biriktirilgan tarif'}
-                            </strong>
-                          </div>
-                          <div>
-                            <span style={{ color: '#64748b', fontSize: '11px' }}>Biriktirilgan tarif:</span>
-                            <strong style={{ display: 'block', color: '#475569' }}>
-                              {selectedProductHistory.tariffName || 'Sektor tarifi'}
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ========================================================
-                        BOSQICH 3: OMBORDAN CHIQIM HARAKATLARI VA RASMIY CHIQIM NAKLADNOYLARI
-                        Eslatma: Nakladnoy FAQAT chiqim qilinganda shakllantiriladi!
-                        ======================================================== */}
-                    <div style={{ position: 'relative', marginBottom: '22px' }}>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '-32px',
-                          top: '0',
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: '#dc2626',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          boxShadow: '0 0 0 3px #fee2e2'
-                        }}
-                      >
-                        📤
-                      </div>
-
-                      <div style={{ background: '#fff5f5', border: '1.5px solid #fecaca', borderRadius: '12px', padding: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-                          <div>
-                            <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#fee2e2', color: '#b91c1c', fontSize: '11px', fontWeight: 800 }}>
-                              📤 3-BOSQICH: OMBORDAN CHIQIM HARAKATLARI {canViewFinances ? 'VA RASMIY NAKLADNOYLAR' : ''}
-                            </span>
-                            {canViewFinances && (
-                              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
-                                (Rasmiy hisob-kitob nakladnoyi faqat yuk chiqarilganda shakllantiriladi)
-                              </span>
-                            )}
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#991b1b', fontWeight: 800 }}>
-                            Chiqimlar soni: {selectedProductHistory.exitHistory?.length || 0} ta
-                          </span>
-                        </div>
-
-                        {selectedProductHistory.exitHistory && selectedProductHistory.exitHistory.length > 0 ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {selectedProductHistory.exitHistory.map((rec, idx) => (
-                              <div
-                                key={rec.id}
-                                style={{
-                                  background: '#ffffff',
-                                  border: '1.5px solid #fca5a5',
-                                  borderRadius: '10px',
-                                  padding: '14px',
-                                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.04)'
-                                }}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-                                  <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span style={{ background: '#dc2626', color: '#ffffff', borderRadius: '4px', padding: '2px 8px', fontSize: '11px', fontWeight: 800 }}>
-                                        № {idx + 1}-CHIQIM AMALI
-                                      </span>
-                                      <h4 style={{ fontSize: '15px', fontWeight: 900, color: '#991b1b', margin: 0 }}>
-                                        {canViewFinances ? `№ ${rec.invoiceNo || ('NAK-OUT-' + rec.id.slice(-6))}` : `Chiqim ID: #${rec.id.slice(-6)}`}
-                                      </h4>
-                                    </div>
-                                    <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginTop: '3px' }}>
-                                      Chiqarilgan sana: <strong>{rec.exitDate} ({rec.exitTime})</strong> • Mas&apos;ul: <strong style={{ color: '#002d62' }}>{rec.exitedBy}</strong>
-                                    </span>
-                                  </div>
-
-                                  {canViewFinances ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const exitMove: CargoMovement = {
-                                          id: rec.id,
-                                          invoiceNo: rec.invoiceNo || ('NAK-OUT-' + rec.id.slice(-6)),
-                                          productId: selectedProductHistory.id,
-                                          productName: selectedProductHistory.name,
-                                          type: 'OUT',
-                                          quantity: rec.quantity,
-                                          unit: selectedProductHistory.unit,
-                                          weightKg: rec.weightKg,
-                                          initialQuantity: selectedProductHistory.initialQuantity,
-                                          initialWeightKg: selectedProductHistory.initialWeightKg,
-                                          remainingQuantity: rec.remainingQuantity,
-                                          remainingWeightKg: rec.remainingWeightKg,
-                                          userName: rec.exitedBy,
-                                          userRole: rec.exitedByRole,
-                                          placedBy: selectedProductHistory.placedBy,
-                                          placedDate: `${selectedProductHistory.entryDate} ${selectedProductHistory.entryTime}`,
-                                          date: rec.exitDate,
-                                          time: rec.exitTime,
-                                          notes: rec.notes || 'Chiqim nakladnoyi',
-                                          clientName: selectedProductHistory.clientName,
-                                          daysStored: rec.daysStored,
-                                          sectorId: selectedProductHistory.sectorId,
-                                          sectorName: selectedProductHistory.sectorName,
-                                          tariffDailyRate: selectedProductHistory.dailyRatePerUnit,
-                                          storageCostUZS: rec.storageBaseCost + rec.storageVat,
-                                          loadingType: rec.loadingService,
-                                          loadingCostUZS: rec.loadingCost,
-                                          servicesApplied: rec.additionalServices,
-                                          totalCostUZS: rec.storageBaseCost,
-                                          vatTotalUZS: rec.storageVat,
-                                          grandTotalUZS: rec.totalCost
-                                        };
-                                        setSelectedProductHistory(null);
-                                        setSelectedInvoiceMovement(exitMove);
-                                      }}
-                                      className="btn-outline"
-                                      style={{
-                                        background: '#fff5f5',
-                                        borderColor: '#fca5a5',
-                                        color: '#dc2626',
-                                        fontWeight: 800,
-                                        fontSize: '11px',
-                                        padding: '6px 12px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      <span>🖨️</span>
-                                      <span>Chiqim Nakladnoyini Chop Etish</span>
-                                    </button>
-                                  ) : (
-                                    <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '5px 10px', borderRadius: '6px', fontWeight: 600 }}>
-                                      📤 Ombor Chiqimi
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', fontSize: '12px' }}>
-                                  <div>
-                                    <span style={{ color: '#64748b', fontSize: '11px' }}>Chiqarilgan yuk:</span>
-                                    <strong style={{ display: 'block', fontSize: '15px', color: '#dc2626' }}>
-                                      - {rec.quantity.toLocaleString('uz-UZ')} {selectedProductHistory.unit}
-                                    </strong>
-                                    <span style={{ color: '#b91c1c', fontWeight: 800, fontSize: '11px' }}>
-                                      ⚖️ {rec.weightKg.toLocaleString('uz-UZ')} kg
-                                    </span>
-                                  </div>
-
-                                  <div>
-                                    <span style={{ color: '#64748b', fontSize: '11px' }}>Omborda qolgan zaxira:</span>
-                                    <strong style={{ display: 'block', fontSize: '14px', color: '#0f172a' }}>
-                                      {rec.remainingQuantity.toLocaleString('uz-UZ')} {selectedProductHistory.unit}
-                                    </strong>
-                                    <span style={{ color: '#059669', fontWeight: 700, fontSize: '11px' }}>
-                                      ⚖️ {rec.remainingWeightKg.toLocaleString('uz-UZ')} kg
-                                    </span>
-                                  </div>
-
-                                  <div>
-                                    <span style={{ color: '#64748b', fontSize: '11px' }}>Saqlangan vaqti:</span>
-                                    <strong style={{ display: 'block', color: '#0f172a' }}>{rec.daysStored} kun</strong>
-                                    {canViewFinances ? (
-                                      <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                        Xraneniya: {(rec.storageBaseCost + rec.storageVat).toLocaleString('uz-UZ')} UZS
-                                      </span>
-                                    ) : (
-                                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                        🔒 Xraneniya hisobi
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div>
-                                    <span style={{ color: '#64748b', fontSize: '11px' }}>Chiqim to&apos;lovi (jami):</span>
-                                    {canViewFinances ? (
-                                      <>
-                                        <strong style={{ display: 'block', color: '#15803d', fontSize: '15px' }}>
-                                          {rec.totalCost.toLocaleString('uz-UZ')} UZS
-                                        </strong>
-                                        <span style={{ fontSize: '10px', color: '#0070ba' }}>12% QQS bilan</span>
-                                      </>
-                                    ) : (
-                                      <strong style={{ display: 'block', color: '#94a3b8', fontSize: '13px' }}>
-                                        🔒 Moliya hisobida
-                                      </strong>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {rec.loadingService && (
-                                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#0369a1', background: '#e0f2fe', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>🚛</span>
-                                    <span>Ortilgan transport (Погрузка): <strong>{rec.loadingService}</strong></span>
-                                    {canViewFinances && rec.loadingCost ? (
-                                      <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#0284c7' }}>
-                                        +{rec.loadingCost.toLocaleString('uz-UZ')} UZS
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                )}
-
-                                {rec.notes && (
-                                  <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b' }}>
-                                    📄 Asos / Hujjat: <em>{rec.notes}</em>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ textAlign: 'center', padding: '20px', background: '#ffffff', border: '1.5px dashed #cbd5e1', borderRadius: '10px', color: '#64748b' }}>
-                            <span style={{ fontSize: '24px', display: 'block', marginBottom: '4px' }}>📦</span>
-                            <strong style={{ fontSize: '13px', color: '#0f172a', display: 'block' }}>
-                              Ushbu yukdan hali chiqim qilinmagan
-                            </strong>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
-                              Barcha yuk to&apos;liq hajmda ({initialQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit} | {initialWeight.toLocaleString('uz-UZ')} kg) skladda saqlanmoqda.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* ========================================================
-                        BOSQICH 4: HOZIRGI JORIY STATUS VA QOLDIQ BALANSI
-                        ======================================================== */}
-                    <div style={{ position: 'relative' }}>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '-32px',
-                          top: '0',
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: '#4f46e5',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          boxShadow: '0 0 0 3px #e0e7ff'
-                        }}
-                      >
-                        🏢
-                      </div>
-
-                      <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: '12px', padding: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px', background: '#dbeafe', color: '#1e40af', fontSize: '11px', fontWeight: 800 }}>
-                            🏢 4-BOSQICH: OMBORDAGI JORIY STATUS VA QOLDIQ BALANSI
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
-                          <div>
-                            <span style={{ color: '#1e40af', fontSize: '11px' }}>Hozirgi Ombor Qoldig&apos;i:</span>
-                            <strong style={{ display: 'block', fontSize: '16px', color: currentQty > 0 ? '#059669' : '#dc2626', marginTop: '2px' }}>
-                              {currentQty.toLocaleString('uz-UZ')} {selectedProductHistory.unit}
-                            </strong>
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>
-                              (⚖️ {currentWeight.toLocaleString('uz-UZ')} kg)
-                            </span>
-                          </div>
-
-                          <div>
-                            <span style={{ color: '#1e40af', fontSize: '11px' }}>Jami Saqlangan Vaqti:</span>
-                            <strong style={{ display: 'block', fontSize: '16px', color: '#002d62', marginTop: '2px' }}>
-                              {totalDaysStored} kun
-                            </strong>
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>
-                              Kirim: {selectedProductHistory.entryDate}
-                            </span>
-                          </div>
-
-                          <div>
-                            <span style={{ color: '#1e40af', fontSize: '11px' }}>Kunlik Saqlash Tarifi:</span>
-                            <strong style={{ display: 'block', fontSize: '15px', color: '#0284c7', marginTop: '2px' }}>
-                              {selectedProductHistory.dailyRatePerUnit.toLocaleString('uz-UZ')} UZS / {selectedProductHistory.unit} / kun
-                            </strong>
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>
-                              {selectedProductHistory.tariffName || 'Sektor tarifi'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Pastki Qismi */}
-              <div className="modal-footer-clean">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setSelectedProductHistory(null)}
-                >
-                  Yopish
-                </button>
-                {canStockMovement && selectedProductHistory.quantity > 0 && checkSectorAccess(warehouse.sectors.find(s => s.id === selectedProductHistory.sectorId) || null, currentUser).allowed && (
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => {
-                      const prod = selectedProductHistory;
-                      setSelectedProductHistory(null);
-                      setSelectedProductToExit(prod);
-                      setExitQuantity(prod.quantity);
-                      setExitWeightKg(prod.weightKg);
-                      setExitNotes('');
-                      const pMatch = payers.find(p => p.id === prod.payerId || p.name.toLowerCase() === prod.clientName?.toLowerCase());
-                      setExitReceiverInn(pMatch?.inn || '');
-                      setExitReceiverName(pMatch?.name || prod.clientName || '');
-                      setExitReceiverPerson(pMatch?.contactPerson || '');
-                      setIsExitModalOpen(true);
-                    }}
-                    style={{ background: '#dc2626' }}
-                  >
-                    📤 Ushbu Tovardan Chiqim Qilish (Chiqim Nakladnoyi Shakllantirish)
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      <ProductHistoryModal
+        product={selectedProductHistory}
+        warehouse={warehouse}
+        canViewFinances={canViewFinances}
+        canStockMovement={canStockMovement && Boolean(selectedProductHistory && checkSectorAccess(warehouse.sectors.find(s => s.id === selectedProductHistory.sectorId) || null, currentUser).allowed)}
+        onClose={() => setSelectedProductHistory(null)}
+        onOpenExit={(prod) => {
+          setSelectedProductHistory(null);
+          handleOpenExitModalForProduct(prod);
+        }}
+        onViewInvoice={(movement) => {
+          setSelectedProductHistory(null);
+          setSelectedInvoiceMovement(movement);
+        }}
+        calculateDaysStored={calculateDaysStored}
+      />
 
     {/* ========================================================
           MODAL 7: RASMIY «JB GROUP» BOJXONA INVOYSI / DALOLATNOMA
@@ -7272,522 +6870,25 @@ export default function Home() {
           - 12% QQS yoyilmasi
           - Rasmiy rekvizitlar va imzolar joyi
           ======================================================== */}
-      {selectedInvoiceMovement && canViewFinances && (
-        <div className="modal-overlay invoice-print-overlay" style={{ zIndex: 99999 }}>
-          <div
-            className="modal-dialog invoice-modal-container"
-            style={{
-              maxWidth: '680px',
-              width: '100%',
-              background: '#ffffff',
-              borderRadius: '16px',
-              padding: '0',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(15, 43, 72, 0.25)'
-            }}
-          >
-            {/* Modal Boshqaruvi (Chop etishda yashirinadi) */}
-            <div
-              className="no-print"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 20px',
-                background: '#0f2b48',
-                color: '#ffffff'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>🧾</span>
-                <strong style={{ fontSize: '13px' }}>
-                  RASMIY CHIQIM NAKLADNOYI
-                </strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  style={{
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <span>🖨️</span>
-                  <span>Chop etish (Print / PDF)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedInvoiceMovement(null)}
-                  style={{ color: '#cbd5e1', fontSize: '18px', padding: '2px 8px', fontWeight: 700 }}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Oddiy va Sodda Nakladnoy Tanasi (Foydalanuvchi talabi: ko'rsatilgan xizmat va qancha to'lov qilinishi kerak bo'ldi) */}
-            <div id="jb-group-invoice" className="jb-invoice-print-area" style={{ padding: '28px 32px', background: '#ffffff', color: '#0f172a' }}>
-              {/* Sarlavha */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #002d62', paddingBottom: '14px', marginBottom: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <img src="/jb-logo.jpg" alt="JB GROUP" style={{ height: '44px', width: 'auto', borderRadius: '4px' }} />
-                  <div>
-                    <h2 style={{ fontSize: '16px', fontWeight: 900, color: '#002d62', margin: 0 }}>
-                      «JB GROUP» BOJXONA OMBORI
-                    </h2>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      Bojxona ombori xizmatlari hisob-kitob nakladnoyi
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ display: 'inline-block', padding: '2px 8px', background: selectedInvoiceMovement.type === 'IN' ? '#ecfdf5' : '#eff6ff', color: selectedInvoiceMovement.type === 'IN' ? '#047857' : '#1d4ed8', borderRadius: '4px', fontSize: '11px', fontWeight: 800 }}>
-                    📤 RASMIY CHIQIM NAKLADNOYI
-                  </span>
-                  <div style={{ fontSize: '16px', fontWeight: 900, color: '#0f172a', marginTop: '4px' }}>
-                    № {selectedInvoiceMovement.invoiceNo || selectedInvoiceMovement.id}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
-                    Sana: {selectedInvoiceMovement.date} {selectedInvoiceMovement.time}
-                  </span>
-                </div>
-              </div>
-
-              {/* Tovar, Hajm, va Yuk Berilgan Tarafi (INN va Vakil bilan) */}
-              <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '18px', display: 'grid', gridTemplateColumns: '1.2fr 1.2fr', gap: '14px', fontSize: '12px' }}>
-                <div>
-                  <span style={{ color: '#64748b', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>TOVAR VA SAQLASH HAJMI:</span>
-                  <div style={{ fontSize: '14px', fontWeight: 900, color: '#002d62', marginTop: '2px' }}>
-                    {selectedInvoiceMovement.productName}
-                  </div>
-                  <div style={{ color: '#0f172a', marginTop: '4px', fontSize: '13px', fontWeight: 700 }}>
-                    Hajmi: {selectedInvoiceMovement.quantity} {selectedInvoiceMovement.unit}
-                    {selectedInvoiceMovement.weightKg && (
-                      <span style={{ color: '#059669', marginLeft: '6px' }}>
-                        (⚖️ {selectedInvoiceMovement.weightKg.toLocaleString('uz-UZ')} kg)
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ color: '#475569', marginTop: '3px' }}>
-                    Sklad: <strong>{selectedInvoiceMovement.sectorName}</strong>
-                    {selectedInvoiceMovement.daysStored && (
-                      <span style={{ marginLeft: '6px', color: '#059669', fontWeight: 700 }}>
-                        • {selectedInvoiceMovement.daysStored} kun saqlangan
-                      </span>
-                    )}
-                  </div>
-                  {selectedInvoiceMovement.type === 'OUT' && (
-                    <div style={{ marginTop: '6px', fontSize: '11px', lineHeight: '1.6' }}>
-                      <div style={{ color: '#0369a1', fontWeight: 700 }}>
-                        📥 Tushirilgan transport (Разгрузка): <strong>{selectedInvoiceMovement.unloadingType || selectedInvoiceMovement.transportType || 'Kirimda yuk tushirish'}</strong>
-                      </div>
-                      <div style={{ color: '#b91c1c', fontWeight: 700 }}>
-                        🚛 Yuk ortilgan transport (Погрузка): <strong>{selectedInvoiceMovement.loadingType || 'Yuk ortish'}</strong>
-                      </div>
-                    </div>
-                  )}
-                  {selectedInvoiceMovement.type === 'IN' && selectedInvoiceMovement.transportType && (
-                    <div style={{ color: '#0284c7', fontSize: '11px', marginTop: '3px', fontWeight: 700 }}>
-                      🚛 Kelgan transport: <strong>{selectedInvoiceMovement.transportType}</strong>
-                    </div>
-                  )}
-                  {selectedInvoiceMovement.placedBy && (
-                    <div style={{ color: '#64748b', fontSize: '11px', marginTop: '3px' }}>
-                      Keltirgan mas&apos;ul: <strong>{selectedInvoiceMovement.placedBy}</strong>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ borderLeft: '1px solid #cbd5e1', paddingLeft: '14px' }}>
-                  <span style={{ color: '#dc2626', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase' }}>YUK BERILGAN TARAFI (QABUL QILUVCHI):</span>
-                  <div style={{ fontSize: '14px', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>
-                    🏢 {selectedInvoiceMovement.receiverName || selectedInvoiceMovement.clientName || "Noma'lum Korxona"}
-                  </div>
-                  <div style={{ marginTop: '4px', fontSize: '12px', color: '#0284c7', fontWeight: 800 }}>
-                    STIR (INN): <code style={{ fontSize: '13px', background: '#eff6ff', padding: '1px 6px', borderRadius: '4px' }}>{selectedInvoiceMovement.receiverInn || (payers.find(p => p.name === (selectedInvoiceMovement.receiverName || selectedInvoiceMovement.clientName))?.inn) || '308942115'}</code>
-                  </div>
-                  {selectedInvoiceMovement.receiverPerson ? (
-                    <div style={{ color: '#334155', fontSize: '12px', marginTop: '3px' }}>
-                      Qabul qilib oluvchi vakil: <strong>{selectedInvoiceMovement.receiverPerson}</strong>
-                    </div>
-                  ) : (
-                    <div style={{ color: '#64748b', fontSize: '11px', marginTop: '3px' }}>
-                      To&apos;lovchi (Mijoz): <strong>{selectedInvoiceMovement.clientName || "Noma'lum"}</strong>
-                    </div>
-                  )}
-                  {selectedInvoiceMovement.userName && (
-                    <div style={{ color: '#64748b', fontSize: '11px', marginTop: '3px' }}>
-                      Chiqargan mas&apos;ul: <strong>{selectedInvoiceMovement.userName}</strong>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Ko'rsatilgan xizmatlar va To'lov Jadvali: canViewFinances ga qarab moslashadi */}
-              <div style={{ marginBottom: '18px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', marginBottom: '8px' }}>
-                  {canViewFinances ? "📋 KO'RSATILGAN XIZMATLAR VA TO'LOV:" : "📋 KO'RSATILGAN XIZMATLAR VA HARAKATLAR RO'YXATI:"}
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ background: '#002d62', color: '#ffffff', textAlign: 'left', fontSize: '11px', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '8px 10px', width: '30px', textAlign: 'center' }}>№</th>
-                      <th style={{ padding: '8px 10px' }}>Ko&apos;rsatilgan Xizmat</th>
-                      {canViewFinances ? (
-                        <>
-                          <th style={{ padding: '8px 10px', textAlign: 'right' }}>Bazaviy Narx</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'right' }}>12% QQS</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'right' }}>Jami Summa</th>
-                        </>
-                      ) : (
-                        <>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>O&apos;lchov Birligi</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Hajmi / Miqdori</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Holati</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Agar Chiqim amali bo'lsa va servicesApplied mavjud bo'lsa */}
-                    {selectedInvoiceMovement.type === 'OUT' && selectedInvoiceMovement.servicesApplied && selectedInvoiceMovement.servicesApplied.length > 0 ? (
-                      selectedInvoiceMovement.servicesApplied.map((svc, idx) => {
-                        const isStorage = svc.name.toLowerCase().includes('saqlash');
-                        return (
-                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
-                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>
-                              {idx + 1}
-                            </td>
-                            <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                              {svc.name}
-                              {isStorage && (
-                                <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>
-                                  {canViewFinances 
-                                    ? (selectedInvoiceMovement.storageFormula || `Hajmi: ${(selectedInvoiceMovement.weightKg || 0).toLocaleString('uz-UZ')} kg × ${selectedInvoiceMovement.daysStored || 1} kun`)
-                                    : `Saqlangan muddati: ${selectedInvoiceMovement.daysStored || 1} kun (Omborda faktik qoldiq hisobi)`
-                                  }
-                                </span>
-                              )}
-                            </td>
-                            {canViewFinances ? (
-                              <>
-                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
-                                  {svc.basePrice.toLocaleString('uz-UZ')} UZS
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
-                                  {svc.vatAmount.toLocaleString('uz-UZ')} UZS
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
-                                  {svc.totalPrice.toLocaleString('uz-UZ')} UZS
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td style={{ padding: '8px 10px', textAlign: 'center', color: '#475569' }}>
-                                  {svc.unit}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#0284c7' }}>
-                                  {svc.quantity}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>
-                                  Bajarildi ✅
-                                </td>
-                              </>
-                            )}
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <>
-                        {selectedInvoiceMovement.type === 'OUT' && (
-                          <>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
-                              <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                                Omborga tushirish (Разгрузка): {selectedInvoiceMovement.unloadingType || selectedInvoiceMovement.transportType || 'Kirimda yuk tushirish xizmati'} (⚡ 1 martalik to&apos;lov)
-                              </td>
-                              {canViewFinances ? (
-                                <>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
-                                    {Math.round((selectedInvoiceMovement.obrabotkaCostUZS || 896000) / 1.12).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
-                                    {((selectedInvoiceMovement.obrabotkaCostUZS || 896000) - Math.round((selectedInvoiceMovement.obrabotkaCostUZS || 896000) / 1.12)).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
-                                    {(selectedInvoiceMovement.obrabotkaCostUZS || 896000).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                </>
-                              ) : (
-                                <>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center' }}>1 martalik</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>Bajarildi ✅</td>
-                                </>
-                              )}
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>2</td>
-                              <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                                Bojxona omborida saqlash xizmati (📅 {selectedInvoiceMovement.daysStored || 1} kun saqlangan — FAQAT saqlash kuniga ko&apos;paytiriladi)
-                              </td>
-                              {canViewFinances ? (
-                                <>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
-                                    {Math.round((selectedInvoiceMovement.storageCostUZS || 0) / 1.12).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
-                                    {((selectedInvoiceMovement.storageCostUZS || 0) - Math.round((selectedInvoiceMovement.storageCostUZS || 0) / 1.12)).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
-                                    {(selectedInvoiceMovement.storageCostUZS || 0).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                </>
-                              ) : (
-                                <>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center' }}>kunlik</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>{selectedInvoiceMovement.daysStored || 1} kun</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>Bajarildi ✅</td>
-                                </>
-                              )}
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>3</td>
-                              <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                                Yukni ortish (Погрузка): {selectedInvoiceMovement.loadingType || 'Yuk ortish xizmati'} (⚡ 1 martalik to&apos;lov)
-                              </td>
-                              {canViewFinances ? (
-                                <>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
-                                    {Math.round((selectedInvoiceMovement.loadingCostUZS || 0) / 1.12).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
-                                    {((selectedInvoiceMovement.loadingCostUZS || 0) - Math.round((selectedInvoiceMovement.loadingCostUZS || 0) / 1.12)).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
-                                    {(selectedInvoiceMovement.loadingCostUZS || 0).toLocaleString('uz-UZ')} UZS
-                                  </td>
-                                </>
-                              ) : (
-                                <>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center' }}>1 transport</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>Bajarildi ✅</td>
-                                </>
-                              )}
-                            </tr>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Jami To'lov Yakuni yoki Oddiy Xodim uchun Faktik Qayd */}
-              {canViewFinances ? (
-                <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 900, color: '#166534', textTransform: 'uppercase' }}>
-                    JAMI TO&apos;LOV QILINISHI KERAK:
-                  </span>
-                  <span style={{ fontSize: '22px', fontWeight: 900, color: '#15803d' }}>
-                    {(selectedInvoiceMovement.grandTotalUZS || selectedInvoiceMovement.totalCostUZS || 0).toLocaleString('uz-UZ')} UZS
-                  </span>
-                </div>
-              ) : (
-                <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '22px' }}>🔒</span>
-                  <div>
-                    <strong style={{ fontSize: '13px', color: '#0f172a', display: 'block' }}>
-                      Xizmatlar Faktik Bajarildi (Moliyaviy Hisob-Kitob Cheklangan)
-                    </strong>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      Sizda pul va moliyaviy ma&apos;lumotlarni ko&apos;rish ruxsati mavjud emas. Xizmatlar qiymati va to&apos;lovlar hisobi moliya bo&apos;limi tomonidan rasmiylashtiriladi.
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="modal-footer-clean no-print">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setSelectedInvoiceMovement(null)}
-              >
-                Yopish
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => window.print()}
-                style={{ background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)' }}
-              >
-                🖨️ Nakladnoyni Chop Etish (Print)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <InvoiceReceiptModal
+        movement={selectedInvoiceMovement}
+        canViewFinances={canViewFinances}
+        payers={payers}
+        onClose={() => setSelectedInvoiceMovement(null)}
+      />
 
       
       {/* ========================================================
           MODAL 10: TO'LOVCHI SHARTNOMASINI QO'SHISH / MUDDATINI UZAYTIRISH
           ======================================================== */}
-      {isPayerModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-dialog" style={{ maxWidth: '580px' }}>
-            <div className="modal-header-clean">
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#002d62', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🤝</span>
-                  <span>{editingPayer ? `Shartnomani Yangilash: ${editingPayer.name}` : 'Yangi Saqlash Shartnomasini Tuzish'}</span>
-                </h3>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  «JB GROUP» Bojxona ombori xizmatlari ko&apos;rsatish shartnomasi
-                </span>
-              </div>
-              <button onClick={() => setIsPayerModalOpen(false)} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
-            </div>
-
-            <form onSubmit={handleSavePayer}>
-              <div className="modal-body-clean">
-                <div className="form-field">
-                  <label className="form-label">TO&apos;LOVCHI / KORXONA NOMI *</label>
-                  <input
-                    type="text"
-                    required
-                    className="form-input-clean"
-                    placeholder="Masalan: Sag Agro Logistika MChJ"
-                    value={payerForm.name}
-                    onChange={e => setPayerForm({ ...payerForm, name: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label className="form-label">STIR / INN RAQAMI *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input-clean"
-                      placeholder="Masalan: 308942115"
-                      value={payerForm.inn}
-                      onChange={e => setPayerForm({ ...payerForm, inn: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">SHARTNOMA RAQAMI *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input-clean"
-                      placeholder="Masalan: SH-2026/01"
-                      value={payerForm.contractNumber}
-                      onChange={e => setPayerForm({ ...payerForm, contractNumber: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label className="form-label">SHARTNOMA TUZILGAN SANA *</label>
-                    <input
-                      type="date"
-                      required
-                      className="form-input-clean"
-                      value={payerForm.contractStartDate}
-                      onChange={e => setPayerForm({ ...payerForm, contractStartDate: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label" style={{ color: '#0070ba', fontWeight: 800 }}>
-                      AMAL QILISH MUDDATI (QACHONGACHA) *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      className="form-input-clean"
-                      style={{ border: '1.5px solid #0070ba', background: '#f0f9ff' }}
-                      value={payerForm.contractEndDate}
-                      onChange={e => setPayerForm({ ...payerForm, contractEndDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Muddat ogohlantirishi */}
-                {(() => {
-                  const todayStr = new Date().toISOString().slice(0, 10);
-                  const isExp = Boolean(payerForm.contractEndDate && payerForm.contractEndDate < todayStr);
-                  return isExp ? (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', color: '#dc2626' }}>
-                      ⚠️ <strong>Diqqat:</strong> Ushbu sana bugungi kundan ({todayStr}) oldingi sana. Agar shu muddat saqlansa, mijoz muddati o&apos;tgan deb hisoblanadi va chiqim bloklanadi!
-                    </div>
-                  ) : (
-                    <div style={{ background: '#f0fdf4', border: '1px solid #86efac', padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', color: '#166534' }}>
-                      ✅ <strong>Shartnoma amalda bo&apos;ladi:</strong> Belgilangan muddatgacha ({payerForm.contractEndDate}) barcha yuk operatsiyalari va chiqimlar to&apos;siqsiz amalga oshiriladi.
-                    </div>
-                  );
-                })()}
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label className="form-label">MAS&apos;UL VAKIL F.I.SH</label>
-                    <input
-                      type="text"
-                      className="form-input-clean"
-                      placeholder="Masalan: Sirojiddin Aliyev"
-                      value={payerForm.contactPerson}
-                      onChange={e => setPayerForm({ ...payerForm, contactPerson: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">TELEFON RAQAMI</label>
-                    <input
-                      type="text"
-                      className="form-input-clean"
-                      placeholder="+998 90 123 45 67"
-                      value={payerForm.phone}
-                      onChange={e => setPayerForm({ ...payerForm, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-field">
-                  <label className="form-label">QO&apos;SHIMCHA IZOH / ASOS</label>
-                  <textarea
-                    rows={2}
-                    className="form-input-clean"
-                    placeholder="Shartnoma bo'yicha maxsus shartlar yoki qaydlar..."
-                    value={payerForm.notes}
-                    onChange={e => setPayerForm({ ...payerForm, notes: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer-clean">
-                <button type="button" className="btn-secondary" onClick={() => setIsPayerModalOpen(false)}>Bekor qilish</button>
-                <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)' }}>
-                  💾 Shartnomani Saqlash
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <PayerModal
+        isOpen={isPayerModalOpen}
+        editingPayer={editingPayer}
+        payerForm={payerForm}
+        setPayerForm={setPayerForm}
+        onSave={handleSavePayer}
+        onClose={() => setIsPayerModalOpen(false)}
+      />
 
     </div>
   );

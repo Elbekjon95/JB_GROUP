@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -14,6 +15,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const user = await getUserFromRequest(req);
+    const perms = (user?.permissions as any) || {};
+    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canManageTariffs)) {
+      return NextResponse.json({ error: 'Tarif qo\'shish huquqi yo\'q!' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { itemNo, category, name, nameUz, unit, basePrice, description } = body;
 
@@ -43,6 +50,12 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const user = await getUserFromRequest(req);
+    const perms = (user?.permissions as any) || {};
+    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canManageTariffs)) {
+      return NextResponse.json({ error: 'Tarif narxini o\'zgartirish huquqi yo\'q!' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { id, itemNo, category, name, nameUz, unit, basePrice, description } = body;
 
@@ -70,4 +83,3 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-

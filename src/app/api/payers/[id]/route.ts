@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Avtorizatsiya talab qilinadi!' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
 
@@ -34,6 +40,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'Shartnomani o\'chirish huquqi yo\'q!' }, { status: 403 });
+    }
+
     const { id } = await params;
     await prisma.client.delete({
       where: { id }
@@ -44,4 +55,3 @@ export async function DELETE(
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-

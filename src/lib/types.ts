@@ -11,6 +11,8 @@ export interface ContractPayer {
   notes?: string;
 }
 
+export type Language = 'uz' | 'ru' | 'en';
+
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'USER' | 'ACCOUNTANT';
 
 export interface UserPermissions {
@@ -21,6 +23,32 @@ export interface UserPermissions {
   allowedSectorIds: string[]; // Faqat ruxsat etilgan sektorlar ID lari (yoki ['ALL'])
   canStockMovement: boolean; // Yuk kirim/chiqim amallarini bajarish
   canViewFinances: boolean; // 💰 Pul va to'lov ma'lumotlarini ko'rish ruxsati (Moliya)
+  canEditProducts?: boolean; // ✏️ Kiritilgan yukni tahrirlash (xatoni to'g'rilash) huquqi
+  canViewEditLogs?: boolean; // 📋 Tahrirlangan yuklar tarixi va oylik hisobotini ko'rish huquqi
+}
+
+export interface ProductEditChange {
+  field: string;
+  label: string;
+  oldValue: string | number;
+  newValue: string | number;
+}
+
+export interface ProductEditLog {
+  id: string;
+  productId: string;
+  productName: string;
+  sectorName: string;
+  clientName?: string;
+  userId?: string;
+  userName: string;
+  userRole: UserRole | string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  month: string; // YYYY-MM
+  reason: string; // Nima sababdan tahrirlandi
+  changes: ProductEditChange[];
+  createdAt?: string;
 }
 
 export interface User {

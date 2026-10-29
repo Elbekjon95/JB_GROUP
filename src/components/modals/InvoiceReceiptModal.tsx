@@ -114,7 +114,7 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
           <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '18px', display: 'grid', gridTemplateColumns: '1.2fr 1.2fr', gap: '14px', fontSize: '12px' }}>
             <div>
               <span style={{ color: '#64748b', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>TOVAR VA SAQLASH HAJMI:</span>
-              <div style={{ fontSize: '14px', fontWeight: 900, color: '#002d62', marginTop: '2px' }}>
+              <div data-no-translate="true" style={{ fontSize: '14px', fontWeight: 900, color: '#002d62', marginTop: '2px' }}>
                 {movement.productName}
               </div>
               <div style={{ color: '#0f172a', marginTop: '4px', fontSize: '13px', fontWeight: 700 }}>

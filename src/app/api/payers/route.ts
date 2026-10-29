@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -14,6 +15,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Avtorizatsiya talab qilinadi!' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { name, inn, contractNumber, contractStartDate, contractEndDate, contactPerson, phone, notes } = body;
 
@@ -35,4 +41,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-

@@ -1,35 +1,27 @@
 import React from 'react';
 import { User, UserRole, Warehouse } from '@/lib/types';
 
+export interface UserFormState {
+  fullName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  canManageTariffs: boolean;
+  canManageWarehouse: boolean;
+  canLinkTariffs: boolean;
+  canHandleHazardous: boolean;
+  allowedSectorIds: string[];
+  canStockMovement: boolean;
+  canViewFinances: boolean;
+  canEditProducts: boolean;
+  canViewEditLogs: boolean;
+}
+
 interface UserModalProps {
   isOpen: boolean;
   editingUser: User | null;
-  userForm: {
-    fullName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    canManageTariffs: boolean;
-    canManageWarehouse: boolean;
-    canLinkTariffs: boolean;
-    canHandleHazardous: boolean;
-    allowedSectorIds: string[];
-    canStockMovement: boolean;
-    canViewFinances: boolean;
-  };
-  setUserForm: React.Dispatch<React.SetStateAction<{
-    fullName: string;
-    email: string;
-    password: string;
-    role: UserRole;
-    canManageTariffs: boolean;
-    canManageWarehouse: boolean;
-    canLinkTariffs: boolean;
-    canHandleHazardous: boolean;
-    allowedSectorIds: string[];
-    canStockMovement: boolean;
-    canViewFinances: boolean;
-  }>>;
+  userForm: UserFormState;
+  setUserForm: React.Dispatch<React.SetStateAction<UserFormState>>;
   warehouse: Warehouse;
   onSave: (e: React.FormEvent) => void;
   onClose: () => void;
@@ -48,7 +40,7 @@ export const UserModal: React.FC<UserModalProps> = ({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-dialog" style={{ maxWidth: '580px' }}>
+      <div className="modal-dialog" style={{ maxWidth: '620px' }}>
         <div className="modal-header-clean">
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
@@ -62,7 +54,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         </div>
 
         <form onSubmit={onSave}>
-          <div className="modal-body-clean">
+          <div className="modal-body-clean" style={{ maxHeight: '78vh', overflowY: 'auto' }}>
             {/* Asosiy ma'lumotlar */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
@@ -91,7 +83,9 @@ export const UserModal: React.FC<UserModalProps> = ({
                         canManageTariffs: true,
                         canManageWarehouse: true,
                         canLinkTariffs: true,
-                        canStockMovement: true
+                        canStockMovement: true,
+                        canEditProducts: true,
+                        canViewEditLogs: true
                       });
                     } else if (newRole === 'ACCOUNTANT') {
                       setUserForm({
@@ -103,6 +97,8 @@ export const UserModal: React.FC<UserModalProps> = ({
                         canStockMovement: false,
                         canHandleHazardous: false,
                         canViewFinances: true,
+                        canEditProducts: false,
+                        canViewEditLogs: true,
                         allowedSectorIds: ['ALL']
                       });
                     } else if (newRole === 'USER') {
@@ -114,10 +110,17 @@ export const UserModal: React.FC<UserModalProps> = ({
                         canLinkTariffs: false,
                         canStockMovement: true,
                         canHandleHazardous: false,
-                        canViewFinances: false
+                        canViewFinances: false,
+                        canEditProducts: false,
+                        canViewEditLogs: false
                       });
                     } else {
-                      setUserForm({ ...userForm, role: newRole });
+                      setUserForm({
+                        ...userForm,
+                        role: newRole,
+                        canEditProducts: true,
+                        canViewEditLogs: true
+                      });
                     }
                   }}
                 >
@@ -136,17 +139,21 @@ export const UserModal: React.FC<UserModalProps> = ({
                   type="email"
                   required
                   className="form-input-clean"
-                  placeholder="xodim@uzw.uz"
+                  placeholder="xodim@jbgroup.uz"
                   value={userForm.email}
                   onChange={e => setUserForm({ ...userForm, email: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="form-label">PAROL *</label>
+                <label className="form-label">
+                  {editingUser ? "YANGI PAROL (IXTIYORIY)" : "PAROL *"}
+                </label>
                 <input
-                  type="text"
-                  required
+                  type="password"
+                  required={!editingUser}
+                  autoComplete="new-password"
+                  placeholder={editingUser ? "O'zgartirish uchun yangi parol kiriting" : "Kamida 6 belgili parol"}
                   className="form-input-clean"
                   value={userForm.password}
                   onChange={e => setUserForm({ ...userForm, password: e.target.value })}
@@ -231,7 +238,47 @@ export const UserModal: React.FC<UserModalProps> = ({
                   </div>
                 </label>
 
-                {/* 5. XAVFLI YUKLAR BILAN ISHLASH */}
+                {/* 5. KIRITILGAN YUKNI TAHRIRLASH / XATONI TO'G'RILASH RUXSATI (FOYDALANUVCHI TALABI) */}
+                <div style={{ background: userForm.canEditProducts ? '#fffbeb' : '#f8fafc', border: userForm.canEditProducts ? '1.5px solid #f59e0b' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canEditProducts ? '#92400e' : '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={userForm.canEditProducts}
+                      onChange={e => setUserForm({ ...userForm, canEditProducts: e.target.checked })}
+                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#d97706' }}
+                    />
+                    <div>
+                      <strong>✏️ KIRITILGAN YUKNI TAHRIRLASH (XATONI TO&apos;G&apos;RILASH) RUXSATI</strong>
+                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canEditProducts ? '#b45309' : '#64748b', fontWeight: 600 }}>
+                        {userForm.canEditProducts
+                          ? '✅ Xodim kirimda xato yozilgan yukni (miqdori, og\'irligi, sektori yoki mijozini) to\'g\'rilay oladi. Har bir tahrir oylik hisobotga yoziladi.'
+                          : '⛔ O\'chirilgan: Xodim kiritilgan yuk ma\'lumotlarini o\'zgartira olmaydi.'}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 6. TAHRIRLANGAN YUKLAR TARIXI VA OYLIK HISOBOTINI KO'RISH RUXSATI (FOYDALANUVCHI TALABI) */}
+                <div style={{ background: userForm.canViewEditLogs ? '#f0fdf4' : '#f8fafc', border: userForm.canViewEditLogs ? '1.5px solid #22c55e' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canViewEditLogs ? '#166534' : '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={userForm.canViewEditLogs}
+                      onChange={e => setUserForm({ ...userForm, canViewEditLogs: e.target.checked })}
+                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#16a34a' }}
+                    />
+                    <div>
+                      <strong>📋 1 OYLIK TAHRIRLAR (TO&apos;G&apos;RILANGAN YUKLAR) HISOBOTINI KO&apos;RISH RUXSATI</strong>
+                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canViewEditLogs ? '#15803d' : '#64748b', fontWeight: 600 }}>
+                        {userForm.canViewEditLogs
+                          ? '✅ Xodim bir oy davomida kim qancha yukni to\'g\'rilaganligi va eski/yangi qiymatlar hisobotini ko\'ra oladi.'
+                          : '🔒 Yashirilgan: Tahrirlangan yuklar tarixi va hisoboti ushbu xodimga ko\'rinmaydi.'}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 7. XAVFLI YUKLAR BILAN ISHLASH */}
                 <div style={{ background: userForm.canHandleHazardous ? '#ecfdf5' : '#fff1f2', border: userForm.canHandleHazardous ? '1px solid #a7f3d0' : '1.5px solid #fecdd3', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canHandleHazardous ? '#065f46' : '#9f1239' }}>
                     <input
@@ -251,7 +298,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                   </label>
                 </div>
 
-                {/* 6. MOLIYAVIY TO'LOVLAR VA PUL MA'LUMOTLARINI KO'RISH RUXSATI */}
+                {/* 8. MOLIYAVIY TO'LOVLAR VA PUL MA'LUMOTLARINI KO'RISH RUXSATI */}
                 <div style={{ background: userForm.canViewFinances ? '#eff6ff' : '#f8fafc', border: userForm.canViewFinances ? '1.5px solid #93c5fd' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canViewFinances ? '#1e40af' : '#334155' }}>
                     <input
@@ -283,7 +330,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                   type="button"
                   onClick={() => {
                     if (userForm.allowedSectorIds.includes('ALL')) {
-                      setUserForm({ ...userForm, allowedSectorIds: ['sec-2'] });
+                      setUserForm({ ...userForm, allowedSectorIds: ['sec-b'] });
                     } else {
                       setUserForm({ ...userForm, allowedSectorIds: ['ALL'] });
                     }
@@ -362,4 +409,3 @@ export const UserModal: React.FC<UserModalProps> = ({
     </div>
   );
 };
-

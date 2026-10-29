@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from '@/lib/date-utils';
 
 export async function POST(req: Request) {
   try {
     const user = await getUserFromRequest(req);
+    const perms = (user?.permissions as any) || {};
+    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canStockMovement)) {
+      return NextResponse.json({ error: 'Yuk chiqim qilish huquqi yo\'q!' }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const {
@@ -16,7 +22,6 @@ export async function POST(req: Request) {
       receiverPerson,
       unloadingService,
       unloadingCost,
-      storageTariffId,
       storageTariffName,
       storageBaseCost,
       storageVat,
@@ -48,6 +53,27 @@ export async function POST(req: Request) {
         throw new Error('Mahsulot bazada topilmadi');
       }
 
+      // 2. Sektor va Xavfli yuk (HAZARDOUS) ruxsatini serverda tekshirish
+      if (user.role !== 'SUPER_ADMIN' && product.sectorId) {
+        const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) ? perms.allowedSectorIds : [];
+        if (!allowedSectors.includes('ALL') && !allowedSectors.includes(product.sectorId)) {
+          throw new Error('Ushbu sektordan yuk chiqarish ruxsatingiz yo\'q!');
+        }
+        const targetSector = await tx.sector.findUnique({ where: { id: product.sectorId } });
+        if (targetSector?.type === 'HAZARDOUS' && !perms.canHandleHazardous) {
+          throw new Error('Xavfli yuklar (HAZARDOUS) sektori bilan ishlash ruxsatingiz yo\'q!');
+        }
+      }
+
+      // 3. Shartnoma muddati tugaganligini serverda tekshirish
+      const nowStr = getTashkentDateStr();
+      if (product.clientId) {
+        const payer = await tx.client.findUnique({ where: { id: product.clientId } });
+        if (payer?.contractEndDate && payer.contractEndDate < nowStr) {
+          throw new Error(`«${payer.name}» shartnoma muddati (${payer.contractEndDate}) tugagan! Yuk chiqim qilishdan oldin shartnomani yangilang.`);
+        }
+      }
+
       if (validExitQty > product.quantity) {
         throw new Error(`Chiqarilayotgan miqdor (${validExitQty}) ombordagi qoldiqdan (${product.quantity}) ko'p bo'lishi mumkin emas!`);
       }
@@ -56,9 +82,15 @@ export async function POST(req: Request) {
       const currentWeight = product.weightKg || 0;
       const remainingWeight = Math.max(0, currentWeight - validExitWeight);
 
-      const nowStr = new Date().toISOString().split('T')[0];
-      const timeStr = new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-      const invoiceNo = `NAK-OUT-${Date.now().toString().slice(-6)}`;
+      const timeStr = getTashkentTimeStr();
+      const invoiceNo = formatOfficialInvoiceNo('NAK-OUT');
+
+      const baseCostNum = Number(totalCost) || 0;
+      const grandTotalNum = Number(grandTotalCost || totalCost) || 0;
+      // Barcha xizmatlarning (tushirish + saqlash + ortish + qo'shimcha) jami 12% QQSi
+      const totalVatNum = grandTotalNum > baseCostNum
+        ? (grandTotalNum - baseCostNum)
+        : (Number(storageVat) || Math.round(baseCostNum * 0.12));
 
       const exitRecord = {
         id: `exit-${Date.now()}`,
@@ -76,7 +108,7 @@ export async function POST(req: Request) {
         storageVat: Number(storageVat) || 0,
         additionalServices: additionalServices || [],
         additionalCost: Number(additionalCost) || 0,
-        totalCost: Number(grandTotalCost || totalCost) || 0,
+        totalCost: grandTotalNum,
         receiverInn: receiverInn || '',
         receiverName: receiverName || '',
         receiverPerson: receiverPerson || '',
@@ -92,28 +124,17 @@ export async function POST(req: Request) {
       const existingHistory = Array.isArray(product.exitHistory) ? product.exitHistory : [];
       const updatedHistory = [...existingHistory, exitRecord];
 
-      let updatedProduct: any = null;
+      // 4. Tovar 100% chiqib ketsa ham bazadan DELETE qilmasdan, quantity: 0 qilib arxivda saqlaymiz (exitHistory yo'qolmasligi uchun!)
+      const updatedProduct = await tx.product.update({
+        where: { id: productId },
+        data: {
+          quantity: remainingQty,
+          weightKg: remainingQty <= 0 ? 0 : remainingWeight,
+          exitHistory: updatedHistory as any
+        }
+      });
 
-      if (remainingQty <= 0) {
-        // Tovar to'liq chiqib ketgan bo'lsa, ombordan o'chirish yoki qoldig'ini 0 qilish
-        // Biz arxiv/tarix uchun qoldig'ini 0 qilib saqlashimiz yoki o'chirishimiz mumkin.
-        // Hozirgi frontend to'liq chiqqanda ombor ro'yxatidan olib tashlaydi.
-        await tx.product.delete({
-          where: { id: productId }
-        });
-      } else {
-        // Qisman chiqim: qoldiq kamayadi
-        updatedProduct = await tx.product.update({
-          where: { id: productId },
-          data: {
-            quantity: remainingQty,
-            weightKg: remainingWeight,
-            exitHistory: updatedHistory as any
-          }
-        });
-      }
-
-      // 2. Harakatlar tarixiga Chiqim (OUT) yozish
+      // 5. Harakatlar tarixiga Chiqim (OUT) yozish
       const movement = await tx.cargoMovement.create({
         data: {
           invoiceNo,
@@ -128,11 +149,11 @@ export async function POST(req: Request) {
           unit: product.unit,
           weightKg: validExitWeight,
           initialWeightKg: product.initialWeightKg,
-          remainingWeightKg: remainingWeight,
+          remainingWeightKg: remainingQty <= 0 ? 0 : remainingWeight,
           userName: user?.fullName || 'Omborchi',
           userRole: user?.role || 'USER',
           placedBy: product.placedBy || null,
-          placedDate: product.entryDate ? product.entryDate.toISOString().split('T')[0] : null,
+          placedDate: product.entryDate ? getTashkentDateStr(product.entryDate) : null,
           date: nowStr,
           time: timeStr,
           notes: notes || 'Chiqim amali muvaffaqiyatli bajarildi',
@@ -147,9 +168,9 @@ export async function POST(req: Request) {
           additionalCostUZS: Number(additionalCost) || 0,
           servicesApplied: additionalServices || [],
           daysStored: Number(daysStored) || 0,
-          totalCostUZS: Number(totalCost) || 0,
-          vatTotalUZS: Number(storageVat) || 0,
-          grandTotalUZS: Number(grandTotalCost || totalCost) || 0,
+          totalCostUZS: baseCostNum,
+          vatTotalUZS: totalVatNum,
+          grandTotalUZS: grandTotalNum,
           receiverInn: receiverInn || null,
           receiverName: receiverName || null,
           receiverPerson: receiverPerson || null,
@@ -158,9 +179,9 @@ export async function POST(req: Request) {
       });
 
       return {
-        product: updatedProduct ? {
+        product: remainingQty > 0 ? {
           ...updatedProduct,
-          entryDate: updatedProduct.entryDate ? updatedProduct.entryDate.toISOString().split('T')[0] : ''
+          entryDate: updatedProduct.entryDate ? getTashkentDateStr(updatedProduct.entryDate) : ''
         } : null,
         movement,
         isFullyExited: remainingQty <= 0
@@ -176,4 +197,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
-
