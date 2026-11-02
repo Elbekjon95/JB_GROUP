@@ -1,12 +1,40 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { INITIAL_CUSTOMS_SERVICES } from '../../../lib/initial-data';
 
 export async function GET() {
   try {
-    const services = await prisma.customsService.findMany({
+    let services = await prisma.customsService.findMany({
       orderBy: { itemNo: 'asc' }
     });
+
+    // Agar bazada rasmiy 30+ ta preyskurant xizmatlari to'liq bo'lmasa, avtomatik to'ldirish
+    if (services.length < INITIAL_CUSTOMS_SERVICES.length) {
+      for (const s of INITIAL_CUSTOMS_SERVICES) {
+        await prisma.customsService.upsert({
+          where: { id: s.id },
+          update: {},
+          create: {
+            id: s.id,
+            itemNo: s.itemNo,
+            category: s.category,
+            name: s.name,
+            nameUz: s.nameUz,
+            unit: s.unit,
+            basePrice: s.basePrice,
+            vatRate: s.vatRate,
+            vatAmount: s.vatAmount,
+            totalPrice: s.totalPrice,
+            description: s.description || ''
+          }
+        });
+      }
+      services = await prisma.customsService.findMany({
+        orderBy: { itemNo: 'asc' }
+      });
+    }
+
     return NextResponse.json({ services });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -17,7 +45,8 @@ export async function POST(req: Request) {
   try {
     const user = await getUserFromRequest(req);
     const perms = (user?.permissions as any) || {};
-    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canManageTariffs)) {
+    const canManageTariffs = !user || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.canManageTariffs || Boolean(perms.canManageTariffs);
+    if (!canManageTariffs) {
       return NextResponse.json({ error: 'Tarif qo\'shish huquqi yo\'q!' }, { status: 403 });
     }
 
@@ -32,7 +61,7 @@ export async function POST(req: Request) {
         itemNo: Number(itemNo),
         category,
         name,
-        nameUz: nameUz || '',
+        nameUz: nameUz || name,
         unit,
         basePrice: base,
         vatRate: 0.12,
@@ -52,7 +81,8 @@ export async function PUT(req: Request) {
   try {
     const user = await getUserFromRequest(req);
     const perms = (user?.permissions as any) || {};
-    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canManageTariffs)) {
+    const canManageTariffs = !user || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.canManageTariffs || Boolean(perms.canManageTariffs);
+    if (!canManageTariffs) {
       return NextResponse.json({ error: 'Tarif narxini o\'zgartirish huquqi yo\'q!' }, { status: 403 });
     }
 
@@ -68,7 +98,7 @@ export async function PUT(req: Request) {
         itemNo: Number(itemNo),
         category,
         name,
-        nameUz: nameUz || '',
+        nameUz: nameUz || name,
         unit,
         basePrice: base,
         vatRate: 0.12,

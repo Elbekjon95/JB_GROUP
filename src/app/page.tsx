@@ -340,11 +340,21 @@ export default function Home() {
           localStorage.setItem('jb_payers_v10', JSON.stringify(payersRes.payers));
         }
 
-        // Customs Services
+        // Customs Services (Preyskurant xizmatlari va qo'shilgan yangi tariflar)
         const csRes = await api.customsServices.getAll().catch(() => null);
         if (csRes?.services && csRes.services.length > 0) {
-          setCustomsServices(csRes.services);
-          localStorage.setItem('jb_customs_services_v1', JSON.stringify(csRes.services));
+          const dbServices = csRes.services;
+          const merged = [...INITIAL_CUSTOMS_SERVICES];
+          for (const s of dbServices) {
+            const idx = merged.findIndex(item => item.id === s.id);
+            if (idx >= 0) {
+              merged[idx] = s;
+            } else {
+              merged.push(s);
+            }
+          }
+          setCustomsServices(merged);
+          localStorage.setItem('jb_customs_services_v1', JSON.stringify(merged));
         }
 
         // Movements
@@ -361,11 +371,13 @@ export default function Home() {
           localStorage.setItem('jb_tariffs_v8', JSON.stringify(tariffsRes.tariffs));
         }
 
-        // Users
-        const usersRes = await api.users.getAll().catch(() => null);
-        if (usersRes?.users) {
-          setUsersList(usersRes.users);
-          localStorage.setItem('jb_users_list_v10', JSON.stringify(usersRes.users));
+        // Users (Faqat SUPER_ADMIN foydalanuvchilar ro'yxatini oladi - 403 Forbidden oldini olish uchun)
+        if (meRes?.user?.role === 'SUPER_ADMIN') {
+          const usersRes = await api.users.getAll().catch(() => null);
+          if (usersRes?.users) {
+            setUsersList(usersRes.users);
+            localStorage.setItem('jb_users_list_v10', JSON.stringify(usersRes.users));
+          }
         }
 
         // Edit Logs (Tahrirlar tarixi)
@@ -1086,12 +1098,42 @@ export default function Home() {
     const remainingQty = selectedProductToExit.quantity - validQty;
     const remainingWeightKg = Math.max(0, totalProdWeight - validWeightKg);
 
+    // Xavfsiz standart zaxira xizmatlari (agar bazada bo'lmasa xato bermasligi uchun)
+    const fallbackUnloading = INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-8') || {
+      id: 'cs-8',
+      itemNo: 6,
+      category: 'UNLOADING_LOADING' as const,
+      name: 'Погрузка или разгрузка тарно-штучного груза с помощью автопогрузчика до 20 тн',
+      nameUz: 'Tarno-donali yuklarni avtopogruzchik bilan tushirish/ortish (20 tn gacha)',
+      unit: '1 martalik (1 fura / 20 tn)',
+      basePrice: 800000,
+      vatRate: 0.12,
+      vatAmount: 96000,
+      totalPrice: 896000,
+      description: '20 tonnalik avtotransportdan yuk tushirish yoki ortish (1 martalik xizmat)'
+    };
+
+    const fallbackStorage = INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-12') || {
+      id: 'cs-12',
+      itemNo: 10,
+      category: 'STORAGE' as const,
+      name: 'Хранение 1тн груза в сутки',
+      nameUz: '1 tn yukni 1 sutka saqlash',
+      unit: '1 tn/sutka',
+      basePrice: 8000,
+      vatRate: 0.12,
+      vatAmount: 960,
+      totalPrice: 8960,
+      description: 'Bojxona omborida 1 tonna yukni bir kun (24 soat) saqlash tarifi'
+    };
+
     // -------------------------------------------------------------------------
     // 1-XIZMAT: OMBORGA TUSHIRISH (РАЗГРУЗКА)
     // -------------------------------------------------------------------------
     const unloadingSvc = customsServices.find(s => s.id === selectedUnloadingServiceId)
       || customsServices.find(s => s.category === 'UNLOADING_LOADING' && (selectedProductToExit.obrabotkaService?.toLowerCase().includes(s.name.toLowerCase()) || selectedProductToExit.obrabotkaService?.toLowerCase().includes((s.nameUz || '').toLowerCase())))
-      || customsServices.find(s => s.id === 'cs-8')!;
+      || customsServices.find(s => s.id === 'cs-8')
+      || fallbackUnloading;
 
     let unloadingBase = 0;
     let unloadingVat = 0;
@@ -1099,7 +1141,7 @@ export default function Home() {
     let unloadingCleanName = 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)';
 
     if (includeExitUnloading) {
-      unloadingCleanName = (unloadingSvc.nameUz || unloadingSvc.name)
+      unloadingCleanName = (unloadingSvc?.nameUz || unloadingSvc?.name || 'Tushirish xizmati')
         .replace('ortish / tushirish', 'tushirish (Разгрузка)')
         .replace('yuklash / tushirish', 'tushirish (Разгрузка)')
         .replace('tushirish/ortish', 'tushirish (Разгрузка)');
@@ -1107,10 +1149,10 @@ export default function Home() {
       // Agar mahsulotda kirimda belgilangan tushirish xizmati narxi bo'lsa va standart o'zgarmagan bo'lsa, uni olamiz
       unloadingBase = (selectedProductToExit.obrabotkaCost && (!selectedUnloadingServiceId || selectedUnloadingServiceId === 'cs-8'))
         ? selectedProductToExit.obrabotkaCost
-        : unloadingSvc.basePrice;
+        : (unloadingSvc?.basePrice || 0);
       unloadingVat = (selectedProductToExit.obrabotkaVat && (!selectedUnloadingServiceId || selectedUnloadingServiceId === 'cs-8'))
         ? selectedProductToExit.obrabotkaVat
-        : (unloadingSvc.vatAmount || Math.round(unloadingBase * 0.12));
+        : (unloadingSvc?.vatAmount || Math.round(unloadingBase * 0.12));
       unloadingTotal = unloadingBase + unloadingVat;
     }
 
@@ -1118,15 +1160,18 @@ export default function Home() {
     // 2-XIZMAT: SAQLASH TARIFI (2-RASMDAGI RASMIY PREYSKURANT 10-19 BANDLAR)
     // -------------------------------------------------------------------------
     const storageSvc = customsServices.find(s => s.id === selectedStorageTariffId)
-      || customsServices.find(s => s.id === 'cs-12')!;
+      || customsServices.find(s => s.id === selectedProductToExit.storageTariffId)
+      || customsServices.find(s => s.id === 'cs-12')
+      || fallbackStorage;
 
     let storageBase = 0;
     let storageFormulaText = '';
     let storageDetailNote = '';
 
-    const itemNo = storageSvc.itemNo;
-    const unitLower = (storageSvc.unit || '').toLowerCase();
-    const nameLower = ((storageSvc.name || '') + ' ' + (storageSvc.nameUz || '')).toLowerCase();
+    const itemNo = storageSvc?.itemNo || 10;
+    const unitLower = (storageSvc?.unit || '').toLowerCase();
+    const nameLower = ((storageSvc?.name || '') + ' ' + (storageSvc?.nameUz || '')).toLowerCase();
+    const storagePrice = storageSvc?.basePrice || 8000;
 
     const isPerKg = itemNo === 19 || unitLower.includes('kg') || unitLower.includes('кг');
     const isPerTn = itemNo === 10 || itemNo === 11 || itemNo === 12 || unitLower.includes('tn') || unitLower.includes('тн') || nameLower.includes('1тн') || nameLower.includes('тонн') || nameLower.includes('тонна');
@@ -1134,25 +1179,26 @@ export default function Home() {
 
     if (isPerKg) {
       // 1. Kilogramm bo'yicha kunlik saqlash (masalan: Muzlatkich/Sovutgich 50 so'm/kg/kun)
-      storageBase = Math.round(validWeightKg * storageSvc.basePrice * daysStored);
-      storageFormulaText = `${validWeightKg.toLocaleString('uz-UZ')} kg × ${storageSvc.basePrice.toLocaleString('uz-UZ')} so'm/kg/kun × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${validWeightKg.toLocaleString('uz-UZ')} kg × ${storageSvc.basePrice.toLocaleString('uz-UZ')} so'm/kg/kun`;
+      storageBase = Math.round(validWeightKg * storagePrice * daysStored);
+      storageFormulaText = `${validWeightKg.toLocaleString('uz-UZ')} kg × ${storagePrice.toLocaleString('uz-UZ')} so'm/kg/kun × ${daysStored} kun`;
+      storageDetailNote = `Hajmi: ${validWeightKg.toLocaleString('uz-UZ')} kg × ${storagePrice.toLocaleString('uz-UZ')} so'm/kg/kun`;
     } else if (isPerTn) {
       // 2. Tonna bo'yicha kunlik saqlash (masalan: 1 tn yuk 8 000 UZS/tn/kun)
       const weightTn = +(validWeightKg / 1000).toFixed(3);
-      storageBase = Math.round(weightTn * storageSvc.basePrice * daysStored);
-      storageFormulaText = `${weightTn} tn (${validWeightKg.toLocaleString('uz-UZ')} kg) × ${storageSvc.basePrice.toLocaleString('uz-UZ')} UZS/tn × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${weightTn} tn (${validWeightKg.toLocaleString('uz-UZ')} kg) × ${storageSvc.basePrice.toLocaleString('uz-UZ')} so'm/tn/kun`;
+      storageBase = Math.round(weightTn * storagePrice * daysStored);
+      storageFormulaText = `${weightTn} tn (${validWeightKg.toLocaleString('uz-UZ')} kg) × ${storagePrice.toLocaleString('uz-UZ')} UZS/tn × ${daysStored} kun`;
+      storageDetailNote = `Hajmi: ${weightTn} tn (${validWeightKg.toLocaleString('uz-UZ')} kg) × ${storagePrice.toLocaleString('uz-UZ')} so'm/tn/kun`;
     } else if (isPerPallet) {
       // 3. Pallet bo'yicha kunlik saqlash (masalan: 1 pallet 25 000 UZS/pallet/kun)
-      storageBase = Math.round(validQty * storageSvc.basePrice * daysStored);
-      storageFormulaText = `${validQty} pallet × ${storageSvc.basePrice.toLocaleString('uz-UZ')} UZS/pallet × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${validQty} pallet × ${storageSvc.basePrice.toLocaleString('uz-UZ')} so'm/pallet/kun`;
+      storageBase = Math.round(validQty * storagePrice * daysStored);
+      storageFormulaText = `${validQty} pallet × ${storagePrice.toLocaleString('uz-UZ')} UZS/pallet × ${daysStored} kun`;
+      storageDetailNote = `Hajmi: ${validQty} pallet × ${storagePrice.toLocaleString('uz-UZ')} so'm/pallet/kun`;
     } else {
       // 4. Dona, transport, fura yoki boshqa o'lchov birligi bo'yicha kunlik saqlash
-      storageBase = Math.round(validQty * storageSvc.basePrice * daysStored);
-      storageFormulaText = `${validQty} ${storageSvc.unit} × ${storageSvc.basePrice.toLocaleString('uz-UZ')} UZS/sutka × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${validQty} ${storageSvc.unit} × ${storageSvc.basePrice.toLocaleString('uz-UZ')} so'm/sutka`;
+      const unit = storageSvc?.unit || 'dona';
+      storageBase = Math.round(validQty * storagePrice * daysStored);
+      storageFormulaText = `${validQty} ${unit} × ${storagePrice.toLocaleString('uz-UZ')} UZS/sutka × ${daysStored} kun`;
+      storageDetailNote = `Hajmi: ${validQty} ${unit} × ${storagePrice.toLocaleString('uz-UZ')} so'm/sutka`;
     }
 
     const storageVat = Math.round(storageBase * 0.12);
@@ -1162,7 +1208,8 @@ export default function Home() {
     // 3-XIZMAT: YUKNI ORTISH (ПОГРУЗКА)
     // -------------------------------------------------------------------------
     const loadingSvc = customsServices.find(s => s.id === selectedLoadingServiceId)
-      || customsServices.find(s => s.id === 'cs-8')!;
+      || customsServices.find(s => s.id === 'cs-8')
+      || fallbackUnloading;
 
     let loadingBase = 0;
     let loadingVat = 0;
@@ -1171,13 +1218,14 @@ export default function Home() {
 
     if (includeExitLoading) {
       const count = Math.max(1, Number(exitLoadingCount) || 1);
-      const baseClean = (loadingSvc.nameUz || loadingSvc.name)
+      const baseClean = (loadingSvc?.nameUz || loadingSvc?.name || 'Ortish xizmati')
         .replace('ortish / tushirish', 'ortish (Погрузка)')
         .replace('yuklash / tushirish', 'ortish (Погрузка)')
         .replace('tushirish/ortish', 'ortish (Погрузка)');
       loadingCleanName = count > 1 ? `${baseClean} (×${count} ta mashina)` : baseClean;
-      loadingBase = loadingSvc.basePrice * count;
-      loadingVat = (loadingSvc.vatAmount || Math.round(loadingSvc.basePrice * 0.12)) * count;
+      const lPrice = loadingSvc?.basePrice || 800000;
+      loadingBase = lPrice * count;
+      loadingVat = (loadingSvc?.vatAmount || Math.round(lPrice * 0.12)) * count;
       loadingTotal = loadingBase + loadingVat;
     }
 
@@ -1210,10 +1258,10 @@ export default function Home() {
 
     if (includeExitUnloading && unloadingTotal > 0) {
       appliedExitServices.push({
-        serviceId: unloadingSvc.id,
+        serviceId: unloadingSvc?.id || 'cs-8',
         name: `Omborga tushirish (Разгрузка): ${unloadingCleanName} (⚡ 1 martalik to'lov)`,
         quantity: 1,
-        unit: unloadingSvc.unit,
+        unit: unloadingSvc?.unit || '1 martalik',
         basePrice: unloadingBase,
         vatAmount: unloadingVat,
         totalPrice: unloadingTotal
@@ -1221,10 +1269,10 @@ export default function Home() {
     }
 
     appliedExitServices.push({
-      serviceId: storageSvc.id,
-      name: `Bojxona omborida saqlash xizmati (${storageSvc.nameUz || storageSvc.name}) — 📅 ${daysStored} kun saqlangan (FAQAT saqlash kuniga ko'paytiriladi)`,
+      serviceId: storageSvc?.id || 'cs-12',
+      name: `Bojxona omborida saqlash xizmati (${storageSvc?.nameUz || storageSvc?.name || 'Saqlash'}) — 📅 ${daysStored} kun saqlangan (FAQAT saqlash kuniga ko'paytiriladi)`,
       quantity: daysStored,
-      unit: storageSvc.unit,
+      unit: storageSvc?.unit || 'sutka',
       basePrice: storageBase,
       vatAmount: storageVat,
       totalPrice: storageTotal
@@ -1233,10 +1281,10 @@ export default function Home() {
     if (includeExitLoading && loadingTotal > 0) {
       const count = Math.max(1, Number(exitLoadingCount) || 1);
       appliedExitServices.push({
-        serviceId: loadingSvc.id,
+        serviceId: loadingSvc?.id || 'cs-8',
         name: `Yukni ortish (Погрузка): ${loadingCleanName} (⚡ ${count} ta transport)`,
         quantity: count,
-        unit: loadingSvc.unit,
+        unit: loadingSvc?.unit || '1 martalik',
         basePrice: loadingBase,
         vatAmount: loadingVat,
         totalPrice: loadingTotal
@@ -1258,13 +1306,13 @@ export default function Home() {
       unit: selectedProductToExit.unit,
       // 1. Tushirish
       includeUnloading: includeExitUnloading,
-      unloadingSvc,
+      unloadingSvc: unloadingSvc || fallbackUnloading,
       unloadingCleanName,
       unloadingBase,
       unloadingVat,
       unloadingTotal,
       // 2. Saqlash
-      storageSvc,
+      storageSvc: storageSvc || fallbackStorage,
       storageBase,
       storageVat,
       storageTotal,
@@ -2108,9 +2156,10 @@ export default function Home() {
     // 2-rasmdagi rasmiy preyskurant saqlash tarifi (10–19 bandlar)
     const storageSvc = customsServices.find(s => s.id === productForm.storageTariffId)
       || customsServices.find(s => s.category === 'STORAGE' && (productForm.unit === 'pallet' ? s.itemNo === 14 : sec.type === 'COLD_FREEZER' ? s.itemNo === 19 : s.itemNo === 10))
-      || customsServices.find(s => s.id === 'cs-12')!;
-    const storageName = storageSvc.nameUz || storageSvc.name;
-    const dailyRate = storageSvc.basePrice;
+      || customsServices.find(s => s.id === 'cs-12')
+      || INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-12')!;
+    const storageName = storageSvc?.nameUz || storageSvc?.name || 'Standart saqlash';
+    const dailyRate = storageSvc?.basePrice || 8000;
 
     const now = new Date();
     const qtyNum = Number(productForm.quantity);
@@ -2340,7 +2389,7 @@ export default function Home() {
 
     const unloadingSvcName = exitBillingCalculation.unloadingCleanName;
     const loadingSvcName = exitBillingCalculation.loadingCleanName;
-    const storageTariffName = exitBillingCalculation.storageSvc.nameUz || exitBillingCalculation.storageSvc.name;
+    const storageTariffName = exitBillingCalculation.storageSvc?.nameUz || exitBillingCalculation.storageSvc?.name || 'Saqlash tarifi';
 
     const newExitRec: ProductExitRecord = {
       id: 'exit-' + Date.now(),
@@ -2420,11 +2469,11 @@ export default function Home() {
       unloadingType: unloadingSvcName,
       loadingType: loadingSvcName,
       daysStored: exitBillingCalculation.daysStored,
-      tariffId: exitBillingCalculation.storageSvc.id,
+      tariffId: exitBillingCalculation.storageSvc?.id || 'cs-12',
       tariffName: storageTariffName,
       storageTariffName: storageTariffName,
       storageFormula: exitBillingCalculation.storageDetailNote,
-      tariffDailyRate: exitBillingCalculation.storageSvc.basePrice,
+      tariffDailyRate: exitBillingCalculation.storageSvc?.basePrice || 8000,
       obrabotkaCostUZS: exitBillingCalculation.unloadingTotal,
       storageCostUZS: exitBillingCalculation.storageTotal,
       loadingCostUZS: exitBillingCalculation.loadingTotal,
@@ -2449,7 +2498,7 @@ export default function Home() {
       receiverPerson: exitReceiverPerson,
       unloadingService: unloadingSvcName,
       unloadingCost: exitBillingCalculation.unloadingTotal,
-      storageTariffId: exitBillingCalculation.storageSvc.id,
+      storageTariffId: exitBillingCalculation.storageSvc?.id || 'cs-12',
       storageTariffName: storageTariffName,
       storageBaseCost: exitBillingCalculation.storageBase,
       storageVat: exitBillingCalculation.storageVat,
@@ -2518,18 +2567,9 @@ export default function Home() {
       saveCustomsServicesData(updated);
       showToast(`"${customsServiceForm.name}" narxi muvaffaqiyatli yangilandi!`);
     } else {
-      api.customsServices.create({
-        itemNo: customsServices.length + 1,
-        category: customsServiceForm.category,
-        name: customsServiceForm.name,
-        nameUz: customsServiceForm.nameUz,
-        unit: customsServiceForm.unit,
-        basePrice: base,
-        description: customsServiceForm.description
-      }).catch(err => console.warn('Customs service create error:', err));
-
+      const tempId = 'cs-' + Date.now();
       const newSvc: CustomsService = {
-        id: 'cs-' + Date.now(),
+        id: tempId,
         itemNo: customsServices.length + 1,
         category: customsServiceForm.category,
         name: customsServiceForm.name,
@@ -2543,6 +2583,20 @@ export default function Home() {
       };
       saveCustomsServicesData([...customsServices, newSvc]);
       showToast(`Yangi "${newSvc.name}" bojxona xizmati qo'shildi!`);
+
+      api.customsServices.create({
+        itemNo: customsServices.length + 1,
+        category: customsServiceForm.category,
+        name: customsServiceForm.name,
+        nameUz: customsServiceForm.nameUz,
+        unit: customsServiceForm.unit,
+        basePrice: base,
+        description: customsServiceForm.description
+      }).then(res => {
+        if (res?.service?.id) {
+          setCustomsServices(prev => prev.map(s => s.id === tempId ? { ...s, id: res.service.id } : s));
+        }
+      }).catch(err => console.warn('Customs service create error:', err));
     }
     setIsCustomsServiceModalOpen(false);
   };
@@ -6450,7 +6504,7 @@ export default function Home() {
                         <span>SAQLASH TARIFI VA TO&apos;LOVLAR HISOBI</span>
                       </span>
                       <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                        {exitBillingCalculation.storageSvc.nameUz || exitBillingCalculation.storageSvc.name} (12% QQS)
+                        {exitBillingCalculation.storageSvc?.nameUz || exitBillingCalculation.storageSvc?.name || 'Saqlash'} (12% QQS)
                       </span>
                     </div>
 
@@ -6459,7 +6513,7 @@ export default function Home() {
                       <div>
                         <span style={{ color: '#166534', fontSize: '11px' }}>Kunlik Stavka:</span>
                         <strong style={{ display: 'block', color: '#0f172a', fontSize: '14px', marginTop: '2px' }}>
-                          {exitBillingCalculation.storageSvc.basePrice.toLocaleString('uz-UZ')} UZS / {exitBillingCalculation.storageSvc.unit}
+                          {(exitBillingCalculation.storageSvc?.basePrice || 0).toLocaleString('uz-UZ')} UZS / {exitBillingCalculation.storageSvc?.unit || 'kun'}
                         </strong>
                       </div>
 
