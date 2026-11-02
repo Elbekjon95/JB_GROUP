@@ -292,6 +292,7 @@ export default function Home() {
     async function syncFromDatabase() {
       try {
         // 0. Dastlabki bir martalik Super Admin registratsiyasi kerakmi yoki yo'qligini tekshirish
+        let meUser: any = null;
         const setupRes = await api.auth.checkSetup().catch(() => null);
         if (setupRes?.needsSetup) {
           setNeedsInitialSetup(true);
@@ -308,6 +309,7 @@ export default function Home() {
           // Server JWT token orqali joriy foydalanuvchi va huquqlarini tekshirish
           const meRes = await api.auth.me().catch(() => null);
           if (meRes?.user) {
+            meUser = meRes.user;
             setCurrentUser(meRes.user);
             localStorage.setItem('uzw_active_user', JSON.stringify(meRes.user));
           } else {
@@ -372,7 +374,7 @@ export default function Home() {
         }
 
         // Users (Faqat SUPER_ADMIN foydalanuvchilar ro'yxatini oladi - 403 Forbidden oldini olish uchun)
-        if (meRes?.user?.role === 'SUPER_ADMIN') {
+        if (meUser?.role === 'SUPER_ADMIN') {
           const usersRes = await api.users.getAll().catch(() => null);
           if (usersRes?.users) {
             setUsersList(usersRes.users);
