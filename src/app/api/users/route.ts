@@ -24,6 +24,7 @@ export async function GET(req: Request) {
         canManageTariffs: true,
         canManageWarehouses: true,
         canStockMovement: true,
+        canDeleteProducts: true,
         createdAt: true,
         updatedAt: true
       }
@@ -60,7 +61,8 @@ export async function POST(req: Request) {
         permissions: permissions || {},
         canManageTariffs: !!permissions?.canManageTariffs,
         canManageWarehouses: !!permissions?.canManageWarehouse,
-        canStockMovement: permissions?.canStockMovement !== false
+        canStockMovement: permissions?.canStockMovement !== false,
+        canDeleteProducts: !!permissions?.canDeleteProducts
       },
       select: {
         id: true,

@@ -14,6 +14,7 @@ export interface UserFormState {
   canStockMovement: boolean;
   canViewFinances: boolean;
   canEditProducts: boolean;
+  canDeleteProducts: boolean;
   canViewEditLogs: boolean;
 }
 
@@ -85,6 +86,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                         canLinkTariffs: true,
                         canStockMovement: true,
                         canEditProducts: true,
+                        canDeleteProducts: true,
                         canViewEditLogs: true
                       });
                     } else if (newRole === 'ACCOUNTANT') {
@@ -98,6 +100,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                         canHandleHazardous: false,
                         canViewFinances: true,
                         canEditProducts: false,
+                        canDeleteProducts: false,
                         canViewEditLogs: true,
                         allowedSectorIds: ['ALL']
                       });
@@ -112,6 +115,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                         canHandleHazardous: false,
                         canViewFinances: false,
                         canEditProducts: false,
+                        canDeleteProducts: false,
                         canViewEditLogs: false
                       });
                     } else {
@@ -119,6 +123,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                         ...userForm,
                         role: newRole,
                         canEditProducts: true,
+                        canDeleteProducts: true,
                         canViewEditLogs: true
                       });
                     }
@@ -253,6 +258,26 @@ export const UserModal: React.FC<UserModalProps> = ({
                         {userForm.canEditProducts
                           ? '✅ Xodim kirimda xato yozilgan yukni (miqdori, og\'irligi, sektori yoki mijozini) to\'g\'rilay oladi. Har bir tahrir oylik hisobotga yoziladi.'
                           : '⛔ O\'chirilgan: Xodim kiritilgan yuk ma\'lumotlarini o\'zgartira olmaydi.'}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 5.1. QABUL QILINGAN YUKNI TIZIMDAN O'CHIRISH RUXSATI (FOYDALANUVCHI TALABI) */}
+                <div style={{ background: userForm.canDeleteProducts ? '#fef2f2' : '#f8fafc', border: userForm.canDeleteProducts ? '1.5px solid #ef4444' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canDeleteProducts ? '#991b1b' : '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={userForm.canDeleteProducts}
+                      onChange={e => setUserForm({ ...userForm, canDeleteProducts: e.target.checked })}
+                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#dc2626' }}
+                    />
+                    <div>
+                      <strong>🗑️ QABUL QILINGAN YUKNI TIZIMDAN O&apos;CHIRISH RUXSATI</strong>
+                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canDeleteProducts ? '#b91c1c' : '#64748b', fontWeight: 600 }}>
+                        {userForm.canDeleteProducts
+                          ? '✅ Xodim kirim qilingan yukni tizimdan o\'chira oladi. Har bir o\'chirish sababi bilan birga "Tahrirlar" hisobotiga yozib boriladi.'
+                          : '⛔ O\'chirilgan: Xodim yuklarni o\'chira olmaydi (Faqat Bosh Rahbar va maxsus ruxsat berilganlar o\'chira oladi).'}
                       </span>
                     </div>
                   </label>

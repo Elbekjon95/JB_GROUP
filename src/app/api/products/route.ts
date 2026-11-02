@@ -126,14 +126,82 @@ export async function POST(req: Request) {
       const timeStr = entryTime || getTashkentTimeStr();
       const invoiceNo = formatOfficialInvoiceNo('NAK-IN');
 
-      // Haqiqiy warehouseId ni aniqlash
-      let finalWarehouseId = warehouseId;
-      if (!finalWarehouseId || finalWarehouseId === 'wh-main') {
-        const activeWh = await tx.warehouse.findFirst({ select: { id: true } });
-        finalWarehouseId = activeWh?.id || 'wh-main';
+      // 1. Haqiqiy warehouseId ni aniqlash va tekshirish
+      let validWarehouseId: string | null = null;
+      if (warehouseId) {
+        const existingWh = await tx.warehouse.findUnique({ where: { id: warehouseId }, select: { id: true } });
+        if (existingWh) validWarehouseId = existingWh.id;
+      }
+      if (!validWarehouseId) {
+        const firstWh = await tx.warehouse.findFirst({ select: { id: true } });
+        validWarehouseId = firstWh?.id || null;
       }
 
-      // 1. Tovar yaratish
+      // 2. Haqiqiy sectorId ni aniqlash va tekshirish
+      let validSectorId: string | null = null;
+      if (sectorId) {
+        const existingSector = await tx.sector.findUnique({ where: { id: sectorId }, select: { id: true } });
+        if (existingSector) {
+          validSectorId = existingSector.id;
+        } else if (sectorName) {
+          const matchedSector = await tx.sector.findFirst({
+            where: { name: { equals: sectorName.trim(), mode: 'insensitive' } },
+            select: { id: true }
+          });
+          if (matchedSector) validSectorId = matchedSector.id;
+        }
+      }
+      if (!validSectorId) {
+        const firstSector = await tx.sector.findFirst({ select: { id: true } });
+        validSectorId = firstSector?.id || null;
+      }
+
+      // 3. Haqiqiy clientId (Mijoz / To'lovchi) ni aniqlash
+      let validClientId: string | null = null;
+      if (payerId) {
+        const existingClient = await tx.client.findUnique({ where: { id: payerId }, select: { id: true } });
+        if (existingClient) {
+          validClientId = existingClient.id;
+        }
+      }
+      // Agar payerId bazada topilmasa yoki berilmagan bo'lsa, lekin clientName kiritilgan bo'lsa
+      if (!validClientId && clientName && String(clientName).trim()) {
+        const cleanClientName = String(clientName).trim();
+        const foundClient = await tx.client.findFirst({
+          where: { name: { equals: cleanClientName, mode: 'insensitive' } },
+          select: { id: true }
+        });
+        if (foundClient) {
+          validClientId = foundClient.id;
+        } else {
+          // Bazada bunday mijoz bo'lmasa, avtomatik yangi Client yaratib qo'yamiz
+          try {
+            const autoClient = await tx.client.create({
+              data: {
+                name: cleanClientName,
+                contractNumber: contractNumber || `SH-${new Date().getFullYear()}/${Date.now().toString().slice(-4)}`,
+                contractStartDate: nowStr,
+                contractEndDate: contractEndDate || `${new Date().getFullYear()}-12-31`,
+                status: 'Faol'
+              },
+              select: { id: true }
+            });
+            validClientId = autoClient.id;
+          } catch (clientErr) {
+            console.warn('Auto client create fallback to null:', clientErr);
+            validClientId = null;
+          }
+        }
+      }
+
+      // 4. TariffId tekshiruvi (agar uzatilsa)
+      let validTariffId: string | null = null;
+      if (body.tariffId) {
+        const existingTariff = await tx.tariff.findUnique({ where: { id: body.tariffId }, select: { id: true } });
+        if (existingTariff) validTariffId = existingTariff.id;
+      }
+
+      // 5. Tovar yaratish (Barcha Foreign Key lar 100% xavfsiz holatda)
       const newProduct = await tx.product.create({
         data: {
           name,
@@ -149,10 +217,12 @@ export async function POST(req: Request) {
           storageTariffRate: Number(storageTariffRate) || 0,
           storageTariffItemNo: Number(storageTariffItemNo) || null,
           storageTariffUnit: storageTariffUnit || null,
-          sectorId: sectorId || null,
+          tariffId: validTariffId,
+          tariffName: body.tariffName || null,
+          sectorId: validSectorId,
           sectorName: sectorName || null,
-          warehouseId: finalWarehouseId,
-          clientId: payerId || null,
+          warehouseId: validWarehouseId,
+          clientId: validClientId,
           clientName: clientName || null,
           contractNumber: contractNumber || null,
           contractEndDate: contractEndDate || null,

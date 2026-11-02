@@ -152,9 +152,10 @@ export const api = {
         body: JSON.stringify(data)
       });
     },
-    delete: async (id: string) => {
-      return request<{ success: boolean }>(`/api/products/${id}`, {
-        method: 'DELETE'
+    delete: async (id: string, options?: { reason?: string; deletedBy?: string; deletedByRole?: string; deletedById?: string }) => {
+      return request<{ success: boolean; editLog?: ProductEditLog }>(`/api/products/${id}`, {
+        method: 'DELETE',
+        body: options ? JSON.stringify(options) : undefined
       });
     }
   },

@@ -42,12 +42,13 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
     });
   }, [editLogs, selectedMonth, selectedEmployee, searchQuery]);
 
-  // Xodimlar kesimida oylik svodka (Kim bir oyda nechta yukni to'g'rilagan)
+  // Xodimlar kesimida oylik svodka (Kim bir oyda nechta yukni to'g'rilagan yoki o'chirgan)
   const employeeSummary = useMemo(() => {
     const map = new Map<string, {
       userName: string;
       userRole: string;
       editsCount: number;
+      deletesCount: number;
       fieldsChangedCount: number;
       productsEdited: Set<string>;
       lastEditDate: string;
@@ -59,12 +60,17 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
         userName: name,
         userRole: log.userRole || 'USER',
         editsCount: 0,
+        deletesCount: 0,
         fieldsChangedCount: 0,
         productsEdited: new Set<string>(),
         lastEditDate: `${log.date} ${log.time}`
       };
 
-      existing.editsCount += 1;
+      if (log.actionType === 'DELETE') {
+        existing.deletesCount += 1;
+      } else {
+        existing.editsCount += 1;
+      }
       existing.fieldsChangedCount += (log.changes?.length || 1);
       if (log.productName) existing.productsEdited.add(log.productName);
       if (`${log.date} ${log.time}` > existing.lastEditDate) {
@@ -74,7 +80,15 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
       map.set(name, existing);
     });
 
-    return Array.from(map.values()).sort((a, b) => b.editsCount - a.editsCount);
+    return Array.from(map.values()).sort((a, b) => (b.editsCount + b.deletesCount) - (a.editsCount + a.deletesCount));
+  }, [filteredLogs]);
+
+  const totalDeletesCount = useMemo(() => {
+    return filteredLogs.filter(l => l.actionType === 'DELETE').length;
+  }, [filteredLogs]);
+
+  const totalEditsCount = useMemo(() => {
+    return filteredLogs.filter(l => l.actionType !== 'DELETE').length;
   }, [filteredLogs]);
 
   return (
@@ -167,10 +181,10 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
             ✏️ {t(lang, 'totalEditsInMonth')}
           </span>
           <div style={{ fontSize: '26px', fontWeight: 900, color: '#b45309', marginTop: '4px' }}>
-            {filteredLogs.length} marta
+            {filteredLogs.length} ta amal
           </div>
-          <span style={{ fontSize: '11px', color: '#78350f' }}>
-            Tanlangan oy: {selectedMonth || 'Barchasi'}
+          <span style={{ fontSize: '11px', color: '#78350f', fontWeight: 700 }}>
+            ✏️ {totalEditsCount} tahrir | 🗑️ {totalDeletesCount} o&apos;chirish
           </span>
         </div>
 
@@ -232,9 +246,16 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
                     </span>
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 900, padding: '3px 10px', borderRadius: '12px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
-                      ✏️ {emp.editsCount} marta
-                    </span>
+                    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '3px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 900, padding: '2px 8px', borderRadius: '10px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
+                        ✏️ {emp.editsCount} tahrir
+                      </span>
+                      {emp.deletesCount > 0 && (
+                        <span style={{ fontSize: '11px', fontWeight: 900, padding: '2px 8px', borderRadius: '10px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
+                          🗑️ {emp.deletesCount} o&apos;chirish
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td data-no-translate="true" style={{ padding: '10px 14px', fontSize: '12px', color: '#334155' }}>
                     {Array.from(emp.productsEdited).join(', ')}
@@ -289,8 +310,19 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
                     <span style={{ fontSize: '10.5px', color: '#64748b' }}>{log.userRole}</span>
                   </td>
                   <td style={{ padding: '12px 14px' }}>
-                    <strong data-no-translate="true" style={{ color: '#0f172a', display: 'block' }}>{log.productName}</strong>
-                    <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 700 }}>{log.sectorName}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <strong data-no-translate="true" style={{ color: '#0f172a' }}>{log.productName}</strong>
+                      {log.actionType === 'DELETE' ? (
+                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
+                          🗑️ O&apos;CHIRILGAN
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
+                          ✏️ TAHRIRLANGAN
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 700, display: 'block', marginTop: '2px' }}>{log.sectorName}</span>
                     {log.clientName && (
                       <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>{log.clientName}</span>
                     )}
@@ -316,8 +348,18 @@ export const EditLogsReportView: React.FC<EditLogsReportViewProps> = ({
                     )}
                   </td>
                   <td style={{ padding: '12px 14px' }}>
-                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '6px 10px', borderRadius: '6px', color: '#92400e', fontSize: '11.5px', fontWeight: 600 }}>
-                      📌 {log.reason}
+                    <div
+                      style={{
+                        background: log.actionType === 'DELETE' ? '#fef2f2' : '#fffbeb',
+                        border: log.actionType === 'DELETE' ? '1px solid #fecaca' : '1px solid #fde68a',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        color: log.actionType === 'DELETE' ? '#991b1b' : '#92400e',
+                        fontSize: '11.5px',
+                        fontWeight: 600
+                      }}
+                    >
+                      {log.actionType === 'DELETE' ? '🗑️' : '📌'} {log.reason}
                     </div>
                   </td>
                 </tr>

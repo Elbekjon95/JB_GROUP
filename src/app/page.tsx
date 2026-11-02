@@ -12,6 +12,7 @@ import { UserModal, UserFormState } from '@/components/modals/UserModal';
 import { CustomsServiceModal } from '@/components/modals/CustomsServiceModal';
 import { ProductHistoryModal } from '@/components/modals/ProductHistoryModal';
 import { EditProductModal, EditProductFormState } from '@/components/modals/EditProductModal';
+import { DeleteProductModal } from '@/components/modals/DeleteProductModal';
 import { EditLogsReportView } from '@/components/views/EditLogsReportView';
 import { api } from '@/lib/api-client';
 import { t, translateTextNode } from '@/lib/i18n';
@@ -265,6 +266,7 @@ export default function Home() {
     canStockMovement: true,
     canViewFinances: false,
     canEditProducts: false,
+    canDeleteProducts: false,
     canViewEditLogs: false
   });
 
@@ -461,6 +463,8 @@ export default function Home() {
   const canViewFinances = isSuperAdmin || isAccountant || Boolean(currentUser?.permissions?.canViewFinances);
   // ✏️ Kiritilgan yukni tahrirlash (xatoni to'g'rilash) huquqi (Super Admin yoki ruxsat berilgan xodim)
   const canEditProducts = isSuperAdmin || isAdmin || Boolean(currentUser?.permissions?.canEditProducts) || (currentUser?.role !== 'ACCOUNTANT');
+  // 🗑️ Qabul qilingan yukni tizimdan o'chirish huquqi (Super Admin yoki maxsus ruxsat berilgan xodim)
+  const canDeleteProducts = isSuperAdmin || Boolean(currentUser?.permissions?.canDeleteProducts) || Boolean((currentUser as any)?.canDeleteProducts);
   // 📋 1 oylik tahrirlar (to'g'rilangan yuklar) hisobotini ko'rish huquqi
   const canViewEditLogs = isSuperAdmin || Boolean(currentUser?.permissions?.canViewEditLogs);
 
@@ -1516,6 +1520,7 @@ export default function Home() {
       canStockMovement: true,
       canViewFinances: false,
       canEditProducts: false,
+      canDeleteProducts: false,
       canViewEditLogs: false
     });
     setIsUserModalOpen(true);
@@ -1536,6 +1541,7 @@ export default function Home() {
       canStockMovement: u.permissions?.canStockMovement ?? true,
       canViewFinances: u.permissions?.canViewFinances ?? (u.role === 'SUPER_ADMIN'),
       canEditProducts: u.permissions?.canEditProducts ?? (u.role === 'SUPER_ADMIN'),
+      canDeleteProducts: u.permissions?.canDeleteProducts ?? (u.role === 'SUPER_ADMIN'),
       canViewEditLogs: u.permissions?.canViewEditLogs ?? (u.role === 'SUPER_ADMIN')
     });
     setIsUserModalOpen(true);
@@ -1557,6 +1563,7 @@ export default function Home() {
       canStockMovement: userForm.canStockMovement,
       canViewFinances: userForm.role === 'SUPER_ADMIN' ? true : userForm.canViewFinances,
       canEditProducts: userForm.role === 'SUPER_ADMIN' ? true : userForm.canEditProducts,
+      canDeleteProducts: userForm.role === 'SUPER_ADMIN' ? true : userForm.canDeleteProducts,
       canViewEditLogs: userForm.role === 'SUPER_ADMIN' ? true : userForm.canViewEditLogs
     };
 
@@ -1779,6 +1786,106 @@ export default function Home() {
     showToast(`✅ "${updatedProd.name}" ma'lumotlari to'g'rilandi va oylik tahrirlar hisobotiga yozildi!`);
   };
 
+  // =========================================================================
+  // QABUL QILINGAN YUKNI O'CHIRISH VA "TAHRIRLAR" HISOBOTIGA YOZISH (FOYDALANUVCHI TALABI)
+  // =========================================================================
+  const [isDeleteProductModalOpen, setIsDeleteProductModalOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<StoredProduct | null>(null);
+  const [deleteProductReason, setDeleteProductReason] = useState('Kirimda xato kiritilgan yuk');
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+
+  const handleOpenDeleteProduct = (prod: StoredProduct) => {
+    if (!canDeleteProducts) {
+      showToast('Sizda qabul qilingan yukni o\'chirish huquqi yo\'q! Bosh Rahbardan (Super Admin) ruxsat so\'rang.');
+      return;
+    }
+    setDeletingProduct(prod);
+    setDeleteProductReason('Kirimda xato kiritilgan yuk');
+    setIsDeleteProductModalOpen(true);
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!deletingProduct) return;
+    if (!canDeleteProducts) {
+      showToast('Sizda yukni o\'chirish huquqi yo\'q!');
+      return;
+    }
+
+    const reason = (deleteProductReason.trim() || 'Kiritilgan yuk tizimdan butunlay o\'chirildi').trim();
+    setIsDeletingProduct(true);
+
+    try {
+      const res = await api.products.delete(deletingProduct.id, {
+        reason,
+        deletedBy: currentUser?.fullName,
+        deletedByRole: currentUser?.role,
+        deletedById: currentUser?.id
+      });
+
+      // 1. Ombordagi yuklar ro'yxatidan chiqarish
+      const updatedList = storedProducts.filter(p => p.id !== deletingProduct.id);
+      saveProductsData(updatedList);
+
+      // 2. Harakatlar ro'yxatidan ushbu yuk harakatlarini tozalash
+      setMovements(prev => prev.filter(m => m.productId !== deletingProduct.id));
+
+      // 3. Tahrirlar (AuditLog) hisobotiga kiritish
+      if (res?.editLog) {
+        saveEditLogsData([res.editLog, ...editLogs]);
+      } else {
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10);
+        const timeStr = now.toTimeString().slice(0, 5);
+        const localLog: ProductEditLog = {
+          id: 'del-' + Date.now(),
+          productId: deletingProduct.id,
+          productName: deletingProduct.name,
+          sectorName: deletingProduct.sectorName,
+          clientName: deletingProduct.clientName,
+          userId: currentUser?.id,
+          userName: currentUser?.fullName || 'Mas\'ul xodim',
+          userRole: currentUser?.role || 'USER',
+          date: dateStr,
+          time: timeStr,
+          month: dateStr.slice(0, 7),
+          reason,
+          actionType: 'DELETE',
+          status: 'O\'chirildi',
+          changes: [
+            {
+              field: 'status',
+              label: 'Yuk holati',
+              oldValue: `${deletingProduct.name} (${deletingProduct.quantity} ${deletingProduct.unit}, ${deletingProduct.weightKg || 0} kg)`,
+              newValue: 'BUTUNLAY O\'CHIRILDI'
+            },
+            {
+              field: 'sector',
+              label: 'Sektor',
+              oldValue: deletingProduct.sectorName || '-',
+              newValue: '-'
+            },
+            {
+              field: 'client',
+              label: 'Mijoz / To\'lovchi',
+              oldValue: deletingProduct.clientName || '-',
+              newValue: '-'
+            }
+          ]
+        };
+        saveEditLogsData([localLog, ...editLogs]);
+      }
+
+      setIsDeleteProductModalOpen(false);
+      setDeletingProduct(null);
+      showToast(`🗑️ "${deletingProduct.name}" ombor hisobidan o'chirildi va 'Tahrirlar' bo'limiga kiritildi!`);
+    } catch (err: any) {
+      console.error('Delete product error:', err);
+      showToast('Yukni o\'chirishda xatolik yuz berdi: ' + (err?.message || err));
+    } finally {
+      setIsDeletingProduct(false);
+    }
+  };
+
   // Oylik tahrirlar hisobotini Excel (CSV) formatida yuklab olish
   const exportEditLogsToCSV = (logsToExport: ProductEditLog[], month: string) => {
     if (logsToExport.length === 0) {
@@ -1788,15 +1895,16 @@ export default function Home() {
 
     const headers = [
       '№',
+      'Amal_Turi',
       'Sana',
       'Vaqt',
-      'Tahrirlagan_Xodim',
+      'Mas\'ul_Xodim',
       'Xodim_Roli',
       'Yuk_Nomi',
       'Sektor',
       'Mijoz_Tolovchi',
-      'Ozgartirilgan_Maydonlar',
-      'Tahrirlash_Sababi'
+      'Tafsilotlar_Ozgarishlar',
+      'Amal_Sababi'
     ];
 
     const rows = logsToExport.map((l, idx) => {
@@ -1805,6 +1913,7 @@ export default function Home() {
         .join(' | ');
       return [
         idx + 1,
+        l.actionType === 'DELETE' ? '"O\'CHIRILDI"' : '"TAHRIRLANDI"',
         l.date,
         l.time,
         `"${(l.userName || '').replace(/"/g, '""')}"`,
@@ -3310,6 +3419,30 @@ export default function Home() {
                                         </button>
                                       )}
 
+                                      {canDeleteProducts && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenDeleteProduct(prod)}
+                                          style={{
+                                            background: '#fef2f2',
+                                            border: '1px solid #fecaca',
+                                            color: '#dc2626',
+                                            borderRadius: '5px',
+                                            padding: '4px 7px',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px'
+                                          }}
+                                          title="Qabul qilingan yukni tizimdan o'chirish"
+                                        >
+                                          <span>🗑️</span>
+                                          <span>{t(lang, 'btnDeleteCargo')}</span>
+                                        </button>
+                                      )}
+
                                       {canExitThis && (
                                           <button
                                             type="button"
@@ -3446,6 +3579,16 @@ export default function Home() {
                                       style={{ borderColor: '#fde68a', color: '#b45309', background: '#fffbeb', fontWeight: 700, fontSize: '12px', padding: '6px 12px' }}
                                     >
                                       ✏️ {t(lang, 'btnEditCargo')}
+                                    </button>
+                                  )}
+                                  {canDeleteProducts && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenDeleteProduct(prod)}
+                                      className="btn-outline"
+                                      style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fef2f2', fontWeight: 700, fontSize: '12px', padding: '6px 12px' }}
+                                    >
+                                      🗑️ {t(lang, 'btnDeleteCargo')}
                                     </button>
                                   )}
                                 </div>
@@ -5365,6 +5508,12 @@ export default function Home() {
                           <span>{(isSuper || perms?.canEditProducts) ? 'Kiritilgan yukni tahrirlash (xatoni to\'g\'rilash) ruxsati bor' : 'Yukni tahrirlash yopiq'}</span>
                         </div>
 
+                        {/* 7.1. Qabul qilingan yukni o'chirish ruxsati */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: (isSuper || perms?.canDeleteProducts) ? '#dc2626' : '#94a3b8' }}>
+                          <span>{(isSuper || perms?.canDeleteProducts) ? '🗑️' : '🔒'}</span>
+                          <span>{(isSuper || perms?.canDeleteProducts) ? 'Qabul qilingan yukni o\'chirish ruxsati bor' : 'Yukni o\'chirish huquqi yo\'q'}</span>
+                        </div>
+
                         {/* 8. 1 oylik tahrirlar hisobotini ko'rish ruxsati */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: (isSuper || perms?.canViewEditLogs) ? '#1d4ed8' : '#94a3b8' }}>
                           <span>{(isSuper || perms?.canViewEditLogs) ? '📋' : '🔒'}</span>
@@ -6907,6 +7056,25 @@ export default function Home() {
         lang={lang}
         onSave={handleSaveEditedProduct}
         onClose={() => setIsEditProductModalOpen(false)}
+      />
+
+      {/* ========================================================
+          MODAL 6C: QABUL QILINGAN YUKNI O'CHIRISH (TASDIQLASH)
+          ======================================================== */}
+      <DeleteProductModal
+        isOpen={isDeleteProductModalOpen}
+        product={deletingProduct}
+        reason={deleteProductReason}
+        setReason={setDeleteProductReason}
+        onConfirm={handleConfirmDeleteProduct}
+        onClose={() => {
+          if (!isDeletingProduct) {
+            setIsDeleteProductModalOpen(false);
+            setDeletingProduct(null);
+          }
+        }}
+        isDeleting={isDeletingProduct}
+        lang={lang}
       />
 
       {/* ========================================================

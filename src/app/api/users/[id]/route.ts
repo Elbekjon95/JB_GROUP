@@ -23,7 +23,8 @@ export async function PUT(
       permissions: body.permissions,
       canManageTariffs: !!body.permissions?.canManageTariffs,
       canManageWarehouses: !!body.permissions?.canManageWarehouse,
-      canStockMovement: body.permissions?.canStockMovement !== false
+      canStockMovement: body.permissions?.canStockMovement !== false,
+      canDeleteProducts: !!body.permissions?.canDeleteProducts
     };
 
     if (body.password && body.password.trim().length > 0) {

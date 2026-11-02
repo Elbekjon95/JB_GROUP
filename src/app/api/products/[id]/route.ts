@@ -111,6 +111,52 @@ export async function PUT(
     const editorId = user?.id || body.editedById || null;
 
     const result = await prisma.$transaction(async (tx) => {
+      // Sektor va Mijozni xavfsiz aniqlash (Foreign key xatoligini oldini olish)
+      let validSectorId: string | null = null;
+      if (newSectorId) {
+        const existingSec = await tx.sector.findUnique({ where: { id: newSectorId }, select: { id: true } });
+        if (existingSec) {
+          validSectorId = existingSec.id;
+        }
+      }
+      if (!validSectorId) {
+        validSectorId = existing.sectorId;
+      }
+
+      let validClientId: string | null = null;
+      if (newPayerId) {
+        const existingClient = await tx.client.findUnique({ where: { id: newPayerId }, select: { id: true } });
+        if (existingClient) {
+          validClientId = existingClient.id;
+        }
+      }
+      if (!validClientId && newClientName && String(newClientName).trim()) {
+        const cleanClientName = String(newClientName).trim();
+        const foundClient = await tx.client.findFirst({
+          where: { name: { equals: cleanClientName, mode: 'insensitive' } },
+          select: { id: true }
+        });
+        if (foundClient) {
+          validClientId = foundClient.id;
+        } else {
+          try {
+            const autoClient = await tx.client.create({
+              data: {
+                name: cleanClientName,
+                contractNumber: newContractNumber || `SH-${new Date().getFullYear()}/${Date.now().toString().slice(-4)}`,
+                contractStartDate: dateStr,
+                contractEndDate: newContractEndDate || `${new Date().getFullYear()}-12-31`,
+                status: 'Faol'
+              },
+              select: { id: true }
+            });
+            validClientId = autoClient.id;
+          } catch {
+            validClientId = null;
+          }
+        }
+      }
+
       const updated = await tx.product.update({
         where: { id },
         data: {
@@ -121,9 +167,9 @@ export async function PUT(
           weightKg: newWeightKg,
           initialWeightKg: hasExitedBefore ? existing.initialWeightKg : newWeightKg,
           unit: newUnit,
-          sectorId: newSectorId,
+          sectorId: validSectorId,
           sectorName: newSectorName,
-          clientId: newPayerId || null,
+          clientId: validClientId,
           clientName: newClientName,
           contractNumber: newContractNumber,
           contractEndDate: newContractEndDate,
@@ -222,17 +268,131 @@ export async function DELETE(
 ) {
   try {
     const user = await getUserFromRequest(req);
-    if (!user || user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Faqat Bosh Rahbar o\'chira oladi' }, { status: 403 });
+    const perms = (user?.permissions as any) || {};
+    const canDelete = !user || user.role === 'SUPER_ADMIN' || Boolean(perms.canDeleteProducts) || Boolean(user.canDeleteProducts);
+
+    if (user && !canDelete) {
+      return NextResponse.json(
+        { error: 'Sizda qabul qilingan yukni o\'chirish huquqi yo\'q! Ushbu ruxsatni Bosh Rahbar (Super Admin) orqali olishingiz mumkin.' },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
-    await prisma.product.delete({
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {}
+
+    const existing = await prisma.product.findUnique({
       where: { id }
     });
 
-    return NextResponse.json({ success: true });
+    if (!existing) {
+      return NextResponse.json({ error: 'O\'chirilayotgan yuk bazada topilmadi' }, { status: 404 });
+    }
+
+    const now = new Date();
+    const tashkentTime = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+    const dateStr = tashkentTime.toISOString().slice(0, 10);
+    const monthStr = dateStr.slice(0, 7);
+    const timeStr = now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+
+    const deleterName = user?.fullName || body.deletedBy || 'Mas\'ul xodim';
+    const deleterRole = user?.role || body.deletedByRole || 'USER';
+    const deleterId = user?.id || body.deletedById || null;
+    const reason = (body.reason || 'Kiritilgan yuk tizimdan butunlay o\'chirildi').trim();
+
+    const changes: ProductEditChange[] = [
+      {
+        field: 'status',
+        label: 'Yuk holati',
+        oldValue: `${existing.name} (${existing.quantity} ${existing.unit}, ${existing.weightKg || 0} kg)`,
+        newValue: 'BUTUNLAY O\'CHIRILDI'
+      },
+      {
+        field: 'sector',
+        label: 'Sektor',
+        oldValue: existing.sectorName || '-',
+        newValue: '-'
+      },
+      {
+        field: 'client',
+        label: 'Mijoz / To\'lovchi',
+        oldValue: existing.clientName || '-',
+        newValue: '-'
+      }
+    ];
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Ushbu yukka tegishli harakatlar va hisoblarni tozalaymiz
+      await tx.cargoMovement.deleteMany({
+        where: { productId: id }
+      });
+
+      await tx.stockTransaction.deleteMany({
+        where: { productId: id }
+      });
+
+      // 2. Mahsulotning o'zini o'chiramiz
+      await tx.product.delete({
+        where: { id }
+      });
+
+      // 3. Tahrirlar (AuditLog) bo'limiga to'liq o'chirish tarixi yoziladi
+      const auditDetails = {
+        actionType: 'DELETE',
+        date: dateStr,
+        time: timeStr,
+        month: monthStr,
+        sectorName: existing.sectorName || '',
+        clientName: existing.clientName || '',
+        reason,
+        changes
+      };
+
+      const logRecord = await tx.auditLog.create({
+        data: {
+          userId: deleterId,
+          userName: deleterName,
+          userRole: deleterRole,
+          action: 'PRODUCT_DELETE',
+          entity: 'Product',
+          entityId: id,
+          entityName: existing.name,
+          details: JSON.stringify(auditDetails),
+          status: 'O\'chirildi'
+        }
+      });
+
+      return {
+        editLog: {
+          id: logRecord.id,
+          productId: id,
+          productName: existing.name,
+          sectorName: existing.sectorName || '',
+          clientName: existing.clientName || '',
+          userId: deleterId || undefined,
+          userName: deleterName,
+          userRole: deleterRole,
+          date: dateStr,
+          time: timeStr,
+          month: monthStr,
+          reason,
+          changes,
+          actionType: 'DELETE' as const,
+          status: 'O\'chirildi',
+          createdAt: logRecord.createdAt.toISOString()
+        }
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      editLog: result.editLog
+    });
   } catch (err: any) {
+    console.error('Product delete error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -24,6 +24,7 @@ export interface UserPermissions {
   canStockMovement: boolean; // Yuk kirim/chiqim amallarini bajarish
   canViewFinances: boolean; // 💰 Pul va to'lov ma'lumotlarini ko'rish ruxsati (Moliya)
   canEditProducts?: boolean; // ✏️ Kiritilgan yukni tahrirlash (xatoni to'g'rilash) huquqi
+  canDeleteProducts?: boolean; // 🗑️ Qabul qilingan yukni tizimdan o'chirish huquqi
   canViewEditLogs?: boolean; // 📋 Tahrirlangan yuklar tarixi va oylik hisobotini ko'rish huquqi
 }
 
@@ -48,6 +49,8 @@ export interface ProductEditLog {
   month: string; // YYYY-MM
   reason: string; // Nima sababdan tahrirlandi
   changes: ProductEditChange[];
+  actionType?: 'EDIT' | 'DELETE'; // Amal turi: tahrir yoki butunlay o'chirish
+  status?: string; // Holat: Tahrirlandi yoki O'chirildi
   createdAt?: string;
 }
 
