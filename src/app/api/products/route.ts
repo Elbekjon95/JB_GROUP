@@ -6,11 +6,18 @@ import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from 
 export async function GET(req: Request) {
   try {
     const user = await getUserFromRequest(req);
+    const url = new URL(req.url);
+    const warehouseIdParam = url.searchParams.get('warehouseId');
+
+    const whereClause: any = {
+      quantity: { gt: 0 }
+    };
+    if (warehouseIdParam) {
+      whereClause.warehouseId = warehouseIdParam;
+    }
+
     const products = await prisma.product.findMany({
-      where: {
-        warehouseId: 'wh-main',
-        quantity: { gt: 0 }
-      },
+      where: whereClause,
       include: {
         sector: { select: { id: true, type: true } }
       },
@@ -23,7 +30,9 @@ export async function GET(req: Request) {
       if (p.sector?.type === 'HAZARDOUS' && !perms.canHandleHazardous && user.role !== 'ACCOUNTANT') {
         return false;
       }
-      const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) ? perms.allowedSectorIds : [];
+      const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) && perms.allowedSectorIds.length > 0
+        ? perms.allowedSectorIds
+        : ['ALL'];
       if (!allowedSectors.includes('ALL') && (!p.sectorId || !allowedSectors.includes(p.sectorId))) {
         return false;
       }
@@ -45,7 +54,8 @@ export async function POST(req: Request) {
   try {
     const user = await getUserFromRequest(req);
     const perms = (user?.permissions as any) || {};
-    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canStockMovement)) {
+    const canStockMovement = user?.role === 'SUPER_ADMIN' || (user?.canStockMovement ?? perms.canStockMovement ?? (user?.role !== 'ACCOUNTANT'));
+    if (!user || !canStockMovement) {
       return NextResponse.json({ error: 'Yuk kirim qilish huquqi yo\'q!' }, { status: 403 });
     }
 
@@ -83,7 +93,9 @@ export async function POST(req: Request) {
 
     // 1. Sektor va Xavfli yuk (HAZARDOUS) ruxsatini serverda tekshirish
     if (user.role !== 'SUPER_ADMIN' && sectorId) {
-      const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) ? perms.allowedSectorIds : [];
+      const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) && perms.allowedSectorIds.length > 0
+        ? perms.allowedSectorIds
+        : ['ALL'];
       if (!allowedSectors.includes('ALL') && !allowedSectors.includes(sectorId)) {
         return NextResponse.json({ error: 'Tanlangan ombor sektoriga yuk joylashtirish ruxsatingiz yo\'q!' }, { status: 403 });
       }
@@ -114,6 +126,13 @@ export async function POST(req: Request) {
       const timeStr = entryTime || getTashkentTimeStr();
       const invoiceNo = formatOfficialInvoiceNo('NAK-IN');
 
+      // Haqiqiy warehouseId ni aniqlash
+      let finalWarehouseId = warehouseId;
+      if (!finalWarehouseId || finalWarehouseId === 'wh-main') {
+        const activeWh = await tx.warehouse.findFirst({ select: { id: true } });
+        finalWarehouseId = activeWh?.id || 'wh-main';
+      }
+
       // 1. Tovar yaratish
       const newProduct = await tx.product.create({
         data: {
@@ -132,7 +151,7 @@ export async function POST(req: Request) {
           storageTariffUnit: storageTariffUnit || null,
           sectorId: sectorId || null,
           sectorName: sectorName || null,
-          warehouseId: warehouseId || 'wh-main',
+          warehouseId: finalWarehouseId,
           clientId: payerId || null,
           clientName: clientName || null,
           contractNumber: contractNumber || null,

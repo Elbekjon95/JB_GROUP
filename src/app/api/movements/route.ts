@@ -15,7 +15,9 @@ export async function GET(req: Request) {
     }
 
     const perms = (user.permissions as any) || {};
-    const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) ? perms.allowedSectorIds : [];
+    const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) && perms.allowedSectorIds.length > 0
+      ? perms.allowedSectorIds
+      : ['ALL'];
     const sectors = await prisma.sector.findMany({
       select: { id: true, name: true, type: true }
     });

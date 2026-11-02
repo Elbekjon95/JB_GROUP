@@ -38,7 +38,7 @@ export async function PUT(
     const body = await req.json();
 
     const perms = (user?.permissions as any) || {};
-    const canEdit = !user || user.role === 'SUPER_ADMIN' || Boolean(perms.canEditProducts);
+    const canEdit = !user || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || Boolean(perms.canEditProducts) || (user.canStockMovement && user.role !== 'ACCOUNTANT');
     if (user && !canEdit) {
       return NextResponse.json(
         { error: 'Sizda kiritilgan yuk ma\'lumotlarini tahrirlash (to\'g\'rilash) huquqi yo\'q!' },

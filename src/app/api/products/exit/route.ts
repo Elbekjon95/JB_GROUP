@@ -7,7 +7,8 @@ export async function POST(req: Request) {
   try {
     const user = await getUserFromRequest(req);
     const perms = (user?.permissions as any) || {};
-    if (!user || (user.role !== 'SUPER_ADMIN' && !perms.canStockMovement)) {
+    const canStockMovement = user?.role === 'SUPER_ADMIN' || (user?.canStockMovement ?? perms.canStockMovement ?? (user?.role !== 'ACCOUNTANT'));
+    if (!user || !canStockMovement) {
       return NextResponse.json({ error: 'Yuk chiqim qilish huquqi yo\'q!' }, { status: 403 });
     }
 
@@ -55,7 +56,9 @@ export async function POST(req: Request) {
 
       // 2. Sektor va Xavfli yuk (HAZARDOUS) ruxsatini serverda tekshirish
       if (user.role !== 'SUPER_ADMIN' && product.sectorId) {
-        const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) ? perms.allowedSectorIds : [];
+        const allowedSectors: string[] = Array.isArray(perms.allowedSectorIds) && perms.allowedSectorIds.length > 0
+          ? perms.allowedSectorIds
+          : ['ALL'];
         if (!allowedSectors.includes('ALL') && !allowedSectors.includes(product.sectorId)) {
           throw new Error('Ushbu sektordan yuk chiqarish ruxsatingiz yo\'q!');
         }

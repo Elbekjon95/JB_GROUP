@@ -261,7 +261,7 @@ export default function Home() {
     canManageWarehouse: false,
     canLinkTariffs: false,
     canHandleHazardous: false,
-    allowedSectorIds: ['sec-b', 'sec-c'],
+    allowedSectorIds: ['ALL'],
     canStockMovement: true,
     canViewFinances: false,
     canEditProducts: false,
@@ -446,7 +446,7 @@ export default function Home() {
   // 💰 Pul va to'lov ma'lumotlarini ko'rish vakolati (Super Admin, Buxgalter yoki moliya ruxsati berilgan xodimlar)
   const canViewFinances = isSuperAdmin || isAccountant || Boolean(currentUser?.permissions?.canViewFinances);
   // ✏️ Kiritilgan yukni tahrirlash (xatoni to'g'rilash) huquqi (Super Admin yoki ruxsat berilgan xodim)
-  const canEditProducts = isSuperAdmin || Boolean(currentUser?.permissions?.canEditProducts);
+  const canEditProducts = isSuperAdmin || isAdmin || Boolean(currentUser?.permissions?.canEditProducts) || (currentUser?.role !== 'ACCOUNTANT');
   // 📋 1 oylik tahrirlar (to'g'rilangan yuklar) hisobotini ko'rish huquqi
   const canViewEditLogs = isSuperAdmin || Boolean(currentUser?.permissions?.canViewEditLogs);
 
@@ -740,7 +740,9 @@ export default function Home() {
     }
 
     // 2. XODIM FAQAT O'ZIDA HUQUQI BO'LGAN OMBORLARNI VA ULARDAGI YUKLARNI KO'RA OLADI:
-    const allowed = user.permissions?.allowedSectorIds || [];
+    const allowed = Array.isArray(user.permissions?.allowedSectorIds) && user.permissions.allowedSectorIds.length > 0
+      ? user.permissions.allowedSectorIds
+      : ['ALL'];
     if (!allowed.includes('ALL') && !allowed.includes(sector.id)) {
       return {
         allowed: false,
@@ -1460,7 +1462,7 @@ export default function Home() {
       canManageWarehouse: false,
       canLinkTariffs: false,
       canHandleHazardous: false,
-      allowedSectorIds: ['sec-b', 'sec-c'],
+      allowedSectorIds: ['ALL'],
       canStockMovement: true,
       canViewFinances: false,
       canEditProducts: false,
@@ -1480,7 +1482,7 @@ export default function Home() {
       canManageWarehouse: u.permissions?.canManageWarehouse ?? false,
       canLinkTariffs: u.permissions?.canLinkTariffs ?? false,
       canHandleHazardous: u.permissions?.canHandleHazardous ?? false,
-      allowedSectorIds: u.permissions?.allowedSectorIds ?? ['sec-b'],
+      allowedSectorIds: (u.permissions?.allowedSectorIds && u.permissions.allowedSectorIds.length > 0) ? u.permissions.allowedSectorIds : ['ALL'],
       canStockMovement: u.permissions?.canStockMovement ?? true,
       canViewFinances: u.permissions?.canViewFinances ?? (u.role === 'SUPER_ADMIN'),
       canEditProducts: u.permissions?.canEditProducts ?? (u.role === 'SUPER_ADMIN'),
@@ -2232,7 +2234,25 @@ export default function Home() {
       obrabotkaCost: newProd.obrabotkaCost,
       obrabotkaVat: newProd.obrabotkaVat,
       kirimAdditionalServices: newProd.kirimAdditionalServices
-    }).catch(err => console.warn('PostgreSQL ga saqlashda xato:', err));
+    }).then(res => {
+      if (res?.product) {
+        setStoredProducts(prev => {
+          const updated = prev.map(p => p.id === newProd.id ? { ...res.product, exitHistory: res.product.exitHistory || [] } : p);
+          localStorage.setItem('jb_stored_products_v10', JSON.stringify(updated));
+          return updated;
+        });
+      }
+      if (res?.movement) {
+        setMovements(prev => {
+          const updated = prev.map(m => m.id === newMove.id ? res.movement : m);
+          localStorage.setItem('jb_movements_v10', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }).catch(err => {
+      console.error('PostgreSQL ga saqlashda xato:', err);
+      showToast('⚠️ Xatolik: ' + (err.message || 'Serverga saqlab bo\'lmadi'));
+    });
     // Kirimda nakladnoy shakllantirilmaydi, yuk faqat omborga kiritiladi!
   };
 
