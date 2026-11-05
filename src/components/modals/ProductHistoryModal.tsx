@@ -1,5 +1,5 @@
 import React from 'react';
-import { StoredProduct, Warehouse, CargoMovement } from '@/lib/types';
+import { StoredProduct, Warehouse, CargoMovement, Language } from '@/lib/types';
 
 interface ProductHistoryModalProps {
   product: StoredProduct | null;
@@ -10,6 +10,7 @@ interface ProductHistoryModalProps {
   onOpenExit: (prod: StoredProduct) => void;
   onViewInvoice: (movement: CargoMovement) => void;
   calculateDaysStored: (dateStr: string) => number;
+  lang?: Language;
 }
 
 export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
@@ -20,7 +21,8 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
   onClose,
   onOpenExit,
   onViewInvoice,
-  calculateDaysStored
+  calculateDaysStored,
+  lang = 'uz'
 }) => {
   if (!product) return null;
 
@@ -33,6 +35,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
   const exitPct = 100 - remainPct;
   const totalDaysStored = calculateDaysStored(product.entryDate);
   const currentSec = warehouse.sectors.find(s => s.id === product.sectorId);
+  const isRu = lang === 'ru';
 
   return (
     <div className="modal-overlay" style={{ zIndex: 9999 }}>
@@ -63,7 +66,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
             <span style={{ fontSize: '24px' }}>📜</span>
             <div>
               <h3 style={{ fontSize: '17px', fontWeight: 900, margin: 0, letterSpacing: '-0.01em' }}>
-                YUKNING TO&apos;LIQ HARAKAT TARIXI VA CHIQIMLAR ZANJIRI (TIMELINE)
+                {isRu ? 'ПОЛНАЯ ИСТОРИЯ ДВИЖЕНИЯ ГРУЗА И ВЫБЫТИЙ (ТАЙМЛАЙН)' : 'YUKNING TO\'LIQ HARAKAT TARIXI VA CHIQIMLAR ZANJIRI (TIMELINE)'}
               </h3>
               <span style={{ fontSize: '11px', color: '#bfdbfe' }}>
                 Partiya ID: <strong>{product.id}</strong> • Sektor: <strong>{product.sectorName}</strong>
@@ -87,7 +90,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
               <div style={{ flex: 1, minWidth: '260px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '11px', background: currentQty > 0 ? '#dcfce7' : '#fee2e2', color: currentQty > 0 ? '#15803d' : '#991b1b', fontWeight: 800, padding: '2px 8px', borderRadius: '4px' }}>
-                    {currentQty > 0 ? '🟢 OMBORDA SAQLANMOQDA' : "🔴 TO'LIQ OMBORDAN CHIQARILGAN"}
+                    {currentQty > 0 ? (isRu ? '🟢 ХРАНИТСЯ НА СКЛАДЕ' : '🟢 OMBORDA SAQLANMOQDA') : (isRu ? '🔴 ПОЛНОСТЬЮ ВЫДАНО' : '🔴 TO\'LIQ OMBORDAN CHIQARILGAN')}
                   </span>
                   {product.category && (
                     <span style={{ fontSize: '11px', color: '#64748b' }}>
@@ -100,15 +103,15 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                 </h2>
                 <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   <div>
-                    Mijoz / Tovar Egasi: <strong style={{ color: '#0f172a' }}>{product.clientName || "Noma'lum"}</strong>
+                    {isRu ? 'Клиент / Владелец груза:' : 'Mijoz / Tovar Egasi:'} <strong style={{ color: '#0f172a' }}>{product.clientName || "Noma'lum"}</strong>
                   </div>
                   <div>
-                    Sektor / Harorat: <strong style={{ color: '#0284c7' }}>{product.sectorName}</strong>
+                    {isRu ? 'Сектор / Температура:' : 'Sektor / Harorat:'} <strong style={{ color: '#0284c7' }}>{product.sectorName}</strong>
                     {currentSec?.temperature && <span style={{ marginLeft: '6px', color: '#059669', fontWeight: 700 }}>({currentSec.temperature})</span>}
                   </div>
                   {product.contractNumber && (
                     <div>
-                      Shartnoma raqami: <strong style={{ color: '#002d62' }}>{product.contractNumber}</strong>
+                      {isRu ? 'Номер договора:' : 'Shartnoma raqami:'} <strong style={{ color: '#002d62' }}>{product.contractNumber}</strong>
                     </div>
                   )}
                 </div>
@@ -116,7 +119,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
 
               <div style={{ textAlign: 'right', background: '#ffffff', padding: '12px 18px', borderRadius: '10px', border: '1px solid #e2e8f0', minWidth: '220px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                  OMBORDAGI JORIY QOLDIQ:
+                  {isRu ? 'ТЕКУЩИЙ ОСТАТОК НА СКЛАДЕ:' : 'OMBORDAGI JORIY QOLDIQ:'}
                 </div>
                 <div style={{ fontSize: '24px', fontWeight: 900, color: currentQty > 0 ? '#059669' : '#dc2626', lineHeight: 1.2 }}>
                   {currentQty.toLocaleString('uz-UZ')} {product.unit}
@@ -125,7 +128,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                   ⚖️ {currentWeight.toLocaleString('uz-UZ')} kg
                 </div>
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', borderTop: '1px dashed #e2e8f0', paddingTop: '4px' }}>
-                  Dastlabki: <strong>{initialQty.toLocaleString('uz-UZ')} {product.unit}</strong> ({initialWeight.toLocaleString('uz-UZ')} kg)
+                  {isRu ? 'Первоначально:' : 'Dastlabki:'} <strong>{initialQty.toLocaleString('uz-UZ')} {product.unit}</strong> ({initialWeight.toLocaleString('uz-UZ')} kg)
                 </div>
               </div>
             </div>
@@ -134,10 +137,10 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
             <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', fontWeight: 700 }}>
                 <span style={{ color: '#059669' }}>
-                  Omborda qoldiq: {currentQty.toLocaleString('uz-UZ')} {product.unit} ({remainPct}%)
+                  {isRu ? 'Остаток на складе:' : 'Omborda qoldiq:'} {currentQty.toLocaleString('uz-UZ')} {product.unit} ({remainPct}%)
                 </span>
                 <span style={{ color: exitedQty > 0 ? '#dc2626' : '#94a3b8' }}>
-                  Chiqarilgan: {exitedQty.toLocaleString('uz-UZ')} {product.unit} ({exitPct}%)
+                  {isRu ? 'Выдано:' : 'Chiqarilgan:'} {exitedQty.toLocaleString('uz-UZ')} {product.unit} ({exitPct}%)
                 </span>
               </div>
               <div style={{ height: '8px', background: '#fee2e2', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
@@ -466,7 +469,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                     <div style={{ textAlign: 'center', padding: '20px', background: '#ffffff', border: '1.5px dashed #cbd5e1', borderRadius: '10px', color: '#64748b' }}>
                       <span style={{ fontSize: '24px', display: 'block', marginBottom: '4px' }}>📦</span>
                       <strong style={{ fontSize: '13px', color: '#0f172a', display: 'block' }}>
-                        Ushbu yukdan hali chiqim qilinmagan
+                        {isRu ? 'С данной партии выбытий еще не производилось' : 'Ushbu yukdan hali chiqim qilinmagan'}
                       </strong>
                     </div>
                   )}
@@ -488,7 +491,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
               onClick={() => onOpenExit(product)}
               style={{ background: '#dc2626' }}
             >
-              📤 Ushbu Tovardan Chiqim Qilish
+              {isRu ? '📤 Оформить Выбытие (Расход)' : '📤 Ushbu Tovardan Chiqim Qilish'}
             </button>
           )}
         </div>

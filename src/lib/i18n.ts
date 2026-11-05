@@ -274,6 +274,52 @@ export function t(lang: Language, key: string, fallback?: string): string {
  * Maxsulot nomidan (data-no-translate="true") boshqa BARCHA detallarni tarjima qiladi.
  */
 const RAW_PHRASE_MAP: Array<[string, { uz?: string; ru: string; en: string }]> = [
+  ['BAZAVIY NARX (QQS SIZ, UZS) *', { ru: 'БАЗОВАЯ СТАВКА (БЕЗ НДС, UZS) *', en: 'BASE RATE (EXCL. VAT, UZS) *' }],
+  ['BAZAVIY NARX (QQSsiz, UZS)', { ru: 'Стоимость в сумах (без НДС)', en: 'Base Price (excl. VAT, UZS)' }],
+  ['12% QQS (NDS) MIQDORI:', { ru: 'СУММА НДС 12%:', en: '12% VAT AMOUNT:' }],
+  ['12% QQS MIQDORI:', { ru: 'СУММА НДС 12%:', en: '12% VAT AMOUNT:' }],
+  ['JAMI TO\'LOV (QQS BILAN):', { ru: 'ИТОГО К ОПЛАТЕ (С НДС 12%):', en: 'TOTAL PAYABLE (INCL. 12% VAT):' }],
+  ['JAMI TO\'LANADIGAN SUMMA (QQS BILAN):', { ru: 'ИТОГО К ОПЛАТЕ (С НДС):', en: 'TOTAL AMOUNT PAYABLE (INCL. VAT):' }],
+  ['QO\'SHIMCHA TAVSIF / SHARTLAR', { ru: 'ДОПОЛНИТЕЛЬНОЕ ОПИСАНИЕ / УСЛОВИЯ', en: 'ADDITIONAL DESCRIPTION / TERMS' }],
+  ['Narxni Saqlash', { ru: 'Сохранить тариф', en: 'Save Tariff' }],
+  ['Xizmatni Qo\'shish', { ru: 'Добавить тариф', en: 'Add Tariff' }],
+  ['Tarifni Saqlash', { ru: 'Сохранить тариф', en: 'Save Tariff' }],
+  ['Tarifni Qo\'shish', { ru: 'Добавить тариф', en: 'Add Tariff' }],
+  ['✏️ Tarifni Tahrirlash:', { ru: '✏️ Редактирование тарифа:', en: '✏️ Edit Tariff:' }],
+  ['Tarifni Tahrirlash:', { ru: 'Редактирование тарифа:', en: 'Edit Tariff:' }],
+  ['Tarifni Tahrirlash', { ru: 'Редактирование тарифа', en: 'Edit Tariff' }],
+  ['🏗️ Ortish-tushirish (РАЗГРУЗКА/ПОГРУЗКА)', { ru: '🏗️ Погрузочно-разгрузочные работы (РАЗГРУЗКА/ПОГРУЗКА)', en: '🏗️ Loading / Unloading Operations' }],
+  ['❄️ Bojxona omborida saqlash (ХРАНЕНИЕ)', { ru: '❄️ Хранение на таможенном складе (ХРАНЕНИЕ)', en: '❄️ Customs Warehouse Storage' }],
+  ['🛠️ Qo\'shimcha xizmatlar (ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ)', { ru: '🛠️ Дополнительные услуги (ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ)', en: '🛠️ Additional Services' }],
+  ['O\'LCHOV BIRLIGI *', { ru: 'ЕДИНИЦА ИЗМЕРЕНИЯ *', en: 'UNIT OF MEASUREMENT *' }],
+  ['XIZMAT KATEGORIYASI (BO\'LIMI) *', { ru: 'КАТЕГОРИЯ (РАЗДЕЛ) УСЛУГИ *', en: 'SERVICE CATEGORY (SECTION) *' }],
+  ['XIZMAT / TARIF NOMI (RUS TILIDA) *', { ru: 'НАИМЕНОВАНИЕ УСЛУГИ / ТАРИФА (НА РУССКОМ) *', en: 'SERVICE / TARIFF NAME (RUSSIAN) *' }],
+  ['XIZMAT / TARIF NOMI (O\'ZBEK TILIDA)', { ru: 'НАИМЕНОВАНИЕ УСЛУГИ / ТАРИФА (НА УЗБЕКСКОМ)', en: 'SERVICE / TARIFF NAME (UZBEK)' }],
+  ['Bekor qilish', { ru: 'Отмена', en: 'Cancel' }],
+  ['1 martalik to\'lov', { ru: 'Разовый платеж', en: 'One-time fee' }],
+  ['kunlik stavka', { ru: 'посуточная ставка', en: 'daily rate' }],
+  ['Kuniga qarab', { ru: 'Посуточно', en: 'Per day' }],
+  ['1 martalik', { ru: 'разовый', en: 'one-time' }],
+  ['1 martalik (40ft konteyner)', { ru: 'разовый (40фт контейнер)', en: 'one-time (40ft container)' }],
+  ['1 martalik (20ft konteyner)', { ru: 'разовый (20фт контейнер)', en: 'one-time (20ft container)' }],
+  ['1 martalik (1 vagon)', { ru: 'разовый (1 вагон)', en: 'one-time (1 railcar)' }],
+  ['1 martalik (fura <90 m³)', { ru: 'разовый (фура <90 м³)', en: 'one-time (truck <90 m³)' }],
+  ['1 martalik (fura >90 m³)', { ru: 'разовый (фура >90 м³)', en: 'one-time (truck >90 m³)' }],
+  ['1 martalik (kichik fura <20 m³)', { ru: 'разовый (малая фура <20 м³)', en: 'one-time (small truck <20 m³)' }],
+  ['1 martalik (1 tn / 1 tn)', { ru: 'разовый (за 1 тн)', en: 'one-time (per 1 tn)' }],
+  ['1 martalik (1 reys)', { ru: 'разовый (1 рейс)', en: 'one-time (1 trip)' }],
+  ['1 martalik (1 operatsiya)', { ru: 'разовый (1 операция)', en: 'one-time (1 operation)' }],
+  ['1 martalik (1 kun)', { ru: 'разовый (1 сутки)', en: 'one-time (1 day)' }],
+  ['1 martalik (1 dona)', { ru: 'разовый (1 шт)', en: 'one-time (1 pc)' }],
+  ['1 martalik (1 konteyner)', { ru: 'разовый (1 контейнер)', en: 'one-time (1 container)' }],
+  ['1 martalik (1 avto)', { ru: 'разовый (1 авто)', en: 'one-time (1 car)' }],
+  ['1 martalik (1 kross-doking)', { ru: 'разовый (1 кросс-докинг)', en: 'one-time (1 cross-docking)' }],
+  ['kunlik (1 tn)', { ru: 'посуточный (1 тн)', en: 'daily (1 tn)' }],
+  ['kunlik (1 pallet)', { ru: 'посуточный (1 паллет)', en: 'daily (1 pallet)' }],
+  ['kunlik (1 avto)', { ru: 'посуточный (1 авто)', en: 'daily (1 car)' }],
+  ['kunlik (1 kg)', { ru: 'посуточный (1 кг)', en: 'daily (1 kg)' }],
+  ['kunlik (1 yuk)', { ru: 'посуточный (1 груз)', en: 'daily (1 cargo)' }],
+  ['kunlik (1 transport)', { ru: 'посуточный (1 транспорт)', en: 'daily (1 vehicle)' }],
   // =========================================================================
   // 1. SUPER ADMIN BANNER & WAREHOUSE HEADER
   // =========================================================================
@@ -2044,6 +2090,10 @@ function normalizeApos(str: string): string {
 /**
  * Har qanday matn tugunini (Text node / string) tanlangan tilga (uz, ru, en) o'giruvchi funksiya.
  */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function translateTextNode(rawText: string, lang: Language): string {
   if (!rawText || !rawText.trim()) return rawText;
 
@@ -2061,8 +2111,9 @@ export function translateTextNode(rawText: string, lang: Language): string {
     return text;
   }
 
-  // 1. To'liq va qisman iboralarni almashtirish (Apostrof va Katta-kichik harflar bilan bardoshli)
   const normText = normalizeApos(text);
+
+  // 1. Birinchi bosqich: Butun satr aniq mos kelishi (Exact Match)
   for (const [uzPhrase, trans] of PHRASE_MAP) {
     const target = lang === 'ru' ? trans.ru : trans.en;
     const normPhrase = normalizeApos(uzPhrase);
@@ -2071,16 +2122,25 @@ export function translateTextNode(rawText: string, lang: Language): string {
     if (normText.trim() === normPhrase.trim()) {
       return text.replace(text.trim(), target);
     }
+    if (normText.toLowerCase().trim() === normPhrase.toLowerCase().trim()) {
+      return text.replace(text.trim(), target);
+    }
+  }
+
+  // 2. Ikkinchi bosqich: Matn ichidagi iboralarni uzunligi bo'yicha ketma-ket almashtirish (Substring Match)
+  for (const [uzPhrase, trans] of PHRASE_MAP) {
+    const target = lang === 'ru' ? trans.ru : trans.en;
+    const normPhrase = normalizeApos(uzPhrase);
 
     if (text.includes(uzPhrase)) {
       text = text.split(uzPhrase).join(target);
-    } else if (normText.includes(normPhrase)) {
-      text = text.split(normPhrase).join(target);
     } else {
-      // Case-insensitive / Uppercase match (Masalan: "SEKTOR NOMI *" -> "НАЗВАНИЕ СЕКТОРА *")
-      const upperPhrase = normPhrase.toUpperCase();
-      if (normText.includes(upperPhrase)) {
-        text = text.split(upperPhrase).join(target.toUpperCase());
+      const esc = escapeRegex(normPhrase);
+      const reg = new RegExp(esc, 'gi');
+      if (reg.test(text)) {
+        text = text.replace(reg, target);
+      } else if (reg.test(normText)) {
+        text = normText.replace(reg, target);
       }
     }
   }

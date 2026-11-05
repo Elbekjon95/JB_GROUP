@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, UserRole, Warehouse } from '@/lib/types';
+import { User, UserRole, Warehouse, Language } from '@/lib/types';
 
 export interface UserFormState {
   fullName: string;
@@ -24,6 +24,7 @@ interface UserModalProps {
   userForm: UserFormState;
   setUserForm: React.Dispatch<React.SetStateAction<UserFormState>>;
   warehouse: Warehouse;
+  lang?: Language;
   onSave: (e: React.FormEvent) => void;
   onClose: () => void;
 }
@@ -34,10 +35,14 @@ export const UserModal: React.FC<UserModalProps> = ({
   userForm,
   setUserForm,
   warehouse,
+  lang = 'uz',
   onSave,
   onClose
 }) => {
   if (!isOpen) return null;
+
+  const isRu = lang === 'ru';
+  const isEn = lang === 'en';
 
   return (
     <div className="modal-overlay">
@@ -45,10 +50,14 @@ export const UserModal: React.FC<UserModalProps> = ({
         <div className="modal-header-clean">
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-              {editingUser ? `⚙️ Xodim Huquqlari: ${editingUser.fullName}` : '➕ Yangi Xodim / Admin Qo\'shish'}
+              {editingUser 
+                ? (isRu ? `⚙️ Права сотрудника: ${editingUser.fullName}` : `⚙️ Xodim Huquqlari: ${editingUser.fullName}`)
+                : (isRu ? '➕ Добавить сотрудника / Администратора' : '➕ Yangi Xodim / Admin Qo\'shish')}
             </h3>
             <span style={{ fontSize: '12px', color: '#64748b' }}>
-              Faqat Super Admin xodimlarni qo&apos;shishi va vakolatlarini belgilashi mumkin
+              {isRu 
+                ? 'Только Super Admin может добавлять сотрудников и назначать права доступа'
+                : 'Faqat Super Admin xodimlarni qo\'shishi va vakolatlarini belgilashi mumkin'}
             </span>
           </div>
           <button onClick={onClose} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
@@ -59,374 +68,217 @@ export const UserModal: React.FC<UserModalProps> = ({
             {/* Asosiy ma'lumotlar */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
-                <label className="form-label">XODIM F.I.SH *</label>
+                <label className="form-label">
+                  {isRu ? 'Ф.И.О (ПОЛНОЕ ИМЯ) *' : 'F.I.SH (TO\'LIQ ISM) *'}
+                </label>
                 <input
                   type="text"
                   required
                   className="form-input-clean"
-                  placeholder="Masalan: Aziz Rahimov"
+                  placeholder={isRu ? 'Алишер Кадыров' : 'Alisher Qodirov'}
                   value={userForm.fullName}
                   onChange={e => setUserForm({ ...userForm, fullName: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="form-label">TIZIMDAGI ROLI *</label>
-                <select
-                  className="form-select-clean"
-                  value={userForm.role}
-                  onChange={e => {
-                    const newRole = e.target.value as UserRole;
-                    if (newRole === 'ADMIN') {
-                      setUserForm({
-                        ...userForm,
-                        role: newRole,
-                        canManageTariffs: true,
-                        canManageWarehouse: true,
-                        canLinkTariffs: true,
-                        canStockMovement: true,
-                        canEditProducts: true,
-                        canDeleteProducts: true,
-                        canViewEditLogs: true
-                      });
-                    } else if (newRole === 'ACCOUNTANT') {
-                      setUserForm({
-                        ...userForm,
-                        role: newRole,
-                        canManageTariffs: false,
-                        canManageWarehouse: false,
-                        canLinkTariffs: false,
-                        canStockMovement: false,
-                        canHandleHazardous: false,
-                        canViewFinances: true,
-                        canEditProducts: false,
-                        canDeleteProducts: false,
-                        canViewEditLogs: true,
-                        allowedSectorIds: ['ALL']
-                      });
-                    } else if (newRole === 'USER') {
-                      setUserForm({
-                        ...userForm,
-                        role: newRole,
-                        canManageTariffs: false,
-                        canManageWarehouse: false,
-                        canLinkTariffs: false,
-                        canStockMovement: true,
-                        canHandleHazardous: false,
-                        canViewFinances: false,
-                        canEditProducts: false,
-                        canDeleteProducts: false,
-                        canViewEditLogs: false
-                      });
-                    } else {
-                      setUserForm({
-                        ...userForm,
-                        role: newRole,
-                        canEditProducts: true,
-                        canDeleteProducts: true,
-                        canViewEditLogs: true
-                      });
-                    }
-                  }}
-                >
-                  <option value="USER">👤 USER (Omborchi / Xodim)</option>
-                  <option value="ADMIN">🛡️ ADMIN (Katta Omborchi / Boshqaruvchi)</option>
-                  <option value="ACCOUNTANT">💼 ACCOUNTANT (Bosh Buxgalter / Moliya)</option>
-                  <option value="SUPER_ADMIN">👑 SUPER ADMIN (Bosh Rahbar)</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
-              <div>
-                <label className="form-label">ELEKTRON POCHTA (LOGIN) *</label>
+                <label className="form-label">
+                  {isRu ? 'ЭЛЕКТРОННАЯ ПОЧТА (ЛОГИН) *' : 'ELEKTRON POCHTA (LOGIN) *'}
+                </label>
                 <input
                   type="email"
                   required
                   className="form-input-clean"
-                  placeholder="xodim@jbgroup.uz"
+                  placeholder="alisher@jbgroup.uz"
                   value={userForm.email}
                   onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              <div>
+                <label className="form-label">
+                  {editingUser 
+                    ? (isRu ? 'НОВЫЙ ПАРОЛЬ (ЕСЛИ МЕНЯЕТСЯ)' : 'YANGI PAROL (AGAR O\'ZGARSA)')
+                    : (isRu ? 'ПАРОЛЬ ДЛЯ ВХОДА *' : 'KIRISH PAROLI *')}
+                </label>
+                <input
+                  type="text"
+                  required={!editingUser}
+                  className="form-input-clean"
+                  placeholder={editingUser ? (isRu ? 'Оставьте пустым...' : 'O\'zgartirmaslik uchun bo\'sh qoldiring') : '••••••••'}
+                  value={userForm.password}
+                  onChange={e => setUserForm({ ...userForm, password: e.target.value })}
                 />
               </div>
 
               <div>
                 <label className="form-label">
-                  {editingUser ? "YANGI PAROL (IXTIYORIY)" : "PAROL *"}
+                  {isRu ? 'РОЛЬ В СИСТЕМЕ *' : 'TIZIMDAGI ROLI *'}
                 </label>
-                <input
-                  type="password"
-                  required={!editingUser}
-                  autoComplete="new-password"
-                  placeholder={editingUser ? "O'zgartirish uchun yangi parol kiriting" : "Kamida 6 belgili parol"}
-                  className="form-input-clean"
-                  value={userForm.password}
-                  onChange={e => setUserForm({ ...userForm, password: e.target.value })}
-                />
+                <select
+                  className="form-select-clean"
+                  value={userForm.role}
+                  onChange={e => {
+                    const r = e.target.value as UserRole;
+                    setUserForm({
+                      ...userForm,
+                      role: r,
+                      canManageTariffs: r === 'SUPER_ADMIN' || r === 'ADMIN',
+                      canManageWarehouse: r === 'SUPER_ADMIN' || r === 'ADMIN',
+                      canLinkTariffs: r === 'SUPER_ADMIN' || r === 'ADMIN',
+                      canStockMovement: true,
+                      canViewFinances: r === 'SUPER_ADMIN' || r === 'ADMIN' || r === 'ACCOUNTANT',
+                      canEditProducts: r === 'SUPER_ADMIN' || r === 'ADMIN',
+                      canDeleteProducts: r === 'SUPER_ADMIN' || r === 'ADMIN',
+                      canViewEditLogs: r === 'SUPER_ADMIN' || r === 'ADMIN'
+                    });
+                  }}
+                >
+                  <option value="USER">{isRu ? '👤 Кладовщик (Складской оператор)' : '👤 Omborchi (Oddiy xodim)'}</option>
+                  <option value="ADMIN">{isRu ? '🛡️ Старший Кладовщик (Администратор)' : '🛡️ Katta Omborchi (Admin)'}</option>
+                  <option value="ACCOUNTANT">{isRu ? '💼 Главный Бухгалтер' : '💼 Bosh Buxgalter'}</option>
+                  <option value="SUPER_ADMIN">{isRu ? '👑 Генеральный Директор (Super Admin)' : '👑 Bosh Rahbar (Super Admin)'}</option>
+                </select>
               </div>
             </div>
 
-            {/* VAKOLATLAR VA HUQUQLAR (SUPER ADMIN BELGILAB BERADI) */}
-            <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>🛡️</span>
-                  <span>Super Admin Belgilaydigan Huquqlar (Vakolatlar)</span>
-                </span>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>
-                  Har bir xodim uchun alohida sozlanadi
-                </span>
-              </div>
+            {/* Ruxsatlar va Huquqlar (Permissions) */}
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#002d62', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                {isRu ? '🔐 ИНДИВИДУАЛЬНЫЕ ПРАВА ДОСТУПА СОТРУДНИКА:' : '🔐 XODIMNING SHAXSIY VAKOLAT VA DOSTUPLARI:'}
+              </span>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {/* 1. Omborni sozlash */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                  <input
-                    type="checkbox"
-                    checked={userForm.canManageWarehouse}
-                    onChange={e => setUserForm({ ...userForm, canManageWarehouse: e.target.checked })}
-                    style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                  />
-                  <div>
-                    <strong>🏢 Omborni sozlash va yangi sektorlar ochish</strong>
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                      Yangi sektorlar qo&apos;shish, sektor nomlari, harorat va o&apos;lchamlarini tahrirlash huquqi.
-                    </span>
-                  </div>
-                </label>
-
-                {/* 2. Tarif qo'shish */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                  <input
-                    type="checkbox"
-                    checked={userForm.canManageTariffs}
-                    onChange={e => setUserForm({ ...userForm, canManageTariffs: e.target.checked })}
-                    style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                  />
-                  <div>
-                    <strong>🏷️ Saqlash tariflarini qo&apos;shish va narx belgilash</strong>
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                      Yangi kunlik tariflar yaratish va saqlash narxlarini tahrirlash huquqi.
-                    </span>
-                  </div>
-                </label>
-
-                {/* 3. Tariflarni omborga bog'lash */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
-                  <input
-                    type="checkbox"
-                    checked={userForm.canLinkTariffs}
-                    onChange={e => setUserForm({ ...userForm, canLinkTariffs: e.target.checked })}
-                    style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                  />
-                  <div>
-                    <strong>🔗 Tariflarni ombor sektorlariga biriktirish / ulash</strong>
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                      Istalgan tarifni xohlagan sektorlarga biriktirish vakolati.
-                    </span>
-                  </div>
-                </label>
-
-                {/* 4. Kirim/Chiqim */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
                     checked={userForm.canStockMovement}
                     onChange={e => setUserForm({ ...userForm, canStockMovement: e.target.checked })}
-                    style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
                   />
-                  <div>
-                    <strong>📦 Yuk kirim va chiqim amallarini bajarish</strong>
-                    <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
-                      Omborga yangi yuk kiritish va mavjud yukni chiqarish (hisob-kitob qilish) huquqi.
-                    </span>
-                  </div>
+                  <span>{isRu ? '📥 Прием и выдача груза' : '📥 Yuk kirim va chiqim qilish'}</span>
                 </label>
 
-                {/* 5. KIRITILGAN YUKNI TAHRIRLASH / XATONI TO'G'RILASH RUXSATI (FOYDALANUVCHI TALABI) */}
-                <div style={{ background: userForm.canEditProducts ? '#fffbeb' : '#f8fafc', border: userForm.canEditProducts ? '1.5px solid #f59e0b' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canEditProducts ? '#92400e' : '#334155' }}>
-                    <input
-                      type="checkbox"
-                      checked={userForm.canEditProducts}
-                      onChange={e => setUserForm({ ...userForm, canEditProducts: e.target.checked })}
-                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#d97706' }}
-                    />
-                    <div>
-                      <strong>✏️ KIRITILGAN YUKNI TAHRIRLASH (XATONI TO&apos;G&apos;RILASH) RUXSATI</strong>
-                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canEditProducts ? '#b45309' : '#64748b', fontWeight: 600 }}>
-                        {userForm.canEditProducts
-                          ? '✅ Xodim kirimda xato yozilgan yukni (miqdori, og\'irligi, sektori yoki mijozini) to\'g\'rilay oladi. Har bir tahrir oylik hisobotga yoziladi.'
-                          : '⛔ O\'chirilgan: Xodim kiritilgan yuk ma\'lumotlarini o\'zgartira olmaydi.'}
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canViewFinances}
+                    onChange={e => setUserForm({ ...userForm, canViewFinances: e.target.checked })}
+                  />
+                  <span>{isRu ? '💰 Просмотр цен и накладных' : '💰 Narx va hisoblarni ko\'rish'}</span>
+                </label>
 
-                {/* 5.1. QABUL QILINGAN YUKNI TIZIMDAN O'CHIRISH RUXSATI (FOYDALANUVCHI TALABI) */}
-                <div style={{ background: userForm.canDeleteProducts ? '#fef2f2' : '#f8fafc', border: userForm.canDeleteProducts ? '1.5px solid #ef4444' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canDeleteProducts ? '#991b1b' : '#334155' }}>
-                    <input
-                      type="checkbox"
-                      checked={userForm.canDeleteProducts}
-                      onChange={e => setUserForm({ ...userForm, canDeleteProducts: e.target.checked })}
-                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#dc2626' }}
-                    />
-                    <div>
-                      <strong>🗑️ QABUL QILINGAN YUKNI TIZIMDAN O&apos;CHIRISH RUXSATI</strong>
-                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canDeleteProducts ? '#b91c1c' : '#64748b', fontWeight: 600 }}>
-                        {userForm.canDeleteProducts
-                          ? '✅ Xodim kirim qilingan yukni tizimdan o\'chira oladi. Har bir o\'chirish sababi bilan birga "Tahrirlar" hisobotiga yozib boriladi.'
-                          : '⛔ O\'chirilgan: Xodim yuklarni o\'chira olmaydi (Faqat Bosh Rahbar va maxsus ruxsat berilganlar o\'chira oladi).'}
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canEditProducts}
+                    onChange={e => setUserForm({ ...userForm, canEditProducts: e.target.checked })}
+                  />
+                  <span>{isRu ? '✏️ Исправление данных груза' : '✏️ Yuk ma\'lumotlarini tahrirlash'}</span>
+                </label>
 
-                {/* 6. TAHRIRLANGAN YUKLAR TARIXI VA OYLIK HISOBOTINI KO'RISH RUXSATI (FOYDALANUVCHI TALABI) */}
-                <div style={{ background: userForm.canViewEditLogs ? '#f0fdf4' : '#f8fafc', border: userForm.canViewEditLogs ? '1.5px solid #22c55e' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canViewEditLogs ? '#166534' : '#334155' }}>
-                    <input
-                      type="checkbox"
-                      checked={userForm.canViewEditLogs}
-                      onChange={e => setUserForm({ ...userForm, canViewEditLogs: e.target.checked })}
-                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#16a34a' }}
-                    />
-                    <div>
-                      <strong>📋 1 OYLIK TAHRIRLAR (TO&apos;G&apos;RILANGAN YUKLAR) HISOBOTINI KO&apos;RISH RUXSATI</strong>
-                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canViewEditLogs ? '#15803d' : '#64748b', fontWeight: 600 }}>
-                        {userForm.canViewEditLogs
-                          ? '✅ Xodim bir oy davomida kim qancha yukni to\'g\'rilaganligi va eski/yangi qiymatlar hisobotini ko\'ra oladi.'
-                          : '🔒 Yashirilgan: Tahrirlangan yuklar tarixi va hisoboti ushbu xodimga ko\'rinmaydi.'}
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canDeleteProducts}
+                    onChange={e => setUserForm({ ...userForm, canDeleteProducts: e.target.checked })}
+                  />
+                  <span>{isRu ? '🗑️ Удаление груза со склада' : '🗑️ Yukni ombordan o\'chirish'}</span>
+                </label>
 
-                {/* 7. XAVFLI YUKLAR BILAN ISHLASH */}
-                <div style={{ background: userForm.canHandleHazardous ? '#ecfdf5' : '#fff1f2', border: userForm.canHandleHazardous ? '1px solid #a7f3d0' : '1.5px solid #fecdd3', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canHandleHazardous ? '#065f46' : '#9f1239' }}>
-                    <input
-                      type="checkbox"
-                      checked={userForm.canHandleHazardous}
-                      onChange={e => setUserForm({ ...userForm, canHandleHazardous: e.target.checked })}
-                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#e11d48' }}
-                    />
-                    <div>
-                      <strong>☣️ XAVFLI YUKLAR BILAN ISHLASH RUXSATI (SERTIFIKAT)</strong>
-                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canHandleHazardous ? '#047857' : '#be123c', fontWeight: 600 }}>
-                        {userForm.canHandleHazardous
-                          ? '✅ Ushbu xodim xavfli yuklar va kimyoviy moddalar sektori bilan ishlay oladi.'
-                          : '⛔ DIQQAT: Ushbu ruxsat belgilanmasa, xodim xavfli yuklar sektoriga yuk kirita olmaydi va chiqara olmaydi!'}
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canManageTariffs}
+                    onChange={e => setUserForm({ ...userForm, canManageTariffs: e.target.checked })}
+                  />
+                  <span>{isRu ? '🏷️ Управление тарифами' : '🏷️ Tariflarni boshqarish'}</span>
+                </label>
 
-                {/* 8. MOLIYAVIY TO'LOVLAR VA PUL MA'LUMOTLARINI KO'RISH RUXSATI */}
-                <div style={{ background: userForm.canViewFinances ? '#eff6ff' : '#f8fafc', border: userForm.canViewFinances ? '1.5px solid #93c5fd' : '1px solid #cbd5e1', borderRadius: '8px', padding: '10px 12px', marginTop: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: userForm.canViewFinances ? '#1e40af' : '#334155' }}>
-                    <input
-                      type="checkbox"
-                      checked={userForm.canViewFinances}
-                      onChange={e => setUserForm({ ...userForm, canViewFinances: e.target.checked })}
-                      style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                    />
-                    <div>
-                      <strong>💰 PUL VA MOLIYAVIY TO&apos;LOVLARNI KO&apos;RISH RUXSATI</strong>
-                      <span style={{ display: 'block', fontSize: '11px', marginTop: '2px', color: userForm.canViewFinances ? '#1d4ed8' : '#64748b', fontWeight: 600 }}>
-                        {userForm.canViewFinances
-                          ? '✅ Ushbu xodimga to\'lov summalari, tarif narxlari va to\'lov hisoblari ko\'rinadi.'
-                          : '🔒 Pul ma\'lumotlari yashirilgan: Xodimga to\'lov summalari va narxlar ko\'rsatilmaydi, u faqat yuk soni, og\'irligi va faktik ma\'lumotlarni belgilaydi.'}
-                      </span>
-                    </div>
-                  </label>
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canManageWarehouse}
+                    onChange={e => setUserForm({ ...userForm, canManageWarehouse: e.target.checked })}
+                  />
+                  <span>{isRu ? '🏢 Настройка секторов склада' : '🏢 Sektorlarni sozlash'}</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canViewEditLogs}
+                    onChange={e => setUserForm({ ...userForm, canViewEditLogs: e.target.checked })}
+                  />
+                  <span>{isRu ? '📊 Журнал аудита и исправлений' : '📊 Tahrirlar audit hisoboti'}</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#b91c1c', fontWeight: 700 }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.canHandleHazardous}
+                    onChange={e => setUserForm({ ...userForm, canHandleHazardous: e.target.checked })}
+                  />
+                  <span>{isRu ? '☣️ Работа с опасными грузами' : '☣️ Xavfli yuklar bilan ishlash'}</span>
+                </label>
               </div>
             </div>
 
-            {/* SEKTORLARNI BIRIKTIRISH */}
-            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase' }}>
-                  📍 Xodimga Ruxsat Berilgan Sektorlar:
+            {/* Ruxsat etilgan sektorlar */}
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#002d62', textTransform: 'uppercase' }}>
+                  {isRu ? '🏢 РАЗРЕШЕННЫЕ СЕКТОРЫ СКЛАДА:' : '🏢 RUXSAT BERILGAN OMBOR SEKTORLARI:'}
                 </span>
                 <button
                   type="button"
                   onClick={() => {
-                    if (userForm.allowedSectorIds.includes('ALL')) {
-                      setUserForm({ ...userForm, allowedSectorIds: ['sec-b'] });
-                    } else {
-                      setUserForm({ ...userForm, allowedSectorIds: ['ALL'] });
-                    }
+                    const allSec = warehouse.sectors.map(s => s.id);
+                    const isAll = userForm.allowedSectorIds.includes('ALL') || userForm.allowedSectorIds.length === warehouse.sectors.length;
+                    setUserForm({
+                      ...userForm,
+                      allowedSectorIds: isAll ? [] : ['ALL', ...allSec]
+                    });
                   }}
-                  style={{ fontSize: '11px', color: '#2563eb', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}
+                  style={{ fontSize: '11px', color: '#0284c7', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
                 >
-                  {userForm.allowedSectorIds.includes('ALL') ? 'Alohida tanlash' : '⚡ Barchasiga ruxsat berish (ALL)'}
+                  {isRu ? 'Выбрать все / Снять' : 'Barchasini tanlash / Bekor qilish'}
                 </button>
               </div>
 
-              <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
-                User faqat o&apos;zida huquqi bo&apos;lgan ombor/sektorlarga yuk qo&apos;ya oladi.
-              </p>
-
-              {userForm.allowedSectorIds.includes('ALL') ? (
-                <div style={{ padding: '10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '12px', color: '#1d4ed8', fontWeight: 700 }}>
-                  ✅ Barcha ombor sektorlari bilan ishlash huquqi berildi (Cheklovsiz).
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {warehouse.sectors.map(sec => {
-                    const isChecked = userForm.allowedSectorIds.includes(sec.id);
-                    return (
-                      <label
-                        key={sec.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px 10px',
-                          borderRadius: '6px',
-                          border: isChecked ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
-                          background: isChecked ? '#f0fdf4' : '#f8fafc',
-                          cursor: 'pointer',
-                          fontSize: '12px'
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                {warehouse.sectors.map(sec => {
+                  const isChecked = userForm.allowedSectorIds.includes('ALL') || userForm.allowedSectorIds.includes(sec.id);
+                  return (
+                    <label key={sec.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={e => {
+                          let nextIds = userForm.allowedSectorIds.filter(id => id !== 'ALL');
+                          if (e.target.checked) {
+                            nextIds.push(sec.id);
+                          } else {
+                            nextIds = nextIds.filter(id => id !== sec.id);
+                          }
+                          setUserForm({ ...userForm, allowedSectorIds: nextIds });
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={e => {
-                            if (e.target.checked) {
-                              setUserForm({
-                                ...userForm,
-                                allowedSectorIds: [...userForm.allowedSectorIds.filter(id => id !== 'ALL'), sec.id]
-                              });
-                            } else {
-                              setUserForm({
-                                ...userForm,
-                                allowedSectorIds: userForm.allowedSectorIds.filter(id => id !== sec.id)
-                              });
-                            }
-                          }}
-                          style={{ width: '15px', height: '15px', accentColor: '#2563eb' }}
-                        />
-                        <div>
-                          <strong style={{ color: '#0f172a', display: 'block' }}>{sec.name}</strong>
-                          <span style={{ fontSize: '10px', color: '#64748b' }}>{sec.code} • {sec.type}</span>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+                      />
+                      <span>{sec.name} ({sec.code})</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
           <div className="modal-footer-clean">
-            <button type="button" className="btn-secondary" onClick={onClose}>Bekor qilish</button>
-            <button type="submit" className="btn-primary">
-              {editingUser ? 'Saqlash va Tasdiqlash' : 'Xodimni Qo\'shish'}
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              {isRu ? 'Отмена' : 'Bekor qilish'}
+            </button>
+            <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)' }}>
+              {isRu ? 'Сохранить сотрудника' : 'Xodimni Saqlash'}
             </button>
           </div>
         </form>

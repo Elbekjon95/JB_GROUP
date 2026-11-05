@@ -1,5 +1,5 @@
 import React from 'react';
-import { ContractPayer } from '@/lib/types';
+import { ContractPayer, Language } from '@/lib/types';
 
 interface PayerModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ interface PayerModalProps {
     phone: string;
     notes: string;
   }>>;
+  lang?: Language;
   onSave: (e: React.FormEvent) => void;
   onClose: () => void;
 }
@@ -33,10 +34,14 @@ export const PayerModal: React.FC<PayerModalProps> = ({
   editingPayer,
   payerForm,
   setPayerForm,
+  lang = 'uz',
   onSave,
   onClose
 }) => {
   if (!isOpen) return null;
+
+  const isRu = lang === 'ru';
+  const isEn = lang === 'en';
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const isExp = Boolean(payerForm.contractEndDate && payerForm.contractEndDate < todayStr);
@@ -48,10 +53,14 @@ export const PayerModal: React.FC<PayerModalProps> = ({
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#002d62', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>🤝</span>
-              <span>{editingPayer ? `Shartnomani Yangilash: ${editingPayer.name}` : 'Yangi Saqlash Shartnomasini Tuzish'}</span>
+              <span>
+                {editingPayer 
+                  ? (isRu ? `Обновление договора: ${editingPayer.name}` : `Shartnomani Yangilash: ${editingPayer.name}`)
+                  : (isRu ? 'Заключение нового договора хранения' : 'Yangi Saqlash Shartnomasini Tuzish')}
+              </span>
             </h3>
             <span style={{ fontSize: '12px', color: '#64748b' }}>
-              «JB GROUP» Bojxona ombori xizmatlari ko&apos;rsatish shartnomasi
+              {isRu ? 'Договор оказания услуг таможенного склада «JB GROUP»' : '«JB GROUP» Bojxona ombori xizmatlari ko\'rsatish shartnomasi'}
             </span>
           </div>
           <button onClick={onClose} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
@@ -60,12 +69,14 @@ export const PayerModal: React.FC<PayerModalProps> = ({
         <form onSubmit={onSave}>
           <div className="modal-body-clean">
             <div className="form-field">
-              <label className="form-label">TO&apos;LOVCHI / KORXONA NOMI *</label>
+              <label className="form-label">
+                {isRu ? 'ПЛАТЕЛЬЩИК / НАИМЕНОВАНИЕ ОРГАНИЗАЦИИ *' : 'TO\'LOVCHI / KORXONA NOMI *'}
+              </label>
               <input
                 type="text"
                 required
                 className="form-input-clean"
-                placeholder="Masalan: Sag Agro Logistika MChJ"
+                placeholder={isRu ? 'Например: ООО Sag Agro Logistika' : 'Masalan: Sag Agro Logistika MChJ'}
                 value={payerForm.name}
                 onChange={e => setPayerForm({ ...payerForm, name: e.target.value })}
               />
@@ -73,24 +84,29 @@ export const PayerModal: React.FC<PayerModalProps> = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
-                <label className="form-label">STIR / INN RAQAMI *</label>
+                <label className="form-label">
+                  {isRu ? 'ИНН ОРГАНИЗАЦИИ (9 ЦИФР) *' : 'STIR (INN) RAQAMI (9 TA RAQAM) *'}
+                </label>
                 <input
                   type="text"
+                  maxLength={9}
                   required
                   className="form-input-clean"
-                  placeholder="Masalan: 308942115"
+                  placeholder="308123456"
                   value={payerForm.inn}
-                  onChange={e => setPayerForm({ ...payerForm, inn: e.target.value })}
+                  onChange={e => setPayerForm({ ...payerForm, inn: e.target.value.replace(/\D/g, '') })}
                 />
               </div>
 
               <div>
-                <label className="form-label">SHARTNOMA RAQAMI *</label>
+                <label className="form-label">
+                  {isRu ? 'НОМЕР ДОГОВОРА *' : 'SHARTNOMA RAQAMI *'}
+                </label>
                 <input
                   type="text"
                   required
                   className="form-input-clean"
-                  placeholder="Masalan: SH-2026/01"
+                  placeholder="JB-2026/04"
                   value={payerForm.contractNumber}
                   onChange={e => setPayerForm({ ...payerForm, contractNumber: e.target.value })}
                 />
@@ -99,7 +115,9 @@ export const PayerModal: React.FC<PayerModalProps> = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
-                <label className="form-label">SHARTNOMA TUZILGAN SANA *</label>
+                <label className="form-label">
+                  {isRu ? 'ДАТА ЗАКЛЮЧЕНИЯ ДОГОВОРА *' : 'SHARTNOMA TUZILGAN SANA *'}
+                </label>
                 <input
                   type="date"
                   required
@@ -110,49 +128,47 @@ export const PayerModal: React.FC<PayerModalProps> = ({
               </div>
 
               <div>
-                <label className="form-label" style={{ color: '#0070ba', fontWeight: 800 }}>
-                  AMAL QILISH MUDDATI (QACHONGACHA) *
+                <label className="form-label" style={{ color: isExp ? '#dc2626' : 'inherit' }}>
+                  {isRu ? 'ДАТА ОКОНЧАНИЯ СРОКА ДЕЙСТВИЯ *' : 'AMAL QILISH MUDDATI TUGASHI *'}
                 </label>
                 <input
                   type="date"
                   required
                   className="form-input-clean"
-                  style={{ border: '1.5px solid #0070ba', background: '#f0f9ff' }}
+                  style={{ borderColor: isExp ? '#fca5a5' : undefined }}
                   value={payerForm.contractEndDate}
                   onChange={e => setPayerForm({ ...payerForm, contractEndDate: e.target.value })}
                 />
+                {isExp && (
+                  <span style={{ fontSize: '11px', color: '#dc2626', display: 'block', marginTop: '2px', fontWeight: 700 }}>
+                    ⚠️ {isRu ? 'Срок действия данного договора истек!' : 'Ushbu shartnoma muddati o\'tib ketgan!'}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Muddat ogohlantirishi */}
-            {isExp ? (
-              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', color: '#dc2626' }}>
-                ⚠️ <strong>Diqqat:</strong> Ushbu sana bugungi kundan ({todayStr}) oldingi sana. Agar shu muddat saqlansa, mijoz muddati o&apos;tgan deb hisoblanadi va chiqim bloklanadi!
-              </div>
-            ) : (
-              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', color: '#166534' }}>
-                ✅ <strong>Shartnoma amalda bo&apos;ladi:</strong> Belgilangan muddatgacha ({payerForm.contractEndDate}) barcha yuk operatsiyalari va chiqimlar to&apos;siqsiz amalga oshiriladi.
-              </div>
-            )}
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
-                <label className="form-label">MAS&apos;UL VAKIL F.I.SH</label>
+                <label className="form-label">
+                  {isRu ? 'ОТВЕТСТВЕННОЕ ЛИЦО (Ф.И.О)' : 'MAS\'UL SHAXS (F.I.SH)'}
+                </label>
                 <input
                   type="text"
                   className="form-input-clean"
-                  placeholder="Masalan: Sirojiddin Aliyev"
+                  placeholder={isRu ? 'Директор или логист' : 'Direktor yoki mas\'ul logist'}
                   value={payerForm.contactPerson}
                   onChange={e => setPayerForm({ ...payerForm, contactPerson: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="form-label">TELEFON RAQAMI</label>
+                <label className="form-label">
+                  {isRu ? 'НОМЕР ТЕЛЕФОНА' : 'TELEFON RAQAMI'}
+                </label>
                 <input
                   type="text"
                   className="form-input-clean"
-                  placeholder="+998 90 123 45 67"
+                  placeholder="+998 90 123-45-67"
                   value={payerForm.phone}
                   onChange={e => setPayerForm({ ...payerForm, phone: e.target.value })}
                 />
@@ -160,11 +176,13 @@ export const PayerModal: React.FC<PayerModalProps> = ({
             </div>
 
             <div className="form-field">
-              <label className="form-label">QO&apos;SHIMCHA IZOH / ASOS</label>
+              <label className="form-label">
+                {isRu ? 'ДОПОЛНИТЕЛЬНОЕ ПРИМЕЧАНИЕ' : 'QO\'SHIMCHA IZOH'}
+              </label>
               <textarea
                 rows={2}
                 className="form-input-clean"
-                placeholder="Shartnoma bo'yicha maxsus shartlar yoki qaydlar..."
+                placeholder={isRu ? 'Условия договора, реквизиты или примечания...' : 'Shartnoma shartlari, rekvizitlar yoki qo\'shimcha ma\'lumotlar...'}
                 value={payerForm.notes}
                 onChange={e => setPayerForm({ ...payerForm, notes: e.target.value })}
               />
@@ -172,9 +190,11 @@ export const PayerModal: React.FC<PayerModalProps> = ({
           </div>
 
           <div className="modal-footer-clean">
-            <button type="button" className="btn-secondary" onClick={onClose}>Bekor qilish</button>
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              {isRu ? 'Отмена' : 'Bekor qilish'}
+            </button>
             <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)' }}>
-              💾 Shartnomani Saqlash
+              {isRu ? 'Сохранить договор' : 'Shartnomani Saqlash'}
             </button>
           </div>
         </form>
@@ -182,4 +202,3 @@ export const PayerModal: React.FC<PayerModalProps> = ({
     </div>
   );
 };
-

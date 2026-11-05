@@ -3188,7 +3188,7 @@ export default function Home() {
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     title={lang === 'ru' ? 'Скачать остатки в Excel' : 'Ombor qoldig\'ini Excelda yuklash'}
                   >
-                    <span>📊 Excel (CSV)</span>
+                    <span>📊 Excel (.xlsx)</span>
                   </button>
                 </div>
               </div>
@@ -4130,7 +4130,7 @@ export default function Home() {
                     }}
                     title={lang === 'ru' ? 'Скачать историю движений в Excel' : 'Harakatlar tarixini Excelda yuklash'}
                   >
-                    <span>📊 Excel (CSV)</span>
+                    <span>📊 Excel (.xlsx)</span>
                   </button>
                 </div>
               </div>
@@ -4645,7 +4645,7 @@ export default function Home() {
                   className="btn-primary"
                   style={{ background: '#7e22ce', borderColor: '#6b21a8', fontSize: '12.5px', padding: '8px 16px' }}
                 >
-                  <span>📥 Excel (CSV) Yuklash</span>
+                  <span>📥 Excel (.xlsx) Yuklash</span>
                 </button>
               </div>
             </div>
@@ -7486,6 +7486,7 @@ export default function Home() {
           ======================================================== */}
       <UserModal
         isOpen={isUserModalOpen}
+        lang={lang}
         editingUser={editingUser}
         userForm={userForm}
         setUserForm={setUserForm}
@@ -7535,6 +7536,7 @@ export default function Home() {
           ======================================================== */}
       <CustomsServiceModal
         isOpen={isCustomsServiceModalOpen}
+        lang={lang}
         editingCustomsService={editingCustomsService}
         customsServiceForm={customsServiceForm}
         setCustomsServiceForm={setCustomsServiceForm}
@@ -7546,6 +7548,7 @@ export default function Home() {
           ======================================================== */}
       <ProductHistoryModal
         product={selectedProductHistory}
+        lang={lang}
         warehouse={warehouse}
         canViewFinances={canViewFinances}
         canStockMovement={canStockMovement && Boolean(selectedProductHistory && checkSectorAccess(warehouse.sectors.find(s => s.id === selectedProductHistory.sectorId) || null, currentUser).allowed)}
@@ -7569,6 +7572,7 @@ export default function Home() {
           ======================================================== */}
       <InvoiceReceiptModal
         movement={selectedInvoiceMovement}
+        lang={lang}
         canViewFinances={canViewFinances}
         payers={payers}
         onClose={() => setSelectedInvoiceMovement(null)}
@@ -7580,6 +7584,7 @@ export default function Home() {
           ======================================================== */}
       <PayerModal
         isOpen={isPayerModalOpen}
+        lang={lang}
         editingPayer={editingPayer}
         payerForm={payerForm}
         setPayerForm={setPayerForm}

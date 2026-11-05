@@ -1,6 +1,5 @@
 import React from 'react';
 import { StoredProduct, Language } from '@/lib/types';
-import { t } from '@/lib/i18n';
 
 interface DeleteProductModalProps {
   isOpen: boolean;
@@ -13,13 +12,6 @@ interface DeleteProductModalProps {
   lang?: Language;
 }
 
-const PRESET_REASONS = [
-  'Kirimda xato kiritilgan yuk',
-  'Takroriy (dublikat) kirim',
-  'Boshqa omborga adashib kiritilgan',
-  'Mijoz tomonidan bekor qilindi'
-];
-
 export const DeleteProductModal: React.FC<DeleteProductModalProps> = ({
   isOpen,
   product,
@@ -31,6 +23,30 @@ export const DeleteProductModal: React.FC<DeleteProductModalProps> = ({
   lang = 'uz'
 }) => {
   if (!isOpen || !product) return null;
+
+  const isRu = lang === 'ru';
+  const isEn = lang === 'en';
+
+  const PRESET_REASONS = isRu
+    ? [
+        'Ошибочно внесенный при приходе груз',
+        'Повторный (дублирующий) приход',
+        'Ошибочно приходован в другой сектор',
+        'Отменено клиентом / заказчиком'
+      ]
+    : isEn
+    ? [
+        'Mistakenly entered inbound cargo',
+        'Duplicate entry',
+        'Placed in wrong warehouse sector',
+        'Cancelled by client'
+      ]
+    : [
+        'Kirimda xato kiritilgan yuk',
+        'Takroriy (dublikat) kirim',
+        'Boshqa omborga adashib kiritilgan',
+        'Mijoz tomonidan bekor qilindi'
+      ];
 
   return (
     <div className="modal-overlay" style={{ zIndex: 9999 }}>
@@ -48,10 +64,10 @@ export const DeleteProductModal: React.FC<DeleteProductModalProps> = ({
             <span style={{ fontSize: '24px' }}>🗑️</span>
             <div>
               <h3 style={{ fontSize: '16px', fontWeight: 900, color: '#991b1b', margin: 0 }}>
-                Yukni Tizimdan O&apos;chirish (Tasdiqlash)
+                {isRu ? 'Удаление Груза из Системы (Подтверждение)' : isEn ? 'Delete Cargo from System (Confirmation)' : 'Yukni Tizimdan O\'chirish (Tasdiqlash)'}
               </h3>
               <span style={{ fontSize: '11.5px', color: '#b91c1c', display: 'block', marginTop: '2px' }}>
-                Kiritilgan yukni ombor hisobidan butunlay o&apos;chirish
+                {isRu ? 'Полное удаление принятого груза из складского учета' : 'Kiritilgan yukni ombor hisobidan butunlay o\'chirish'}
               </span>
             </div>
           </div>
@@ -81,9 +97,10 @@ export const DeleteProductModal: React.FC<DeleteProductModalProps> = ({
           >
             <span style={{ fontSize: '20px', lineHeight: 1 }}>⚠️</span>
             <div style={{ fontSize: '12px', color: '#881337', lineHeight: '1.5' }}>
-              <strong>DIQQAT:</strong> Ushbu amal yukni ombordan o&apos;chiradi. O&apos;chirilganlik to&apos;g&apos;risidagi
-              to&apos;liq ma&apos;lumot (kim, qachon, qaysi yuk va nima sababdan o&apos;chirgani) rasmiy ravishda
-              <strong> &ldquo;Tahrirlar&rdquo; (Исправления)</strong> bo&apos;limiga kiritiladi va oylik hisobotda ko&apos;rinadi.
+              <strong>{isRu ? 'ВНИМАНИЕ:' : 'DIQQAT:'}</strong>{' '}
+              {isRu
+                ? 'Это действие удалит груз со склада. Полная информация об удалении (кто, когда, какой груз и по какой причине) официально фиксируется в разделе «Исправления» и отображается в отчете Генерального Директора.'
+                : 'Ushbu amal yukni ombordan o\'chiradi. O\'chirilganlik to\'g\'risidagi to\'liq ma\'lumot (kim, qachon, qaysi yuk va nima sababdan o\'chirgani) rasmiy ravishda «Tahrirlar» bo\'limiga kiritiladi va oylik hisobotda ko\'rinadi.'}
             </div>
           </div>
 
@@ -98,130 +115,110 @@ export const DeleteProductModal: React.FC<DeleteProductModalProps> = ({
               fontSize: '12.5px'
             }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div style={{ marginBottom: '6px' }}>
+              <span style={{ color: '#64748b' }}>{isRu ? 'Удаляемый груз:' : 'O\'chirilayotgan yuk:'} </span>
+              <strong data-no-translate="true" style={{ color: '#0f172a' }}>{product.name}</strong>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: '#475569' }}>
               <div>
-                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>YUK NOMI:</span>
-                <strong style={{ color: '#0f172a', fontSize: '13px' }}>{product.name}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>SEKTOR:</span>
-                <strong style={{ color: '#0284c7' }}>{product.sectorName}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>MIQDOR VA OG&apos;IRLIK:</span>
-                <strong style={{ color: '#0f172a' }}>
-                  {product.quantity} {product.unit} ({product.weightKg || 0} kg)
+                <span>{isRu ? 'Остаток:' : 'Qoldiq:'} </span>
+                <strong style={{ color: '#059669' }}>
+                  {product.quantity.toLocaleString('uz-UZ')} {product.unit} ({product.weightKg.toLocaleString('uz-UZ')} kg)
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>MIJOZ / TO&apos;LOVCHI:</span>
-                <strong style={{ color: '#0f172a' }}>{product.clientName || '—'}</strong>
+                <span>{isRu ? 'Сектор:' : 'Sektor:'} </span>
+                <strong style={{ color: '#002d62' }}>{product.sectorName}</strong>
+              </div>
+              <div>
+                <span>{isRu ? 'Клиент:' : 'Mijoz:'} </span>
+                <strong>{product.clientName || '—'}</strong>
+              </div>
+              <div>
+                <span>{isRu ? 'Дата прихода:' : 'Kirim sanasi:'} </span>
+                <strong>{product.entryDate || '—'}</strong>
               </div>
             </div>
           </div>
 
-          {/* O'chirish sababi */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '11.5px',
-                fontWeight: 800,
-                color: '#334155',
-                marginBottom: '6px',
-                textTransform: 'uppercase'
-              }}
-            >
-              O&apos;chirish Sababi (Majburiy) *
+          {/* Tezkor sabab shablonlari */}
+          <div style={{ marginBottom: '14px' }}>
+            <label className="form-label" style={{ fontSize: '11px', color: '#475569', marginBottom: '6px' }}>
+              {isRu ? 'Быстрый выбор причины:' : 'Tezkor sababni tanlash:'}
             </label>
-
-            {/* Tezkor variantlar */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-              {PRESET_REASONS.map(pr => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {PRESET_REASONS.map((pReason, idx) => (
                 <button
-                  key={pr}
+                  key={idx}
                   type="button"
-                  onClick={() => setReason(pr)}
+                  onClick={() => setReason(pReason)}
                   style={{
-                    background: reason === pr ? '#fee2e2' : '#f1f5f9',
-                    border: reason === pr ? '1px solid #ef4444' : '1px solid #cbd5e1',
-                    color: reason === pr ? '#991b1b' : '#475569',
-                    padding: '4px 8px',
-                    borderRadius: '12px',
                     fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
+                    padding: '4px 9px',
+                    borderRadius: '6px',
+                    border: reason === pReason ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                    background: reason === pReason ? '#fee2e2' : '#ffffff',
+                    color: reason === pReason ? '#991b1b' : '#334155',
+                    cursor: 'pointer',
+                    fontWeight: reason === pReason ? 700 : 500,
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  {pr}
+                  {pReason}
                 </button>
               ))}
             </div>
+          </div>
 
+          {/* O'chirish sababi maydoni (Majburiy) */}
+          <div className="form-field" style={{ marginBottom: '4px' }}>
+            <label className="form-label" style={{ color: '#991b1b', fontWeight: 800 }}>
+              {isRu ? 'ПРИЧИНА УДАЛЕНИЯ (ОБЯЗАТЕЛЬНО) *' : 'O\'CHIRISH SABABI (MAJBURIY) *'}
+            </label>
             <textarea
-              required
               rows={3}
+              required
               className="form-input-clean"
               style={{
-                width: '100%',
-                padding: '8px 12px',
-                fontSize: '13px',
-                resize: 'vertical',
-                boxSizing: 'border-box'
+                border: '1.5px solid #fca5a5',
+                background: '#ffffff',
+                fontSize: '13px'
               }}
-              placeholder="Masalan: Kirimda noto'g'ri raqam bilan xato kiritilgan yuk..."
+              placeholder={isRu ? 'Укажите подробную причину удаления груза...' : 'Nima sababdan yuk hisobdan o\'chirilmoqda? Batafsil yozing...'}
               value={reason}
               onChange={e => setReason(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Footer */}
-        <div
-          className="modal-footer-clean"
-          style={{
-            padding: '14px 20px',
-            background: '#f8fafc',
-            borderTop: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '10px'
-          }}
-        >
+        <div className="modal-footer-clean" style={{ background: '#f8fafc', padding: '14px 20px' }}>
           <button
             type="button"
-            className="btn-outline"
+            className="btn-secondary"
             onClick={onClose}
             disabled={isDeleting}
-            style={{ fontWeight: 700, padding: '7px 16px' }}
           >
-            Bekor qilish
+            {isRu ? 'Отмена' : 'Bekor qilish'}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={isDeleting || !reason.trim()}
+            className="btn-primary"
             style={{
               background: '#dc2626',
-              color: '#ffffff',
               border: 'none',
-              borderRadius: '6px',
-              padding: '7px 18px',
               fontWeight: 800,
-              fontSize: '13px',
-              cursor: isDeleting || !reason.trim() ? 'not-allowed' : 'pointer',
               opacity: isDeleting || !reason.trim() ? 0.6 : 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
+              cursor: isDeleting || !reason.trim() ? 'not-allowed' : 'pointer'
             }}
           >
-            <span>🗑️</span>
-            <span>{isDeleting ? 'O\'chirilmoqda...' : 'Ha, Butunlay O\'chirish'}</span>
+            {isDeleting
+              ? (isRu ? 'Удаление...' : 'O\'chirilmoqda...')
+              : (isRu ? '🗑️ Удалить груз безвозвратно' : '🗑️ Yukni Butunlay O\'chirish')}
           </button>
         </div>
       </div>
     </div>
   );
 };
-
