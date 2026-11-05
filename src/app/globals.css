@@ -293,11 +293,16 @@ input, select, textarea {
 
 /* Form Groups */
 .form-field {
-  margin-bottom: 14px;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-bottom: 16px;
 }
 
 .form-label {
-  display: block;
+  display: block !important;
+  width: 100% !important;
   font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
@@ -307,19 +312,22 @@ input, select, textarea {
 }
 
 .form-input-clean {
-  width: 100%;
-  padding: 9px 13px;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 10px 14px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-primary);
   background: #ffffff;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .form-input-clean:focus {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .form-select-clean {

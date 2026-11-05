@@ -10,16 +10,14 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('--- PostgreSQL bazasini tozalash va bazaviy sozlamalarni (Sektorlar & Preyskurant) saqlash ---');
 
-  // 1. Barcha imitatsiya qilingan ma'lumotlarni tozalash (User, Product, CargoMovement, Client, StockTransaction, StorageInvoice, AuditLog, ActivityLog)
+  // 1. Barcha tovarlar, harakatlar va amallarni tozalash (Foydalanuvchilar (User) jadvali o'zgarishsiz saqlanadi!)
   await prisma.stockTransaction.deleteMany({});
   await prisma.storageInvoice.deleteMany({});
   await prisma.cargoMovement.deleteMany({});
   await prisma.product.deleteMany({});
-  await prisma.client.deleteMany({});
   await prisma.auditLog.deleteMany({});
   await prisma.activityLog.deleteMany({});
-  await prisma.user.deleteMany({});
-  console.log('✓ Barcha foydalanuvchilar, mahsulotlar, harakatlar, to\'lovchilar va loglar tozalandi (0 ta).');
+  console.log('✓ Barcha mahsulotlar, harakatlar va operatsiyalar tozalandi (Foydalanuvchilar saqlandi).');
 
   // 2. Asosiy ombor va 6 ta sektorni saqlash (ortiqcha/dublikat sektorlarni o'chirish)
   const validSectorIds = INITIAL_WAREHOUSE.sectors.map(s => s.id);

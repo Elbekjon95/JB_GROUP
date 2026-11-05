@@ -31,34 +31,12 @@ async function main() {
   await prisma.activityLog.deleteMany({});
   console.log('✓ Eski tovarlar va amallar tozalandi.');
 
-  // 2. Foydalanuvchilar (Users)
-  console.log('2. Foydalanuvchilar (SuperAdmin, Admin, Buxgalter, Omborchilar) yangilanmoqda...');
-  const pass1 = await bcrypt.hash('password123', 10);
-  const pass2 = await bcrypt.hash('admin123', 10);
-
-  const users = [
-    { email: 'superadmin@jbgroup.uz', password: pass1, fullName: 'Sardor Alimov (Super Admin)', role: 'SUPER_ADMIN', canManageTariffs: true, canCreateProducts: true, canDeleteProducts: true, canManageWarehouses: true, canStockMovement: true },
-    { email: 'admin@jbgroup.uz', password: pass1, fullName: 'Akmal Rahimov (Katta Admin)', role: 'ADMIN', canManageTariffs: true, canCreateProducts: true, canDeleteProducts: true, canManageWarehouses: false, canStockMovement: true },
-    { email: 'buxgalter@jbgroup.uz', password: pass1, fullName: 'Shahnoza Karimova (Bosh Buxgalter)', role: 'ACCOUNTANT', canManageTariffs: false, canCreateProducts: false, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: false },
-    { email: 'user@jbgroup.uz', password: pass1, fullName: 'Botir Qodirov (Katta Omborchi)', role: 'USER', canManageTariffs: false, canCreateProducts: false, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: true },
-    { email: 'operator@jbgroup.uz', password: pass1, fullName: 'Davron Yusupov (Operator)', role: 'USER', canManageTariffs: false, canCreateProducts: false, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: true },
-    { email: 'omborchi@jbgroup.uz', password: pass1, fullName: 'Jamshid Ergashev (Omborchi)', role: 'USER', canManageTariffs: false, canCreateProducts: false, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: true },
-
-    // UZW domeni uchun ham (admin123 paroli bilan)
-    { email: 'superadmin@uzw.uz', password: pass2, fullName: 'Sardor Alimov (Super Admin)', role: 'SUPER_ADMIN', canManageTariffs: true, canCreateProducts: true, canDeleteProducts: true, canManageWarehouses: true, canStockMovement: true },
-    { email: 'admin@uzw.uz', password: pass2, fullName: 'Akmal Rahimov (Admin)', role: 'ADMIN', canManageTariffs: true, canCreateProducts: true, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: true },
-    { email: 'buxgalter@uzw.uz', password: pass2, fullName: 'Shahnoza Karimova (Buxgalter)', role: 'ACCOUNTANT', canManageTariffs: false, canCreateProducts: false, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: false },
-    { email: 'user@uzw.uz', password: pass2, fullName: 'Botir Qodirov (Omborchi)', role: 'USER', canManageTariffs: false, canCreateProducts: false, canDeleteProducts: false, canManageWarehouses: false, canStockMovement: true }
-  ];
-
-  for (const u of users) {
-    await prisma.user.upsert({
-      where: { email: u.email },
-      update: u,
-      create: u
-    });
-  }
-  console.log(`✓ ${users.length} ta xodim akkaunti tayyorlandi.`);
+  // 2. Foydalanuvchilar (Users jadvali o'zgartirilmaydi, mavjud foydalanuvchilar saqlanadi)
+  console.log('2. Foydalanuvchilar (User) jadvali o\'zgartirilmaydi, mavjud xodimlar saqlanadi.');
+  const existingUsers = await prisma.user.findMany({
+    select: { id: true, email: true, fullName: true, role: true }
+  });
+  console.log(`✓ Foydalanuvchilar (User) jadvaliga tegilmadi (${existingUsers.length} ta foydalanuvchi mavjud).`);
 
   // 3. Ombor va 6 ta asosiy Sektorlar
   console.log('3. Ombor va Sektorlar (A, B, C, D, E, F) tekshirilmoqda...');
@@ -677,7 +655,7 @@ async function main() {
 
   console.log('\n================================================================');
   console.log('🎉 5 YILLIK IMITATSIYA MA\'LUMOTLARI BAZAGA MUVAFFAQIYATLI YUKLANDI!');
-  console.log(`- Xodimlar: ${users.length} ta`);
+  console.log(`- Xodimlar (User jadvali saqlandi): ${existingUsers.length} ta`);
   console.log(`- Mijozlar / To'lovchilar: ${clientsData.length} ta`);
   console.log(`- 5 yillik Harakatlar tarixi (Kirim & Chiqim): ${movementsToInsert.length} ta`);
   console.log(`- Hozirgi kunda ombordagi faol tovar partiyalari: ${activeProducts.length} ta`);
