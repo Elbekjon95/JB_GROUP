@@ -42,10 +42,10 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
         <div className="modal-header-clean">
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-              {editingCustomsService ? `✏️ Xizmat Narxini Tahrirlash: ${editingCustomsService.name}` : '➕ Yangi Bojxona Xizmati Qo\'shish'}
+              {editingCustomsService ? `✏️ Tarifni Tahrirlash: ${editingCustomsService.name}` : '➕ Yangi Tarif Qo\'shish'}
             </h3>
             <span style={{ fontSize: '12px', color: '#64748b' }}>
-              «JB GROUP» Bojxona ombori rasmiy preyskurantiga o&apos;zgartirish kiritish
+              «JB GROUP» Bojxona ombori rasmiy xizmat tariflariga o&apos;zgartirish kiritish
             </span>
           </div>
           <button onClick={onClose} style={{ fontSize: '18px', color: '#94a3b8', padding: '4px 8px' }}>✕</button>
@@ -69,7 +69,7 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
             </div>
 
             <div className="form-field">
-              <label className="form-label">XIZMAT NOMI (RUS TILIDA - PREYSKURANT BO&apos;YICHA) *</label>
+              <label className="form-label">XIZMAT / TARIF NOMI (RUS TILIDA) *</label>
               <input
                 type="text"
                 required
@@ -81,7 +81,7 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
             </div>
 
             <div className="form-field">
-              <label className="form-label">XIZMAT NOMI (O&apos;ZBEK TILIDA)</label>
+              <label className="form-label">XIZMAT / TARIF NOMI (O&apos;ZBEK TILIDA)</label>
               <input
                 type="text"
                 className="form-input-clean"

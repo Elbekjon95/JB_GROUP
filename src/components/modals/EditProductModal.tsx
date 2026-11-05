@@ -224,7 +224,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
             {/* 4. Saqlash tarifi */}
             <div className="form-field">
-              <label className="form-label">SAQLASH TARIFI (PREYSKURANT BO&apos;YICHA)</label>
+              <label className="form-label">SAQLASH TARIFI (TARIF BO&apos;YICHA)</label>
               <select
                 className="form-select-clean"
                 value={editForm.storageTariffId}

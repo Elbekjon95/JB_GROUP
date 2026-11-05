@@ -216,6 +216,11 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data)
       });
+    },
+    delete: async (id: string) => {
+      return request<{ success: boolean; deletedId: string }>(`/api/customs-services?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
     }
   },
 

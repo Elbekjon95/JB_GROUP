@@ -2990,7 +2990,7 @@ export default function Home() {
         description: customsServiceForm.description
       };
       saveCustomsServicesData([...customsServices, newSvc]);
-      showToast(`Yangi "${newSvc.name}" bojxona xizmati qo'shildi!`);
+      showToast(`Yangi "${newSvc.name}" tarifi qo'shildi!`);
 
       api.customsServices.create({
         itemNo: customsServices.length + 1,
@@ -3007,6 +3007,26 @@ export default function Home() {
       }).catch(err => console.warn('Customs service create error:', err));
     }
     setIsCustomsServiceModalOpen(false);
+  };
+
+  // Tarifni o'chirish (Foydalanuvchi talabi)
+  const handleDeleteCustomsService = async (service: CustomsService) => {
+    const isRu = lang === 'ru';
+    const confirmMsg = isRu
+      ? `Вы действительно хотите удалить этот тариф?\n\n«${service.name}»`
+      : `Ushbu tarifni rostdan ham o'chirmoqchimisiz?\n\n«${service.name}»`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await api.customsServices.delete(service.id);
+      const updated = customsServices.filter(s => s.id !== service.id);
+      saveCustomsServicesData(updated);
+      showToast(isRu ? 'Тариф успешно удален!' : 'Tarif muvaffaqiyatli o\'chirildi!');
+    } catch (err: any) {
+      console.error('Tarif o\'chirishda xatolik:', err);
+      showToast(err?.message || (isRu ? 'Ошибка при удалении тарифа!' : 'Tarifni o\'chirishda xatolik yuz berdi!'));
+    }
   };
 
   // Agar foydalanuvchi tizimga kirmagan bo'lsa: JB GROUP Login yoki Bir Martalik Super Admin Registratsiyasi oynasi
@@ -3664,7 +3684,7 @@ export default function Home() {
                                   {/* Saqlash Tarifi (2-rasm: 10-19) */}
                                   <td style={{ padding: '8px 8px' }}>
                                     <strong style={{ color: '#047857', fontSize: '11.5px', display: 'block' }}>
-                                      ❄️ {prod.storageTariffItemNo ? `№${prod.storageTariffItemNo}: ` : ''}{prod.storageTariffName || 'Preyskurant'}
+                                      ❄️ {prod.storageTariffItemNo ? `№${prod.storageTariffItemNo}: ` : ''}{prod.storageTariffName || 'Tarif'}
                                     </strong>
                                     {prod.storageTariffRate && (
                                       <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '1px' }}>
@@ -3866,7 +3886,7 @@ export default function Home() {
                                 <div>
                                   <span style={{ color: '#64748b', display: 'block', fontSize: '11px' }}>❄️ Saqlash Tarifi (2-rasm):</span>
                                   <strong style={{ color: '#047857' }}>
-                                    {prod.storageTariffItemNo ? `№${prod.storageTariffItemNo}: ` : ''}{prod.storageTariffName || 'Preyskurant'}
+                                    {prod.storageTariffItemNo ? `№${prod.storageTariffItemNo}: ` : ''}{prod.storageTariffName || 'Tarif'}
                                   </strong>
                                 </div>
                               </div>
@@ -5408,11 +5428,11 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <img src="/jb-logo.jpg" alt="JB GROUP" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
                   <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#0f2b48', margin: 0, letterSpacing: '-0.01em' }}>
-                    «JB GROUP» Bojxona Ombori Rasmiy Preyskuranti
+                    «JB GROUP» Bojxona Ombori Rasmiy Xizmat Tariflari
                   </h2>
                 </div>
                 <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-                  Yuk ortish/tushirish, bojxona omborida saqlash va qo&apos;shimcha xizmatlarning 12% QQS (NDS) bilan tasdiqlangan stavkalari
+                  Yuk ortish/tushirish, bojxona omborida saqlash va qo&apos;shimcha xizmatlarning tasdiqlangan tarif stavkalari (12% QQS bilan)
                 </p>
               </div>
 
@@ -5435,7 +5455,7 @@ export default function Home() {
                     className="btn-primary"
                     style={{ background: 'linear-gradient(90deg, #002d62 0%, #0070ba 100%)', border: 'none' }}
                   >
-                    <span>➕ Yangi Bojxona Xizmati Qo&apos;shish</span>
+                    <span>➕ Yangi Tarif Qo&apos;shish</span>
                   </button>
                 )}
               </div>
@@ -5673,27 +5693,44 @@ export default function Home() {
 
                             {canManageTariffs && (
                               <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingCustomsService(s);
-                                    setCustomsServiceForm({
-                                      name: s.name,
-                                      nameUz: s.nameUz || '',
-                                      unit: s.unit,
-                                      basePrice: s.basePrice,
-                                      vatRate: s.vatRate,
-                                      description: s.description || '',
-                                      category: s.category
-                                    });
-                                    setIsCustomsServiceModalOpen(true);
-                                  }}
-                                  className="btn-outline"
-                                  style={{ fontSize: '11px', padding: '4px 8px' }}
-                                  title="Narxni tahrirlash"
-                                >
-                                  ✏️
-                                </button>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingCustomsService(s);
+                                      setCustomsServiceForm({
+                                        name: s.name,
+                                        nameUz: s.nameUz || '',
+                                        unit: s.unit,
+                                        basePrice: s.basePrice,
+                                        vatRate: s.vatRate,
+                                        description: s.description || '',
+                                        category: s.category
+                                      });
+                                      setIsCustomsServiceModalOpen(true);
+                                    }}
+                                    className="btn-outline"
+                                    style={{ fontSize: '11px', padding: '5px 8px' }}
+                                    title={lang === 'ru' ? 'Редактировать тариф' : 'Tarifni tahrirlash'}
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteCustomsService(s)}
+                                    className="btn-outline"
+                                    style={{
+                                      fontSize: '11px',
+                                      padding: '5px 8px',
+                                      color: '#ef4444',
+                                      borderColor: '#fca5a5',
+                                      background: '#fff5f5'
+                                    }}
+                                    title={lang === 'ru' ? 'Удалить тариф' : 'Tarifni o\'chirish'}
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -6342,7 +6379,7 @@ export default function Home() {
                             📌 Belgilangan Saqlash Usuli (Omborga kirim):
                           </span>
                           <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                            Preyskurant №{storSvc.itemNo} • Kunlik stavka
+                            Tarif №{storSvc.itemNo} • Kunlik stavka
                           </span>
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
@@ -6454,7 +6491,7 @@ export default function Home() {
                                 📋 Tanlangan Tushirish (Разгрузка) — 1 Martalik To&apos;lov:
                               </span>
                               <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                                Preyskurant №{svc.itemNo} • 1 martalik
+                                Tarif №{svc.itemNo} • 1 martalik
                               </span>
                             </div>
                             <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>

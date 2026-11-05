@@ -23,7 +23,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     navAccounting: '💼 Buxgalteriya & Chiqimlar',
     navReports: '📊 Oylik Faoliyat',
     navEditLogs: '✏️ Tahrirlar Hisoboti',
-    navTariffs: '📑 Bojxona Preyskuranti',
+    navTariffs: '🏷️ Tariflar',
     navUsers: '👥 Xodimlar va Huquqlar',
 
     // Roles
@@ -110,7 +110,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     navAccounting: '💼 Бухгалтерия и Расход',
     navReports: '📊 Активность за месяц',
     navEditLogs: '✏️ Отчет по исправлениям',
-    navTariffs: '📑 Прейскурант Услуг',
+    navTariffs: '🏷️ Тарифы',
     navUsers: '👥 Сотрудники и Права',
 
     // Roles
@@ -197,7 +197,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     navAccounting: '💼 Accounting & Exits',
     navReports: '📊 Monthly Activity',
     navEditLogs: '✏️ Corrections Report',
-    navTariffs: '📑 Customs Price List',
+    navTariffs: '🏷️ Tariffs',
     navUsers: '👥 Staff & Permissions',
 
     // Roles
@@ -1067,16 +1067,37 @@ const RAW_PHRASE_MAP: Array<[string, { uz?: string; ru: string; en: string }]> =
 
   // =========================================================================
   // 7. CUSTOMS PRICE LIST TAB
+  ['«JB GROUP» Bojxona Ombori Rasmiy Xizmat Tariflari', {
+    ru: 'Официальные Тарифы Услуг Таможенного Склада «JB GROUP»',
+    en: 'Official Service Rates of «JB GROUP» Customs Warehouse'
+  }],
+  ['Yuk ortish/tushirish, bojxona omborida saqlash va qo\'shimcha xizmatlarning tasdiqlangan tarif stavkalari (12% QQS bilan)', {
+    ru: 'Утвержденные тарифы на погрузочно-разгрузочные работы, хранение на таможенном складе и доп. услуги с учетом 12% НДС',
+    en: 'Approved rates for loading/unloading, customs warehouse storage, and additional services including 12% VAT'
+  }],
+  ['➕ Yangi Tarif Qo\'shish', { ru: '➕ Добавить Новый Тариф', en: '➕ Add New Tariff' }],
+  ['XIZMAT / TARIF NOMI (RUS TILIDA) *', { ru: 'НАИМЕНОВАНИЕ УСЛУГИ / ТАРИФА (НА РУССКОМ) *', en: 'SERVICE / TARIFF NAME (RUSSIAN) *' }],
+  ['XIZMAT / TARIF NOMI (O\'ZBEK TILIDA)', { ru: 'НАИМЕНОВАНИЕ УСЛУГИ / ТАРИФА (НА УЗБЕКСКОМ)', en: 'SERVICE / TARIFF NAME (UZBEK)' }],
+  ['«JB GROUP» Bojxona ombori rasmiy xizmat tariflariga o\'zgartirish kiritish', {
+    ru: 'Внесение изменений в официальные тарифы таможенного склада «JB GROUP»',
+    en: 'Updating official service rates of «JB GROUP» customs warehouse'
+  }],
+  ['SAQLASH TARIFI (TARIF BO\'YICHA)', { ru: 'ТАРИФ ХРАНЕНИЯ', en: 'STORAGE TARIFF' }],
+  ['Tarifni tahrirlash', { ru: 'Редактировать тариф', en: 'Edit tariff' }],
+  ['Tarifni o\'chirish', { ru: 'Удалить тариф', en: 'Delete tariff' }],
+  ['Tarif muvaffaqiyatli o\'chirildi!', { ru: 'Тариф успешно удален!', en: 'Tariff deleted successfully!' }],
+  ['Ushbu tarifni rostdan ham o\'chirmoqchimisiz?', { ru: 'Вы действительно хотите удалить этот тариф?', en: 'Are you sure you want to delete this tariff?' }],
+
   // =========================================================================
   ['«JB GROUP» Bojxona Ombori Rasmiy Preyskuranti', {
-    ru: 'Официальный Прейскурант Услуг Таможенного Склада «JB GROUP»',
+    ru: 'Официальные Тарифы Услуг Таможенного Склада «JB GROUP»',
     en: 'JB GROUP Customs Warehouse Official Price List'
   }],
   ['Yuk ortish/tushirish, bojxona omborida saqlash va qo\'shimcha xizmatlarning 12% QQS (NDS) bilan tasdiqlangan stavkalari', {
     ru: 'Утвержденные тарифы на погрузочно-разгрузочные работы, хранение на таможенном складе и доп. услуги с учетом 12% НДС',
     en: 'Approved rates for loading/unloading, customs warehouse storage, and additional services including 12% VAT'
   }],
-  ['➕ Yangi Bojxona Xizmati Qo\'shish', { ru: '➕ Добавить Таможенную Услугу', en: '➕ Add Customs Service' }],
+  ['➕ Yangi Bojxona Xizmati Qo\'shish', { ru: '➕ Добавить Новый Тариф', en: '➕ Add Customs Service' }],
   ['1. Ortish va Tushirish', { ru: '1. Погрузка и Разгрузка', en: '1. Loading & Unloading' }],
   ['⚡ 1 martalik to\'lov', { ru: '⚡ Разовый платеж', en: '⚡ One-time fee' }],
   ['1–9-bandlar: Kirimda yuk tushirish (разгрузка) va chiqimda ortish (погрузка) 1 martalik qat\'iy to\'lov bo\'lib, saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.', {
@@ -1100,7 +1121,7 @@ const RAW_PHRASE_MAP: Array<[string, { uz?: string; ru: string; en: string }]> =
   }],
   ['Наименование услуг / Xizmat Nomi', {
     uz: 'Xizmat Nomi (Preyskurant bo\'yicha)',
-    ru: 'Наименование Услуги (По прейскуранту)',
+    ru: 'Наименование Услуги (По тарифу)',
     en: 'Service Name (Per Price List)'
   }],
   ['Стоимость в сумах (QQSsiz)', {
@@ -2066,8 +2087,8 @@ export function translateTextNode(rawText: string, lang: Language): string {
 
   // 2. Dinamik raqamli iboralar va alohida suffikslar (Regex patterns)
   // "Preyskurant №19" / "Preyskurant #19"
-  text = text.replace(/Preyskurant\s*[№#](\d+(?:\.\d+)?)/gi, (_, n) =>
-    lang === 'ru' ? `Прейскурант №${n}` : `Price List #${n}`
+  text = text.replace(/(?:Preyskurant|Tarif)\s*[№#](\d+(?:\.\d+)?)/gi, (_, n) =>
+    lang === 'ru' ? `Тариф №${n}` : `Tariff #${n}`
   );
   // "Yangi Sektor (7)"
   text = text.replace(/Yangi Sektor\s*\((\d+)\)/gi, (_, n) =>

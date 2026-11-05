@@ -10,7 +10,7 @@ export async function GET() {
     });
 
     // Agar bazada rasmiy 30+ ta preyskurant xizmatlari to'liq bo'lmasa, avtomatik to'ldirish
-    if (services.length < INITIAL_CUSTOMS_SERVICES.length) {
+    if (services.length === 0) {
       for (const s of INITIAL_CUSTOMS_SERVICES) {
         await prisma.customsService.upsert({
           where: { id: s.id },
@@ -109,6 +109,38 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json({ service: updated });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const user = await getUserFromRequest(req);
+    const perms = (user?.permissions as any) || {};
+    const canManageTariffs = !user || user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.canManageTariffs || Boolean(perms.canManageTariffs);
+    if (!canManageTariffs) {
+      return NextResponse.json({ error: 'Tarifni o\'chirish huquqi yo\'q!' }, { status: 403 });
+    }
+
+    const url = new URL(req.url);
+    let id = url.searchParams.get('id');
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Tarif ID ko\'rsatilmadi!' }, { status: 400 });
+    }
+
+    await prisma.customsService.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true, deletedId: id });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
