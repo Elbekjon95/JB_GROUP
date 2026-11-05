@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CustomsService, CustomsServiceCategory, Language } from '@/lib/types';
+import { getUnitsForCategory } from '@/lib/units';
 
 interface CustomsServiceModalProps {
   isOpen: boolean;
@@ -36,10 +37,20 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
   onSave,
   onClose
 }) => {
-  if (!isOpen) return null;
-
   const isRu = lang === 'ru';
   const isEn = lang === 'en';
+
+  const availableUnits = getUnitsForCategory(customsServiceForm.category);
+  const isKnownUnit = availableUnits.some(u => u.value === customsServiceForm.unit);
+
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  // Modal ochilganda yoki tahrirlash obyekti o'zgarganda select ko'rinishida bo'lishi kerak
+  useEffect(() => {
+    setShowCustomInput(false);
+  }, [isOpen, customsServiceForm.category, editingCustomsService]);
+
+  if (!isOpen) return null;
 
   // Sarlavhadagi takrorlangan qavslarni tozalash (masalan: "(razgruzka) (razgruzka)")
   const rawDisplayName = editingCustomsService ? (isRu ? editingCustomsService.name : (editingCustomsService.nameUz || editingCustomsService.name)) : '';
@@ -80,7 +91,17 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
               <select
                 className="form-select-clean"
                 value={customsServiceForm.category}
-                onChange={e => setCustomsServiceForm({ ...customsServiceForm, category: e.target.value as CustomsServiceCategory })}
+                onChange={e => {
+                  const cat = e.target.value as CustomsServiceCategory;
+                  const newUnits = getUnitsForCategory(cat);
+                  const defaultUnit = newUnits[0]?.value || '1 tn / sutka';
+                  setCustomsServiceForm({
+                    ...customsServiceForm,
+                    category: cat,
+                    unit: defaultUnit
+                  });
+                  setShowCustomInput(false);
+                }}
                 required
               >
                 <option value="UNLOADING_LOADING">
@@ -137,18 +158,55 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
                 />
               </div>
 
+              {/* O'lchov birligi (Foydalanuvchi talabi: tanlanadigan select) */}
               <div>
                 <label className="form-label">
                   {isRu ? 'ЕДИНИЦА ИЗМЕРЕНИЯ *' : isEn ? 'UNIT OF MEASUREMENT *' : 'O\'LCHOV BIRLIGI *'}
                 </label>
-                <input
-                  type="text"
+                <select
+                  className="form-select-clean"
+                  value={showCustomInput ? '__custom__' : customsServiceForm.unit}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '__custom__') {
+                      setShowCustomInput(true);
+                    } else {
+                      setShowCustomInput(false);
+                      setCustomsServiceForm({ ...customsServiceForm, unit: val });
+                    }
+                  }}
                   required
-                  className="form-input-clean"
-                  placeholder={isRu ? '1 фура, 1 тн, 1 сут, 1 паллет' : '1 fura, 1 tn, 1 sutka, 1 pm'}
-                  value={customsServiceForm.unit}
-                  onChange={e => setCustomsServiceForm({ ...customsServiceForm, unit: e.target.value })}
-                />
+                  style={{ fontWeight: 600, color: '#002d62' }}
+                >
+                  <option value="" disabled>
+                    {isRu ? '-- Выберите единицу измерения --' : '-- O\'lchov birligini tanlang --'}
+                  </option>
+                  {availableUnits.map(u => (
+                    <option key={u.value} value={u.value}>
+                      {isRu ? u.labelRu : isEn ? u.labelEn : u.labelUz}
+                    </option>
+                  ))}
+                  {!isKnownUnit && customsServiceForm.unit && (
+                    <option value={customsServiceForm.unit}>{customsServiceForm.unit}</option>
+                  )}
+                  <option value="__custom__">
+                    {isRu ? '✍️ Другая единица (ввести вручную)...' : '✍️ Boshqa birlik (qo\'lda kiritish)...'}
+                  </option>
+                </select>
+
+                {showCustomInput && (
+                  <div style={{ marginTop: '8px' }}>
+                    <input
+                      type="text"
+                      required
+                      className="form-input-clean"
+                      placeholder={isRu ? 'Введите единицу измерения...' : 'O\'lchov birligini kiriting...'}
+                      value={customsServiceForm.unit}
+                      onChange={e => setCustomsServiceForm({ ...customsServiceForm, unit: e.target.value })}
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

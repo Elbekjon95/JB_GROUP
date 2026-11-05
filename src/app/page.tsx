@@ -18,6 +18,7 @@ import { api } from '@/lib/api-client';
 import { t, translateTextNode } from '@/lib/i18n';
 import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from '@/lib/date-utils';
 import { downloadExcelCSV } from '@/lib/excel-export';
+import { calculateServiceCharge } from '@/lib/units';
 
 // Saqlangan kunlar sonini aniq hisoblash (kamida 1 kun)
 function calculateDaysStored(entryDateStr: string, exitDateStr?: string): number {
@@ -1118,35 +1119,57 @@ export default function Home() {
   // =========================================================================
   const kirimCalculation = useMemo(() => {
     const transportSvc = includeKirimUnloading ? (customsServices.find(s => s.id === selectedTransportServiceId) || null) : null;
-    let baseSum = transportSvc ? transportSvc.basePrice : 0;
-    let vatSum = transportSvc ? transportSvc.vatAmount : 0;
+    let baseSum = 0;
+    let vatSum = 0;
 
     const applied: AppliedService[] = [];
+    let transportCostResult: ReturnType<typeof calculateServiceCharge> | null = null;
+
     if (transportSvc) {
+      transportCostResult = calculateServiceCharge({
+        unit: transportSvc.unit,
+        category: 'UNLOADING_LOADING',
+        basePrice: transportSvc.basePrice,
+        weightKg: Number(productForm.weightKg) || 0,
+        quantity: Number(productForm.quantity) || 1,
+        transportCount: 1
+      });
+
+      baseSum += transportCostResult.baseCost;
+      vatSum += transportCostResult.vatAmount;
+
       applied.push({
         serviceId: transportSvc.id,
         name: transportSvc.nameUz || transportSvc.name,
         quantity: 1,
         unit: transportSvc.unit,
-        basePrice: transportSvc.basePrice,
-        vatAmount: transportSvc.vatAmount,
-        totalPrice: transportSvc.totalPrice
+        basePrice: transportCostResult.baseCost,
+        vatAmount: transportCostResult.vatAmount,
+        totalPrice: transportCostResult.totalCost
       });
     }
 
     selectedKirimAdditionalIds.forEach(id => {
       const svc = customsServices.find(s => s.id === id);
       if (svc) {
-        baseSum += svc.basePrice;
-        vatSum += svc.vatAmount;
+        const addResult = calculateServiceCharge({
+          unit: svc.unit,
+          category: svc.category,
+          basePrice: svc.basePrice,
+          weightKg: Number(productForm.weightKg) || 0,
+          quantity: Number(productForm.quantity) || 1,
+          transportCount: 1
+        });
+        baseSum += addResult.baseCost;
+        vatSum += addResult.vatAmount;
         applied.push({
           serviceId: svc.id,
           name: svc.nameUz || svc.name,
           quantity: 1,
           unit: svc.unit,
-          basePrice: svc.basePrice,
-          vatAmount: svc.vatAmount,
-          totalPrice: svc.totalPrice
+          basePrice: addResult.baseCost,
+          vatAmount: addResult.vatAmount,
+          totalPrice: addResult.totalCost
         });
       }
     });
@@ -1154,12 +1177,13 @@ export default function Home() {
     return {
       includeUnloading: includeKirimUnloading,
       transportSvc,
+      transportCostResult,
       baseSum,
       vatSum,
       grandTotal: baseSum + vatSum,
       applied
     };
-  }, [includeKirimUnloading, selectedTransportServiceId, selectedKirimAdditionalIds, customsServices]);
+  }, [includeKirimUnloading, selectedTransportServiceId, selectedKirimAdditionalIds, customsServices, productForm.weightKg, productForm.quantity]);
 
   // =========================================================================
   // BOJXONA KALKULYATORI: CHIQIM AMALI (TUSHIRISH + SAQLASH + ORTISH + QO'SHIMCHA)
@@ -1230,13 +1254,23 @@ export default function Home() {
         .replace('yuklash / tushirish', 'tushirish (Разгрузка)')
         .replace('tushirish/ortish', 'tushirish (Разгрузка)');
 
-      // Agar mahsulotda kirimda belgilangan tushirish xizmati narxi bo'lsa va standart o'zgarmagan bo'lsa, uni olamiz
-      unloadingBase = (selectedProductToExit.obrabotkaCost && (!selectedUnloadingServiceId || selectedUnloadingServiceId === 'cs-8'))
-        ? selectedProductToExit.obrabotkaCost
-        : (unloadingSvc?.basePrice || 0);
-      unloadingVat = (selectedProductToExit.obrabotkaVat && (!selectedUnloadingServiceId || selectedUnloadingServiceId === 'cs-8'))
-        ? selectedProductToExit.obrabotkaVat
-        : (unloadingSvc?.vatAmount || Math.round(unloadingBase * 0.12));
+      const unlResult = calculateServiceCharge({
+        unit: unloadingSvc?.unit || '1 martalik (to\'liq fura)',
+        category: 'UNLOADING_LOADING',
+        basePrice: unloadingSvc?.basePrice || 800000,
+        weightKg: validWeightKg,
+        quantity: validQty,
+        transportCount: 1
+      });
+
+      // Agar mahsulotda kirimda belgilangan tushirish xizmati narxi bo'lsa va alohida o'zgartirilmagan bo'lsa, uni olamiz
+      if (selectedProductToExit.obrabotkaCost && (!selectedUnloadingServiceId || selectedUnloadingServiceId === 'cs-8')) {
+        unloadingBase = selectedProductToExit.obrabotkaCost;
+        unloadingVat = selectedProductToExit.obrabotkaVat || Math.round(unloadingBase * 0.12);
+      } else {
+        unloadingBase = unlResult.baseCost;
+        unloadingVat = unlResult.vatAmount;
+      }
       unloadingTotal = unloadingBase + unloadingVat;
     }
 
@@ -1248,45 +1282,20 @@ export default function Home() {
       || customsServices.find(s => s.id === 'cs-12')
       || fallbackStorage;
 
-    let storageBase = 0;
-    let storageFormulaText = '';
-    let storageDetailNote = '';
+    const storResult = calculateServiceCharge({
+      unit: storageSvc?.unit || '1 tn / kun (kunlik stavka)',
+      category: 'STORAGE',
+      basePrice: storageSvc?.basePrice || 8000,
+      weightKg: validWeightKg,
+      quantity: validQty,
+      days: daysStored
+    });
 
-    const itemNo = storageSvc?.itemNo || 10;
-    const unitLower = (storageSvc?.unit || '').toLowerCase();
-    const nameLower = ((storageSvc?.name || '') + ' ' + (storageSvc?.nameUz || '')).toLowerCase();
-    const storagePrice = storageSvc?.basePrice || 8000;
-
-    const isPerKg = itemNo === 19 || unitLower.includes('kg') || unitLower.includes('кг');
-    const isPerTn = itemNo === 10 || itemNo === 11 || itemNo === 12 || unitLower.includes('tn') || unitLower.includes('тн') || nameLower.includes('1тн') || nameLower.includes('тонн') || nameLower.includes('тонна');
-    const isPerPallet = itemNo === 14 || unitLower.includes('pallet') || unitLower.includes('паллет');
-
-    if (isPerKg) {
-      // 1. Kilogramm bo'yicha kunlik saqlash (masalan: Muzlatkich/Sovutgich 50 so'm/kg/kun)
-      storageBase = Math.round(validWeightKg * storagePrice * daysStored);
-      storageFormulaText = `${validWeightKg.toLocaleString('uz-UZ')} kg × ${storagePrice.toLocaleString('uz-UZ')} so'm/kg/kun × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${validWeightKg.toLocaleString('uz-UZ')} kg × ${storagePrice.toLocaleString('uz-UZ')} so'm/kg/kun`;
-    } else if (isPerTn) {
-      // 2. Tonna bo'yicha kunlik saqlash (masalan: 1 tn yuk 8 000 UZS/tn/kun)
-      const weightTn = +(validWeightKg / 1000).toFixed(3);
-      storageBase = Math.round(weightTn * storagePrice * daysStored);
-      storageFormulaText = `${weightTn} tn (${validWeightKg.toLocaleString('uz-UZ')} kg) × ${storagePrice.toLocaleString('uz-UZ')} UZS/tn × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${weightTn} tn (${validWeightKg.toLocaleString('uz-UZ')} kg) × ${storagePrice.toLocaleString('uz-UZ')} so'm/tn/kun`;
-    } else if (isPerPallet) {
-      // 3. Pallet bo'yicha kunlik saqlash (masalan: 1 pallet 25 000 UZS/pallet/kun)
-      storageBase = Math.round(validQty * storagePrice * daysStored);
-      storageFormulaText = `${validQty} pallet × ${storagePrice.toLocaleString('uz-UZ')} UZS/pallet × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${validQty} pallet × ${storagePrice.toLocaleString('uz-UZ')} so'm/pallet/kun`;
-    } else {
-      // 4. Dona, transport, fura yoki boshqa o'lchov birligi bo'yicha kunlik saqlash
-      const unit = storageSvc?.unit || 'dona';
-      storageBase = Math.round(validQty * storagePrice * daysStored);
-      storageFormulaText = `${validQty} ${unit} × ${storagePrice.toLocaleString('uz-UZ')} UZS/sutka × ${daysStored} kun`;
-      storageDetailNote = `Hajmi: ${validQty} ${unit} × ${storagePrice.toLocaleString('uz-UZ')} so'm/sutka`;
-    }
-
-    const storageVat = Math.round(storageBase * 0.12);
-    const storageTotal = storageBase + storageVat;
+    const storageBase = storResult.baseCost;
+    const storageVat = storResult.vatAmount;
+    const storageTotal = storResult.totalCost;
+    const storageFormulaText = storResult.formulaText;
+    const storageDetailNote = storResult.detailNote;
 
     // -------------------------------------------------------------------------
     // 3-XIZMAT: YUKNI ORTISH (ПОГРУЗКА)
@@ -1306,11 +1315,20 @@ export default function Home() {
         .replace('ortish / tushirish', 'ortish (Погрузка)')
         .replace('yuklash / tushirish', 'ortish (Погрузка)')
         .replace('tushirish/ortish', 'ortish (Погрузка)');
-      loadingCleanName = count > 1 ? `${baseClean} (×${count} ta mashina)` : baseClean;
-      const lPrice = loadingSvc?.basePrice || 800000;
-      loadingBase = lPrice * count;
-      loadingVat = (loadingSvc?.vatAmount || Math.round(lPrice * 0.12)) * count;
-      loadingTotal = loadingBase + loadingVat;
+      loadingCleanName = count > 1 ? `${baseClean} (×${count} ta)` : baseClean;
+
+      const loadResult = calculateServiceCharge({
+        unit: loadingSvc?.unit || '1 martalik (to\'liq fura)',
+        category: 'UNLOADING_LOADING',
+        basePrice: loadingSvc?.basePrice || 800000,
+        weightKg: validWeightKg,
+        quantity: validQty,
+        transportCount: count
+      });
+
+      loadingBase = loadResult.baseCost;
+      loadingVat = loadResult.vatAmount;
+      loadingTotal = loadResult.totalCost;
     }
 
     // -------------------------------------------------------------------------
@@ -1323,17 +1341,25 @@ export default function Home() {
     selectedChiqimAdditionalIds.forEach(id => {
       const svc = customsServices.find(s => s.id === id);
       if (svc) {
+        const addResult = calculateServiceCharge({
+          unit: svc.unit,
+          category: svc.category,
+          basePrice: svc.basePrice,
+          weightKg: validWeightKg,
+          quantity: validQty,
+          transportCount: 1
+        });
         additionalApplied.push({
           serviceId: svc.id,
           name: `${svc.nameUz || svc.name} (⚡ 1 martalik to'lov)`,
           quantity: 1,
           unit: svc.unit,
-          basePrice: svc.basePrice,
-          vatAmount: svc.vatAmount,
-          totalPrice: svc.totalPrice
+          basePrice: addResult.baseCost,
+          vatAmount: addResult.vatAmount,
+          totalPrice: addResult.totalCost
         });
-        additionalExitBase += svc.basePrice;
-        additionalExitVat += svc.vatAmount;
+        additionalExitBase += addResult.baseCost;
+        additionalExitVat += addResult.vatAmount;
       }
     });
 
@@ -2614,8 +2640,8 @@ export default function Home() {
       obrabotkaService: includeKirimUnloading && kirimCalculation.transportSvc 
         ? (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name) 
         : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)',
-      obrabotkaCost: includeKirimUnloading && kirimCalculation.transportSvc ? kirimCalculation.transportSvc.basePrice : 0,
-      obrabotkaVat: includeKirimUnloading && kirimCalculation.transportSvc ? kirimCalculation.transportSvc.vatAmount : 0,
+      obrabotkaCost: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.baseCost : 0,
+      obrabotkaVat: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.vatAmount : 0,
       kirimAdditionalServices: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id),
       exitHistory: []
     };
@@ -2646,7 +2672,7 @@ export default function Home() {
       receiverInn: matchedPayer?.inn,
       transportType: includeKirimUnloading && kirimCalculation.transportSvc ? (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name) : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)',
       servicesApplied: kirimCalculation.applied,
-      obrabotkaCostUZS: includeKirimUnloading && kirimCalculation.transportSvc ? (kirimCalculation.transportSvc.basePrice + kirimCalculation.transportSvc.vatAmount) : 0,
+      obrabotkaCostUZS: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.totalCost : 0,
       additionalCostUZS: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id).reduce((s, x) => s + x.totalPrice, 0),
       vatTotalUZS: kirimCalculation.vatSum,
       totalCostUZS: kirimCalculation.baseSum,
@@ -6472,6 +6498,10 @@ export default function Home() {
                       {(() => {
                         const svc = customsServices.find(s => s.id === selectedTransportServiceId);
                         if (!svc) return null;
+                        const costRes = kirimCalculation.transportCostResult;
+                        const dispBase = costRes ? costRes.baseCost : svc.basePrice;
+                        const dispVat = costRes ? costRes.vatAmount : svc.vatAmount;
+                        const dispTotal = costRes ? costRes.totalCost : svc.totalPrice;
                         if (!canViewFinances) {
                           return (
                             <div style={{ marginTop: '10px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
@@ -6496,19 +6526,24 @@ export default function Home() {
                             </div>
                             <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
                               {svc.nameUz || svc.name} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
+                              {costRes?.formulaText && (
+                                <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
+                                  🧮 Hisob: {costRes.formulaText}
+                                </div>
+                              )}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e0f2fe' }}>
                               <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Bazaviy narx (1 martalik):</span>
-                                <strong style={{ color: '#0f172a' }}>{svc.basePrice.toLocaleString('uz-UZ')} UZS</strong>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Bazaviy narx:</span>
+                                <strong style={{ color: '#0f172a' }}>{dispBase.toLocaleString('uz-UZ')} UZS</strong>
                               </div>
                               <div>
                                 <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>12% QQS:</span>
-                                <strong style={{ color: '#0284c7' }}>+{svc.vatAmount.toLocaleString('uz-UZ')} UZS</strong>
+                                <strong style={{ color: '#0284c7' }}>+{dispVat.toLocaleString('uz-UZ')} UZS</strong>
                               </div>
                               <div>
                                 <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Jami 1 Martalik:</span>
-                                <strong style={{ color: '#059669', fontSize: '14px' }}>{svc.totalPrice.toLocaleString('uz-UZ')} UZS</strong>
+                                <strong style={{ color: '#059669', fontSize: '14px' }}>{dispTotal.toLocaleString('uz-UZ')} UZS</strong>
                               </div>
                             </div>
                           </div>
@@ -7430,15 +7465,27 @@ export default function Home() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">O&apos;LCHOV BIRLIGI *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-input-clean"
-                      placeholder="Masalan: kg, qop, pallet"
+                    <label className="form-label">
+                      {lang === 'ru' ? 'ЕДИНИЦА ИЗМЕРЕНИЯ *' : lang === 'en' ? 'UNIT OF MEASUREMENT *' : 'O\'LCHOV BIRLIGI *'}
+                    </label>
+                    <select
+                      className="form-select-clean"
                       value={tariffForm.unitName}
                       onChange={e => setTariffForm({ ...tariffForm, unitName: e.target.value })}
-                    />
+                      required
+                      style={{ fontWeight: 600, color: '#002d62' }}
+                    >
+                      <option value="tn">1 tn / sutka (Tonna)</option>
+                      <option value="kg">1 kg / sutka (Kilogramm)</option>
+                      <option value="pallet">1 pallet / sutka (Poddon)</option>
+                      <option value="dona">1 dona / sutka (Dona / shtuk)</option>
+                      <option value="quti">1 quti / sutka (Karobka)</option>
+                      <option value="qop">1 qop / sutka (Qop / meshok)</option>
+                      <option value="avto">1 avto / sutka (Avtotransport)</option>
+                      <option value="konteyner">1 konteyner / sutka (Konteyner)</option>
+                      <option value="m²">1 m² / sutka (Kvadrat metr)</option>
+                      <option value="m³">1 m³ / sutka (Kub metr)</option>
+                    </select>
                   </div>
                 </div>
 
