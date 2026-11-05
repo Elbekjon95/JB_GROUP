@@ -15,6 +15,8 @@ export interface EditProductFormState {
   storageTariffId: string;
   notes: string;
   reason: string;
+  entryDate?: string;
+  entryTime?: string;
 }
 
 interface EditProductModalProps {
@@ -140,6 +142,29 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Kirim sanasi va vaqti */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              <div>
+                <label className="form-label" style={{ fontWeight: 800, color: '#002d62' }}>📅 KIRIM SANASI *</label>
+                <input
+                  type="date"
+                  required
+                  className="form-input-clean"
+                  value={editForm.entryDate || ''}
+                  onChange={e => setEditForm({ ...editForm, entryDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 800, color: '#002d62' }}>🕒 KIRIM VAQTI</label>
+                <input
+                  type="time"
+                  className="form-input-clean"
+                  value={editForm.entryTime || '09:00'}
+                  onChange={e => setEditForm({ ...editForm, entryTime: e.target.value })}
+                />
               </div>
             </div>
 

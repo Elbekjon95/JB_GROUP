@@ -19,11 +19,14 @@ import { t, translateTextNode } from '@/lib/i18n';
 import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from '@/lib/date-utils';
 
 // Saqlangan kunlar sonini aniq hisoblash (kamida 1 kun)
-function calculateDaysStored(entryDateStr: string): number {
+function calculateDaysStored(entryDateStr: string, exitDateStr?: string): number {
   try {
-    const entry = new Date(entryDateStr);
-    const now = new Date();
-    const diffTime = Math.max(0, now.getTime() - entry.getTime());
+    if (!entryDateStr) return 1;
+    const entry = new Date(entryDateStr.includes('T') ? entryDateStr : `${entryDateStr}T00:00:00`);
+    const exit = exitDateStr 
+      ? new Date(exitDateStr.includes('T') ? exitDateStr : `${exitDateStr}T23:59:59`)
+      : new Date();
+    const diffTime = Math.max(0, exit.getTime() - entry.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(1, diffDays);
   } catch {
@@ -66,7 +69,9 @@ export default function Home() {
     clientName: '',
     storageTariffId: 'cs-12',
     notes: '',
-    reason: ''
+    reason: '',
+    entryDate: '',
+    entryTime: ''
   });
   const [payers, setPayers] = useState<ContractPayer[]>(INITIAL_PAYERS);
   const [isPayerModalOpen, setIsPayerModalOpen] = useState(false);
@@ -196,6 +201,8 @@ export default function Home() {
     clientName: string;
     payerId?: string;
     notes: string;
+    entryDate: string;
+    entryTime: string;
   }>({
     sectorId: '',
     storageTariffId: 'cs-12', // Standart 10. Хранение 1тн груза в сутки (8 000 UZS)
@@ -206,7 +213,9 @@ export default function Home() {
     weightKg: '', // Og'irligi (kg da)
     clientName: '',
     payerId: '',
-    notes: ''
+    notes: '',
+    entryDate: getTashkentDateStr(),
+    entryTime: getTashkentTimeStr()
   });
 
   // 6.1 Ombor yuklari jadvali va qidiruv filtrlari
@@ -227,6 +236,8 @@ export default function Home() {
   const [exitReceiverInn, setExitReceiverInn] = useState<string>('');
   const [exitReceiverName, setExitReceiverName] = useState<string>('');
   const [exitReceiverPerson, setExitReceiverPerson] = useState<string>('');
+  const [exitDate, setExitDate] = useState<string>(() => getTashkentDateStr());
+  const [exitTime, setExitTime] = useState<string>(() => getTashkentTimeStr());
 
   // 8. Tarifni sektorlarga biriktirish modali (Istalgan tarifni istalgan sektorga ulash)
   const [isAssignTariffModalOpen, setIsAssignTariffModalOpen] = useState(false);
@@ -1092,7 +1103,7 @@ export default function Home() {
   const exitBillingCalculation = useMemo(() => {
     if (!selectedProductToExit) return null;
 
-    const daysStored = calculateDaysStored(selectedProductToExit.entryDate);
+    const daysStored = calculateDaysStored(selectedProductToExit.entryDate, exitDate);
     const validQty = Math.max(0, Math.min(selectedProductToExit.quantity, Number(exitQuantity) || 0));
 
     // 1. Og'irlikni hisoblash: agar kiritilgan bo'lsa uni oladi, aks holda proporsional
@@ -1341,7 +1352,7 @@ export default function Home() {
       totalVat,
       totalCost: grandTotal
     };
-  }, [selectedProductToExit, exitQuantity, exitWeightKg, includeExitUnloading, selectedUnloadingServiceId, selectedStorageTariffId, includeExitLoading, exitLoadingCount, selectedLoadingServiceId, selectedChiqimAdditionalIds, customsServices]);
+  }, [selectedProductToExit, exitQuantity, exitWeightKg, exitDate, includeExitUnloading, selectedUnloadingServiceId, selectedStorageTariffId, includeExitLoading, exitLoadingCount, selectedLoadingServiceId, selectedChiqimAdditionalIds, customsServices]);
 
   // Dashboard Chart uchun so'nggi 7 kunlik amallar soni
   const chartData = useMemo(() => {
@@ -1657,7 +1668,9 @@ export default function Home() {
       clientName: prod.clientName || matchedPayer?.name || '',
       storageTariffId: prod.storageTariffId || 'cs-12',
       notes: prod.notes || '',
-      reason: ''
+      reason: '',
+      entryDate: prod.entryDate || getTashkentDateStr(),
+      entryTime: prod.entryTime || getTashkentTimeStr()
     });
     setIsEditProductModalOpen(true);
   };
@@ -1709,6 +1722,11 @@ export default function Home() {
     if ((editProductForm.notes.trim() || '') !== (editingProduct.notes || '')) {
       changes.push({ field: 'notes', label: 'Hujjat / Izoh', oldValue: editingProduct.notes || '-', newValue: editProductForm.notes.trim() || '-' });
     }
+    const newEntryDate = editProductForm.entryDate?.trim() || editingProduct.entryDate;
+    const newEntryTime = editProductForm.entryTime?.trim() || editingProduct.entryTime;
+    if (newEntryDate !== editingProduct.entryDate) {
+      changes.push({ field: 'entryDate', label: 'Kirim sanasi', oldValue: editingProduct.entryDate || '-', newValue: newEntryDate });
+    }
 
     if (changes.length === 0) {
       showToast('Hech qanday ma\'lumot o\'zgartirilmadi!');
@@ -1741,7 +1759,9 @@ export default function Home() {
       storageTariffItemNo: targetStorageSvc?.itemNo || editingProduct.storageTariffItemNo,
       storageTariffUnit: targetStorageSvc?.unit || editingProduct.storageTariffUnit,
       dailyRatePerUnit: targetStorageSvc?.basePrice || editingProduct.dailyRatePerUnit,
-      notes: editProductForm.notes.trim()
+      notes: editProductForm.notes.trim(),
+      entryDate: newEntryDate,
+      entryTime: newEntryTime
     };
 
     const updatedList = storedProducts.map(p => p.id === editingProduct.id ? updatedProd : p);
@@ -2312,8 +2332,8 @@ export default function Home() {
       tariffId: storageSvc.id,
       tariffName: storageName,
       dailyRatePerUnit: dailyRate,
-      entryDate: now.toISOString().slice(0, 10),
-      entryTime: now.toTimeString().slice(0, 5),
+      entryDate: productForm.entryDate || getTashkentDateStr(),
+      entryTime: productForm.entryTime || getTashkentTimeStr(),
       placedBy: currentUser?.fullName || 'Mas\'ul xodim',
       placedByRole: currentUser?.role || 'USER',
       clientName: finalClientName,
@@ -2472,6 +2492,8 @@ export default function Home() {
     setIncludeExitUnloading(hadUnloading);
     setIncludeExitLoading(true);
     setExitLoadingCount(1);
+    setExitDate(getTashkentDateStr());
+    setExitTime(getTashkentTimeStr());
 
     setIsExitModalOpen(true);
   };
@@ -2505,8 +2527,8 @@ export default function Home() {
     const newExitRec: ProductExitRecord = {
       id: 'exit-' + Date.now(),
       invoiceNo: invNo,
-      exitDate: now.toISOString().slice(0, 10),
-      exitTime: now.toTimeString().slice(0, 5),
+      exitDate: exitDate || getTashkentDateStr(),
+      exitTime: exitTime || getTashkentTimeStr(),
       quantity: qtyToExit,
       weightKg: weightToExit,
       remainingQuantity: remainingQty,
@@ -2570,8 +2592,8 @@ export default function Home() {
       userRole: currentUser?.role || 'USER',
       placedBy: selectedProductToExit.placedBy || 'Noma\'lum',
       placedDate: `${selectedProductToExit.entryDate} ${selectedProductToExit.entryTime}`,
-      date: now.toISOString().slice(0, 10),
-      time: now.toTimeString().slice(0, 5),
+      date: exitDate || getTashkentDateStr(),
+      time: exitTime || getTashkentTimeStr(),
       notes: exitNotes 
         ? `${exitNotes} | Tushirish: ${unloadingSvcName} | Ortish: ${loadingSvcName}` 
         : `Tushirish: ${unloadingSvcName} | Ortish: ${loadingSvcName} | Saqlash: ${exitBillingCalculation.storageTotal.toLocaleString('uz-UZ')} UZS | Qoldiq: ${remainingQty} ${selectedProductToExit.unit}`,
@@ -2604,6 +2626,8 @@ export default function Home() {
       productId: selectedProductToExit.id,
       exitQuantity: qtyToExit,
       exitWeightKg: weightToExit,
+      exitDate: exitDate || getTashkentDateStr(),
+      exitTime: exitTime || getTashkentTimeStr(),
       receiverInn: exitReceiverInn,
       receiverName: exitReceiverName,
       receiverPerson: exitReceiverPerson,
@@ -2846,7 +2870,9 @@ export default function Home() {
                           weightKg: '',
                           clientName: '',
                           payerId: '',
-                          notes: ''
+                          notes: '',
+                          entryDate: getTashkentDateStr(),
+                          entryTime: getTashkentTimeStr()
                         });
                         setIsAddProductModalOpen(true);
                       }}
@@ -3107,7 +3133,9 @@ export default function Home() {
                             weightKg: '',
                             clientName: '',
                             payerId: '',
-                            notes: ''
+                            notes: '',
+                            entryDate: getTashkentDateStr(),
+                            entryTime: getTashkentTimeStr()
                           });
                           setIsAddProductModalOpen(true);
                         }}
@@ -5836,10 +5864,52 @@ export default function Home() {
                   })()}
                 </div>
 
-                {/* 4. Soni va Og'irligi (TALAB ASOSIDA) */}
+                {/* 3.1 Kirim Sanasi va Vaqti (Foydalanuvchi talabi: Istalgan sanada kirim qilish imkoniyati) */}
+                <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#166534', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📅</span>
+                    <span>4. YUK OMBORGA KELGAN SANA VA VAQT *</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                        📅 Kirim Sanasi *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        className="form-input-clean"
+                        style={{ border: '1.5px solid #10b981', background: '#ffffff', fontWeight: 700, color: '#0f172a' }}
+                        value={productForm.entryDate}
+                        onChange={e => setProductForm(prev => ({ ...prev, entryDate: e.target.value }))}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                        🕒 Kirim Vaqti *
+                      </label>
+                      <input
+                        type="time"
+                        required
+                        className="form-input-clean"
+                        style={{ border: '1.5px solid #10b981', background: '#ffffff', fontWeight: 700, color: '#0f172a' }}
+                        value={productForm.entryTime}
+                        onChange={e => setProductForm(prev => ({ ...prev, entryTime: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px' }}>
+                    💡 <em>Yuk omborga kelgan haqiqiy sana va vaqtni belgilang (avval kelgan yuklar uchun o&apos;tgan sanalarni ham kiritish mumkin). Saqlash kunlari va to&apos;lovlar aynan shu sanadan hisoblanadi.</em>
+                  </div>
+                </div>
+
+                {/* 5. Soni va Og'irligi (TALAB ASOSIDA) */}
                 <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 800, color: '#002d62', marginBottom: '10px', textTransform: 'uppercase' }}>
-                    📦 YUKNING SONI VA OG&apos;IRLIGI (ANIQ HISOB):
+                    📦 5. YUKNING SONI VA OG&apos;IRLIGI (ANIQ HISOB):
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr', gap: '10px' }}>
@@ -6261,8 +6331,55 @@ export default function Home() {
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>SAQLANGAN VAQT:</span>
                     <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
-                      {exitBillingCalculation.daysStored} kun ({selectedProductToExit.entryDate} dan beri)
+                      {exitBillingCalculation.daysStored} kun ({selectedProductToExit.entryDate} dan {exitDate} gacha)
                     </div>
+                  </div>
+                </div>
+
+                {/* Chiqim sanasi va vaqti (Foydalanuvchi talabi: Istalgan sanada chiqim qilish imkoniyati) */}
+                <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#166534', marginBottom: '10px', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📅</span>
+                      <span>CHIQIM QILINAYOTGAN SANA VA VAQT *</span>
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#047857', background: '#dcfce7', padding: '3px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                      ⏱️ Saqlangan muddat: {exitBillingCalculation.daysStored} kun
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                        📅 Chiqim Sanasi *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        className="form-input-clean"
+                        style={{ border: '1.5px solid #10b981', background: '#ffffff', fontWeight: 700, color: '#0f172a' }}
+                        value={exitDate}
+                        onChange={e => setExitDate(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="form-label" style={{ color: '#166534', fontWeight: 700 }}>
+                        🕒 Chiqim Vaqti *
+                      </label>
+                      <input
+                        type="time"
+                        required
+                        className="form-input-clean"
+                        style={{ border: '1.5px solid #10b981', background: '#ffffff', fontWeight: 700, color: '#0f172a' }}
+                        value={exitTime}
+                        onChange={e => setExitTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px' }}>
+                    💡 <em>Yuk {selectedProductToExit.entryDate} sanasida qabul qilingan. Chiqim sanasini o&apos;zgartirishingiz bilan saqlangan kunlar soni ({exitBillingCalculation.daysStored} kun) va kunlik saqlash to&apos;lovi avtomatik qayta hisoblanadi.</em>
                   </div>
                 </div>
 

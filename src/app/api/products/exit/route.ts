@@ -18,6 +18,8 @@ export async function POST(req: Request) {
       productId,
       exitQuantity,
       exitWeightKg,
+      exitDate,
+      exitTime,
       receiverInn,
       receiverName,
       receiverPerson,
@@ -85,7 +87,8 @@ export async function POST(req: Request) {
       const currentWeight = product.weightKg || 0;
       const remainingWeight = Math.max(0, currentWeight - validExitWeight);
 
-      const timeStr = getTashkentTimeStr();
+      const timeStr = exitTime || getTashkentTimeStr();
+      const exitDateStr = exitDate || getTashkentDateStr();
       const invoiceNo = formatOfficialInvoiceNo('NAK-OUT');
 
       const baseCostNum = Number(totalCost) || 0;
@@ -98,7 +101,7 @@ export async function POST(req: Request) {
       const exitRecord = {
         id: `exit-${Date.now()}`,
         invoiceNo,
-        exitDate: nowStr,
+        exitDate: exitDateStr,
         exitTime: timeStr,
         quantity: validExitQty,
         weightKg: validExitWeight,
@@ -157,7 +160,7 @@ export async function POST(req: Request) {
           userRole: user?.role || 'USER',
           placedBy: product.placedBy || null,
           placedDate: product.entryDate ? getTashkentDateStr(product.entryDate) : null,
-          date: nowStr,
+          date: exitDateStr,
           time: timeStr,
           notes: notes || 'Chiqim amali muvaffaqiyatli bajarildi',
           clientName: product.clientName || null,

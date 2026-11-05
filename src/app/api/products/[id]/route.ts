@@ -70,6 +70,8 @@ export async function PUT(
     const newStorageTariffRate = body.storageTariffRate !== undefined ? Number(body.storageTariffRate) : existing.storageTariffRate;
     const newDailyRate = body.dailyRatePerUnit !== undefined ? Number(body.dailyRatePerUnit) : existing.dailyRatePerUnit;
     const newNotes = body.notes !== undefined ? body.notes : existing.notes;
+    const newEntryDate = body.entryDate !== undefined && String(body.entryDate).trim() ? String(body.entryDate).trim() : undefined;
+    const newEntryTime = body.entryTime !== undefined && String(body.entryTime).trim() ? String(body.entryTime).trim() : undefined;
     const reason = (body.reason || 'Kirim ma\'lumotlariga tuzatish kiritildi').trim();
 
     // O'zgarishlarni aniqlash
@@ -97,6 +99,12 @@ export async function PUT(
     }
     if ((newNotes || '') !== (existing.notes || '')) {
       changes.push({ field: 'notes', label: 'Izoh / Hujjat', oldValue: existing.notes || '-', newValue: newNotes || '-' });
+    }
+    if (newEntryDate) {
+      const oldEntryDateStr = existing.entryDate ? existing.entryDate.toISOString().slice(0, 10) : '';
+      if (newEntryDate !== oldEntryDateStr) {
+        changes.push({ field: 'entryDate', label: 'Kirim sanasi', oldValue: oldEntryDateStr || '-', newValue: newEntryDate });
+      }
     }
 
     const hasExitedBefore = Array.isArray(existing.exitHistory) && existing.exitHistory.length > 0;
@@ -177,7 +185,9 @@ export async function PUT(
           storageTariffName: newStorageTariffName,
           storageTariffRate: newStorageTariffRate,
           dailyRatePerUnit: newDailyRate,
-          notes: newNotes
+          notes: newNotes,
+          entryDate: newEntryDate ? new Date(`${newEntryDate}T00:00:00+05:00`) : undefined,
+          entryTime: newEntryTime !== undefined ? newEntryTime : undefined
         }
       });
 
@@ -197,7 +207,10 @@ export async function PUT(
             initialWeightKg: newWeightKg,
             remainingWeightKg: newWeightKg,
             clientName: newClientName,
-            notes: newNotes
+            notes: newNotes,
+            date: newEntryDate || undefined,
+            time: newEntryTime || undefined,
+            placedDate: newEntryDate ? (newEntryTime ? `${newEntryDate} ${newEntryTime}` : newEntryDate) : undefined
           }
         });
       }
