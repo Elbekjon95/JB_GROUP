@@ -1591,7 +1591,9 @@ export default function Home() {
         showToast(`Xush kelibsiz, ${res.user.fullName}! (${res.user.role})`);
       }
     } catch (err: any) {
-      showToast(err.message || 'Login yoki parol noto\'g\'ri!');
+      const errMsg = err.message || (lang === 'ru' ? 'Неверный логин или пароль!' : 'Login yoki parol noto\'g\'ri!');
+      alert(errMsg);
+      showToast(errMsg);
     } finally {
       setLoginLoading(false);
     }
@@ -1605,6 +1607,62 @@ export default function Home() {
     setLoginPassword('');
     showToast('Tizimdan muvaffaqiyatli chiqildi.');
   };
+
+  // =========================================================================
+  // FOYDALANUVCHI TALABI: 20 DAQIQA NOFAOL BO'LSA AVTOMATIK LOGOUT VA
+  // BIR VAQTDA FAQAT BITTA QURILMADAN ISHLASH (CONCURRENT LOGIN HIMOYA)
+  // =========================================================================
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const INACTIVITY_LIMIT_MS = 20 * 60 * 1000; // 20 daqiqa (1 200 000 ms)
+    let lastActivityTime = Date.now();
+
+    const updateActivity = () => {
+      lastActivityTime = Date.now();
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(ev => window.addEventListener(ev, updateActivity, { passive: true }));
+
+    // Har 10 soniyada nofaollikni tekshirish
+    const timer = setInterval(() => {
+      const diff = Date.now() - lastActivityTime;
+      if (diff >= INACTIVITY_LIMIT_MS) {
+        api.auth.logout();
+        setCurrentUser(null);
+        alert(
+          lang === 'ru'
+            ? '⚠️ Вы были неактивны более 20 минут. В целях безопасности сеанс был автоматически завершен. Пожалуйста, войдите в систему заново.'
+            : '⚠️ Siz 20 daqiqadan ko\'proq vaqt davomida nofaol bo\'lganingiz sababli tizim xavfsizlik maqsadida avtomatik yopildi. Iltimos, tizimga qayta kiring.'
+        );
+      }
+    }, 10000);
+
+    // Har 1 daqiqada serverga heartbeat yuborib sessiya faolligini saqlash
+    const heartbeat = setInterval(() => {
+      fetch('/api/auth/heartbeat', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.active === false) {
+            api.auth.logout();
+            setCurrentUser(null);
+            alert(
+              lang === 'ru'
+                ? '⚠️ Ваша сессия завершена. Возможно, выполнен вход с другого устройства или истекло время активности.'
+                : '⚠️ Sessiyangiz yakunlandi. Ehtimol ushbu login bilan boshqa qurilmadan kirildi yoki vaqt tugadi.'
+            );
+          }
+        })
+        .catch(() => {});
+    }, 60000);
+
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, updateActivity));
+      clearInterval(timer);
+      clearInterval(heartbeat);
+    };
+  }, [currentUser, lang]);
 
   // =========================================================================
   // SUPER ADMIN: XODIMLARNI QO'SHISH VA HUQUQLARNI BELGILASH

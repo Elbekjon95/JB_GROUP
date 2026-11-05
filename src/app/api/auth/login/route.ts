@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { signToken } from '@/lib/auth';
+import { signToken, getAuthPayloadFromRequest } from '@/lib/auth';
+import { canUserLogin, registerSession } from '@/lib/sessionManager';
 
 export async function POST(req: Request) {
   try {
@@ -50,10 +52,29 @@ export async function POST(req: Request) {
       );
     }
 
+    // Foydalanuvchining boshqa qurilmadan kirganligi (Concurrent login) tekshiruvi:
+    // Bitta login bilan ikkita odam kira olmaydi!
+    const existingAuth = getAuthPayloadFromRequest(req);
+    const loginCheck = canUserLogin(user.id, existingAuth?.sessionId);
+    if (!loginCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: loginCheck.reason,
+          isAlreadyLoggedIn: true,
+          remainingMinutes: loginCheck.remainingMinutes
+        },
+        { status: 403 }
+      );
+    }
+
+    const sessionId = crypto.randomUUID();
+    registerSession(user.id, user.email, sessionId);
+
     const token = signToken({
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      sessionId
     });
 
     // Parolni olib tashlab foydalanuvchini qaytarish

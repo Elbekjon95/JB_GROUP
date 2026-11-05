@@ -19,7 +19,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Navigation Tabs
     navWarehouse: '🏢 Ombor va Sektorlar',
     navHistory: '📋 Harakatlar Tarixi',
-    navPayers: '🤝 Yuk To\'lovchilari',
+    navPayers: '🤝 Shartnomalar',
     navAccounting: '💼 Buxgalteriya & Chiqimlar',
     navReports: '📊 Oylik Faoliyat',
     navEditLogs: '✏️ Tahrirlar Hisoboti',
@@ -106,7 +106,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Navigation Tabs
     navWarehouse: '🏢 Склад и Секторы',
     navHistory: '📋 История Движений',
-    navPayers: '🤝 Плательщики (Договоры)',
+    navPayers: '🤝 Договоры',
     navAccounting: '💼 Бухгалтерия и Расход',
     navReports: '📊 Активность за месяц',
     navEditLogs: '✏️ Отчет по исправлениям',
@@ -193,7 +193,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // Navigation Tabs
     navWarehouse: '🏢 Warehouse & Sectors',
     navHistory: '📋 Movement History',
-    navPayers: '🤝 Contract Payers',
+    navPayers: '🤝 Contracts',
     navAccounting: '💼 Accounting & Exits',
     navReports: '📊 Monthly Activity',
     navEditLogs: '✏️ Corrections Report',
@@ -998,23 +998,23 @@ const RAW_PHRASE_MAP: Array<[string, { uz?: string; ru: string; en: string }]> =
   // 5. PAYERS & CONTRACTS TAB
   // =========================================================================
   ['Yuk To\'lovchilari va Shartnomalar Reestri', {
-    ru: 'Реестр Плательщиков и Договоров Хранения',
-    en: 'Contract Payers & Storage Agreements Registry'
+    ru: 'Реестр Договоров с Клиентами',
+    en: 'Clients & Storage Contracts Registry'
   }],
   ['Bojxona ombori bilan rasmiy saqlash shartnomasi tuzgan mijozlar. Shartnoma muddati tugagan to\'lovchilarning tovarlarini chiqarish tizim tomonidan avtomatik bloklanadi.', {
     ru: 'Клиенты, заключившие официальный договор хранения с таможенным складом. Выдача грузов по просроченным договорам автоматически блокируется системой.',
     en: 'Clients with official customs warehouse storage contracts. Cargo release is automatically blocked for expired contracts.'
   }],
-  ['Yangi Shartnoma Tuzish', { ru: 'Заключить Новый Договор', en: 'New Storage Contract' }],
+  ['Yangi Shartnoma Tuzish', { ru: '➕ Новый Договор', en: 'New Storage Contract' }],
   ['Jami Shartnomalar', { ru: 'Всего Договоров', en: 'Total Contracts' }],
-  ['Ro\'yxatga olingan to\'lovchi korxonalar', { ru: 'Зарегистрированные организации-плательщики', en: 'Registered payer companies' }],
+  ['Ro\'yxatga olingan to\'lovchi korxonalar', { ru: 'Зарегистрированные договоры с клиентами', en: 'Registered contracted clients' }],
   ['🟢 Amaldagi Shartnomalar', { ru: '🟢 Действующие Договоры', en: '🟢 Active Contracts' }],
   ['To\'lov va ombor amallariga ruxsat bor', { ru: 'Операции и выдача грузов разрешены', en: 'Warehouse operations & release permitted' }],
   ['⛔ Muddati Tugagan Shartnomalar', { ru: '⛔ Просроченные Договоры', en: '⛔ Expired Contracts' }],
   ['To\'lov va chiqim avtomatik bloklangan', { ru: 'Оплата и расход автоматически заблокированы', en: 'Billing & outbound release automatically blocked' }],
   ['📋 Shartnoma Tuzgan Mijozlar Ro\'yxati', { ru: '📋 Список Клиентов по Договорам', en: '📋 Contracted Clients List' }],
   ['Sana formati: YYYY-MM-DD', { ru: 'Формат даты: ГГГГ-ММ-ДД', en: 'Date format: YYYY-MM-DD' }],
-  ['To\'lovchi Korxona & STIR', { ru: 'Организация-Плательщик и ИНН', en: 'Payer Company & TIN' }],
+  ['To\'lovchi Korxona & STIR', { ru: 'Организация (Клиент) и ИНН', en: 'Client Company & TIN' }],
   ['Shartnoma Raqami', { ru: 'Номер Договора', en: 'Contract Number' }],
   ['Tuzilgan Sana', { ru: 'Дата Заключения', en: 'Start Date' }],
   ['Amal Qilish Muddati (Qachongacha)', { ru: 'Срок Действия (До какой даты)', en: 'Expiration Date (Valid Until)' }],
