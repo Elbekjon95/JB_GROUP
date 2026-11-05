@@ -1771,7 +1771,226 @@ const RAW_PHRASE_MAP: Array<[string, { uz?: string; ru: string; en: string }]> =
   ['Ushbu xizmat qachon va qanday hisoblanishi haqida izoh...', {
     ru: 'Примечание о порядке и условиях начисления данной услуги...',
     en: 'Notes on when and how this service is billed...'
-  }]
+  }],
+
+  // =========================================================================
+  // 12. BARCHA MODAL OYNALAR (KIRIM, CHIQIM, TAHRIR, O'CHIRISH, XODIM, MIJOZ)
+  // =========================================================================
+  ['4. YUK OMBORGA KELGAN SANA VA VAQT *', {
+    ru: '4. ДАТА И ВРЕМЯ ПРИБЫТИЯ ГРУЗА НА СКЛАД *',
+    en: '4. CARGO ARRIVAL DATE & TIME *'
+  }],
+  ['Kirim Sanasi *', { ru: 'Дата Прихода *', en: 'Inbound Date *' }],
+  ['Kirim Vaqti *', { ru: 'Время Прихода *', en: 'Inbound Time *' }],
+  ['KIRIM SANASI *', { ru: 'ДАТА ПРИХОДА *', en: 'INBOUND DATE *' }],
+  ['KIRIM VAQTI', { ru: 'ВРЕМЯ ПРИХОДА', en: 'INBOUND TIME' }],
+  ['Yuk omborga kelgan haqiqiy sana va vaqtni belgilang (avval kelgan yuklar uchun o\'tgan sanalarni ham kiritish mumkin). Saqlash kunlari va to\'lovlar aynan shu sanadan hisoblanadi.', {
+    ru: 'Укажите фактическую дату и время прибытия груза (для ранее прибывших грузов можно указать прошедшую дату). Срок хранения и начисления рассчитываются от этой даты.',
+    en: 'Specify actual cargo arrival date and time (retroactive dates supported). Storage days and fees will be calculated from this date.'
+  }],
+  ['5. YUKNING SONI VA OG\'IRLIGI (ANIQ HISOB):', {
+    ru: '5. КОЛИЧЕСТВО МЕСТ И ТОЧНЫЙ ВЕС ГРУЗА (КГ):',
+    en: '5. CARGO QUANTITY & EXACT WEIGHT (KG):'
+  }],
+  ['Birligi', { ru: 'Ед. изм.', en: 'Unit' }],
+  ['O\'lchov Birligi *', { ru: 'Единица Измерения *', en: 'Unit of Measure *' }],
+  ['O\'LCHOV BIRLIGI *', { ru: 'ЕДИНИЦА ИЗМЕРЕНИЯ *', en: 'UNIT OF MEASURE *' }],
+  ['SONI / MIQDORI *', { ru: 'КОЛИЧЕСТВО / МЕСТ *', en: 'QUANTITY / UNITS *' }],
+  ['JAMI OG\'IRLIGI (KG) *', { ru: 'ОБЩИЙ ВЕС (В КГ) *', en: 'TOTAL WEIGHT (IN KG) *' }],
+  ['YUK / MAHSULOT NOMI *', { ru: 'НАИМЕНОВАНИЕ ГРУЗА / ТОВАРА *', en: 'CARGO / PRODUCT NAME *' }],
+  ['YUK TOIFASI', { ru: 'КАТЕГОРИЯ ГРУЗА', en: 'CARGO CATEGORY' }],
+  ['OMBOR SEKTORI *', { ru: 'СЕКТОР СКЛАДА *', en: 'WAREHOUSE SECTOR *' }],
+  ['MIJOZ / SHARTNOMAVIY TO\'LOVCHI *', { ru: 'КЛИЕНТ / ПЛАТЕЛЬЩИК ПО ДОГОВОРУ *', en: 'CLIENT / CONTRACTED PAYER *' }],
+  ['-- Shartnomadan tanlash --', { ru: '-- Выбрать из договоров --', en: '-- Select from contracts --' }],
+  ['SAQLASH TARIFI (PREYSKURANT BO\'YICHA)', { ru: 'ТАРИФ ХРАНЕНИЯ (ПО ПРЕЙСКУРАНТУ)', en: 'STORAGE TARIFF (PER PRICE LIST)' }],
+  ['YUK HUJJATI / QO\'SHIMCHA IZOH', { ru: 'ДОКУМЕНТ НА ГРУЗ / ДОПОЛНИТЕЛЬНОЕ ПРИМЕЧАНИЕ', en: 'CARGO DOCUMENT / ADDITIONAL NOTE' }],
+  ['Deklaratsiya raqami, invoys yoki transport raqami...', { ru: 'Номер декларации, инвойса или транспорта...', en: 'Declaration number, invoice or transport...' }],
+  ['TO\'G\'RILANAYOTGAN SONI VA OG\'IRLIGI (KG):', { ru: 'ИСПРАВЛЯЕМОЕ КОЛИЧЕСТВО И ВЕС (КГ):', en: 'CORRECTED QUANTITY & WEIGHT (KG):' }],
+  ['Joriy yuk:', { ru: 'Текущий груз:', en: 'Current cargo:' }],
+  ['Hozirgi qoldiq:', { ru: 'Текущий остаток:', en: 'Current balance:' }],
+  ['Tahrirlash Sababi (Majburiy — Super Admin Nazorati Uchun):', {
+    ru: 'Причина Исправления (Обязательно — Для Контроля Руководителя):',
+    en: 'Correction Reason (Required — For Super Admin Audit):'
+  }],
+  ['Ushbu tuzatish nima sababdan kiritilayotganini batafsil izohlang...', {
+    ru: 'Подробно опишите причину внесения данного исправления...',
+    en: 'Describe in detail why this correction is being made...'
+  }],
+  ['Tuzatishlarni Saqlash', { ru: 'Сохранить Исправления', en: 'Save Corrections' }],
+  ['Diqqat: Ushbu tuzatish kim tomonidan va nima sababdan kiritilganligi Bosh Rahbarning oylik nazorat hisobotiga yoziladi.', {
+    ru: 'Внимание: данное исправление (кем и по какой причине) вносится в ежемесячный отчет Главного Руководителя.',
+    en: 'Notice: this correction with author and reason is recorded in the Super Admin monthly audit report.'
+  }],
+  // Chiqim modal
+  ['CHIQIM QILINAYOTGAN SANA VA VAQT *', {
+    ru: 'ДАТА И ВРЕМЯ ВЫДАЧИ ГРУЗА *',
+    en: 'OUTBOUND RELEASE DATE & TIME *'
+  }],
+  ['CHIQIM SANASI VA VAQTI *', {
+    ru: 'ДАТА И ВРЕМЯ ВЫДАЧИ ГРУЗА *',
+    en: 'OUTBOUND RELEASE DATE & TIME *'
+  }],
+  ['Chiqim Sanasi *', { ru: 'Дата Выдачи *', en: 'Outbound Date *' }],
+  ['Chiqim Vaqti *', { ru: 'Время Выдачи *', en: 'Outbound Time *' }],
+  ['CHIQIM SANASI *', { ru: 'ДАТА ВЫДАЧИ *', en: 'OUTBOUND DATE *' }],
+  ['CHIQIM VAQTI *', { ru: 'ВРЕМЯ ВЫДАЧИ *', en: 'OUTBOUND TIME *' }],
+  ['Saqlangan muddat:', { ru: 'Срок хранения:', en: 'Stored duration:' }],
+  ['dan beri', { ru: 'с', en: 'since' }],
+  ['gacha', { ru: 'по', en: 'until' }],
+  ['Yuk qabul qilingan. Chiqim sanasini o\'zgartirishingiz bilan saqlangan kunlar soni va kunlik saqlash to\'lovi avtomatik qayta hisoblanadi.', {
+    ru: 'Груз принят. При изменении даты выдачи количество суток хранения и плата за хранение пересчитываются автоматически.',
+    en: 'Cargo received. Changing outbound date will automatically recalculate stored days and storage fee.'
+  }],
+  ['JOY / SONI', { ru: 'МЕСТ / КОЛ-ВО', en: 'UNITS / QUANTITY' }],
+  ['Har bir yuk bir xil og\'irlikda bo\'lmasligi mumkin. Tarozi ko\'rsatkichiga qarab og\'irlikni (kg) xohlagancha qo\'lda kiritishingiz mumkin.', {
+    ru: 'Места могут иметь разный вес. Вы можете указать точный вес (в кг) вручную по показаниям весов.',
+    en: 'Units may have different weights. You can enter the exact weight (in kg) manually per scales.'
+  }],
+  ['QABUL QILIB OLUVCHI KORXONA VA STIR (INN) RAQAMI:', {
+    ru: 'ОРГАНИЗАЦИЯ-ПОЛУЧАТЕЛЬ ГРУЗА И ИНН:',
+    en: 'RECEIVING COMPANY & TIN (INN):'
+  }],
+  ['KORXONA NOMI (TO\'LIQ) *', {
+    ru: 'НАИМЕНОВАНИЕ ОРГАНИЗАЦИИ (ПОЛНОЕ) *',
+    en: 'COMPANY NAME (FULL) *'
+  }],
+  ['MAS\'UL VAKIL / HAYDOVCHI F.I.SH', {
+    ru: 'ОТВЕТСТВЕННЫЙ ПРЕДСТАВИТЕЛЬ / ВОДИТЕЛЬ Ф.И.О.',
+    en: 'AUTHORIZED REPRESENTATIVE / DRIVER FULL NAME'
+  }],
+  ['1. BOJXONA OMBORIGA YUK TUSHIRISH (РАЗГРУЗКА - 1 MARTALIK XIZMAT):', {
+    ru: '1. РАЗГРУЗКА НА ТАМОЖЕННЫЙ СКЛАД (ПРИХОД - РАЗОВАЯ УСЛУГА):',
+    en: '1. CUSTOMS WAREHOUSE UNLOADING (INBOUND - ONE-TIME SERVICE):'
+  }],
+  ['2. KUNLIK SAQLASH XIZMATI (ХРАНЕНИЕ):', {
+    ru: '2. УСЛУГА ПОСУТОЧНОГО ХРАНЕНИЯ (ХРАНЕНИЕ):',
+    en: '2. DAILY STORAGE SERVICE (STORAGE):'
+  }],
+  ['3. YUKNI TRANSPORTGA ORTISH (ПОГРУЗКА - 1 MARTALIK XIZMAT):', {
+    ru: '3. ПОГРУЗКА В ТРАНСПОРТ (ПОГРУЗКА - РАЗОВАЯ УСЛУГА):',
+    en: '3. OUTBOUND LOADING ONTO TRANSPORT (ONE-TIME SERVICE):'
+  }],
+  ['4. QO\'SHIMCHA BOJXONA XIZMATLARI (AGAR ISHLATILGAN BO\'LSA):', {
+    ru: '4. ДОПОЛНИТЕЛЬНЫЕ ТАМОЖЕННЫЕ УСЛУГИ (ПРИ НАЛИЧИИ):',
+    en: '4. ADDITIONAL CUSTOMS SERVICES (IF APPLIED):'
+  }],
+  ['5. JAMI YAKUNIY CHIQIM TO\'LOVI VA 12% QQS HISOBI:', {
+    ru: '5. ИТОГОВАЯ СУММА К ОПЛАТЕ И 12% НДС:',
+    en: '5. TOTAL OUTBOUND RELEASE PAYMENT & 12% VAT:'
+  }],
+  ['Chiqim Qilish va To\'lovni Tasdiqlash', {
+    ru: 'Подтвердить Выдачу и Оплату',
+    en: 'Confirm Release & Payment'
+  }],
+  ['Chiqim amalini tasdiqlash', {
+    ru: 'Подтвердить операцию выдачи',
+    en: 'Confirm outbound release'
+  }],
+  ['Bekor qilish', { ru: 'Отмена', en: 'Cancel' }],
+  ['Saqlash', { ru: 'Сохранить', en: 'Save' }],
+  ['Yopish', { ru: 'Закрыть', en: 'Close' }],
+  // O'chirish modal
+  ['Yukni Tizimdan O\'chirish (Tasdiqlash)', {
+    ru: 'Удаление Груза из Системы (Подтверждение)',
+    en: 'Delete Cargo from System (Confirmation)'
+  }],
+  ['Kiritilgan yukni ombor hisobidan butunlay o\'chirish', {
+    ru: 'Полное удаление принятого груза с баланса склада',
+    en: 'Completely delete received cargo from warehouse balance'
+  }],
+  ['DIQQAT: Ushbu amal yukni ombordan o\'chiradi.', {
+    ru: 'ВНИМАНИЕ: это действие удалит груз со склада.',
+    en: 'ATTENTION: this action removes cargo from warehouse.'
+  }],
+  ['O\'chirilayotgan yuk:', { ru: 'Удаляемый груз:', en: 'Cargo to delete:' }],
+  ['Ombor sektori:', { ru: 'Сектор склада:', en: 'Warehouse sector:' }],
+  ['Mavjud qoldiq:', { ru: 'Текущий остаток:', en: 'Current balance:' }],
+  ['To\'lovchi tashkilot:', { ru: 'Организация-плательщик:', en: 'Payer company:' }],
+  ['O\'chirish Sababi (Majburiy)', { ru: 'Причина Удаления (Обязательно)', en: 'Deletion Reason (Required)' }],
+  ['Nima sababdan ushbu yuk ombor hisobidan o\'chirilayotganini batafsil yozing...', {
+    ru: 'Подробно укажите причину удаления груза с баланса склада...',
+    en: 'Explain in detail why this cargo is being deleted...'
+  }],
+  ['Kirimda xato kiritilgan yuk', { ru: 'Ошибочно внесенный приход груза', en: 'Wrongly entered cargo inbound' }],
+  ['Takroriy (dublikat) kirim', { ru: 'Повторный (дублирующий) приход', en: 'Duplicate inbound entry' }],
+  ['Boshqa omborga adashib kiritilgan', { ru: 'Ошибочно оприходован не на тот склад', en: 'Mistakenly entered into wrong warehouse' }],
+  ['Mijoz tomonidan bekor qilindi', { ru: 'Отменено со стороны клиента', en: 'Cancelled by client' }],
+  ['O\'chirish sababi Bosh Rahbarning oylik audit hisobotida aks etadi.', {
+    ru: 'Причина удаления отображается в ежемесячном аудит-отчете Главного Руководителя.',
+    en: 'The deletion reason appears in the Super Admin monthly audit report.'
+  }],
+  ['Ha, Yukni Butunlay O\'chirish', { ru: 'Да, Полностью Удалить Груз', en: 'Yes, Completely Delete Cargo' }],
+  ['O\'chirilmoqda...', { ru: 'Удаление...', en: 'Deleting...' }],
+  // Sektor modal
+  ['SEKTOR NOMI *', { ru: 'НАЗВАНИЕ СЕКТОРА *', en: 'SECTOR NAME *' }],
+  ['SEKTOR KODI', { ru: 'КОД СЕКТОРА', en: 'SECTOR CODE' }],
+  ['SEKTOR TURI (IXTISOSLASHUV) *', { ru: 'ТИП СЕКТОРА (СПЕЦИАЛИЗАЦИЯ) *', en: 'SECTOR TYPE (SPECIALIZATION) *' }],
+  ['HARORAT REJIMI', { ru: 'ТЕМПЕРАТУРНЫЙ РЕЖИМ', en: 'TEMPERATURE MODE' }],
+  ['HOLATI', { ru: 'СТАТУС', en: 'STATUS' }],
+  ['SIG\'IMI (M² DA) *', { ru: 'ВМЕСТИМОСТЬ (В М²) *', en: 'CAPACITY (IN M²) *' }],
+  ['RUXSAT BERILGAN TOVAR TURLARI', { ru: 'РАЗРЕШЕННЫЕ ВИДЫ ГРУЗОВ', en: 'ALLOWED CARGO TYPES' }],
+  ['QO\'SHIMCHA MA\'LUMOT VA TAVSIF', { ru: 'ДОПОЛНИТЕЛЬНОЕ ОПИСАНИЕ', en: 'ADDITIONAL DESCRIPTION' }],
+  ['Sektorni Sozlash:', { ru: 'Настройка Сектора:', en: 'Configure Sector:' }],
+  ['Yangi Sektor Qo\'shish', { ru: 'Добавить Новый Сектор', en: 'Add New Sector' }],
+  ['Sektorni Saqlash', { ru: 'Сохранить Сектор', en: 'Save Sector' }],
+  // To'lovchi modal
+  ['Shartnomani Yangilash:', { ru: 'Обновить Договор:', en: 'Update Contract:' }],
+  ['Yangi Saqlash Shartnomasini Tuzish', { ru: 'Заключить Новый Договор Хранения', en: 'New Storage Contract' }],
+  ['«JB GROUP» Bojxona ombori xizmatlari ko\'rsatish shartnomasi', {
+    ru: 'Договор оказания услуг таможенного склада «JB GROUP»',
+    en: 'JB GROUP Customs Warehouse Services Agreement'
+  }],
+  ['KORXONA / TASHKILOT NOMI *', { ru: 'НАИМЕНОВАНИЕ ОРГАНИЗАЦИИ / КОМПАНИИ *', en: 'COMPANY / ORGANIZATION NAME *' }],
+  ['STIR / INN RAQAMI (9 TALIK) *', { ru: 'НОМЕР ИНН (9 ЦИФР) *', en: 'TIN / INN NUMBER (9 DIGITS) *' }],
+  ['SHARTNOMA RAQAMI *', { ru: 'НОМЕР ДОГОВОРА *', en: 'CONTRACT NUMBER *' }],
+  ['SHARTNOMA TUZILGAN SANA *', { ru: 'ДАТА ЗАКЛЮЧЕНИЯ ДОГОВОРА *', en: 'CONTRACT START DATE *' }],
+  ['SHARTNOMA AMAL QILISH MUDDATI (QACHONGACHA) *', {
+    ru: 'СРОК ДЕЙСТВИЯ ДОГОВОРА (ПО КАКУЮ ДАТУ) *',
+    en: 'CONTRACT END DATE *'
+  }],
+  ['MAS\'UL SHAXS (VAKIL) F.I.SH', { ru: 'ОТВЕТСТВЕННОЕ ЛИЦО (ПРЕДСТАВИТЕЛЬ) Ф.И.О.', en: 'CONTACT PERSON FULL NAME' }],
+  ['BOG\'LANISH TELEFON RAQAMI', { ru: 'КОНТАКТНЫЙ НОМЕР ТЕЛЕФОНА', en: 'CONTACT PHONE NUMBER' }],
+  ['QO\'SHIMCHA SHARTLAR YOKI IZOH', { ru: 'ДОПОЛНИТЕЛЬНЫЕ УСЛОВИЯ ИЛИ ПРИМЕЧАНИЕ', en: 'ADDITIONAL TERMS OR NOTES' }],
+  ['Shartnomani Tasdiqlash va Saqlash', { ru: 'Подтвердить и Сохранить Договор', en: 'Confirm & Save Contract' }],
+  // Xodim modal
+  ['Xodim Huquqlari:', { ru: 'Права Сотрудника:', en: 'Staff Permissions:' }],
+  ['Yangi Xodim / Admin Qo\'shish', { ru: 'Добавить Нового Сотрудника / Администратора', en: 'Add New Staff / Admin' }],
+  ['Faqat Super Admin xodimlarni qo\'shishi va vakolatlarini belgilashi mumkin', {
+    ru: 'Только Главный Руководитель может добавлять сотрудников и назначать полномочия',
+    en: 'Only Super Admin can manage staff and permissions'
+  }],
+  ['XODIM F.I.SH *', { ru: 'Ф.И.О. СОТРУДНИКА *', en: 'STAFF FULL NAME *' }],
+  ['LOGIN / ELEKTRON POCHTA *', { ru: 'ЛОГИН / ЭЛЕКТРОННАЯ ПОЧТА *', en: 'LOGIN / EMAIL *' }],
+  ['PAROL *', { ru: 'ПАРОЛЬ *', en: 'PASSWORD *' }],
+  ['LAVOZIMI / TIZIMDAGI ROLI *', { ru: 'ДОЛЖНОСТЬ / РОЛЬ В СИСТЕМЕ *', en: 'ROLE IN SYSTEM *' }],
+  ['Boshqaruv Ruxsatlari va Vakolatlar', { ru: 'Права Управления и Полномочия', en: 'Management Permissions' }],
+  ['Faqat Ruxsat Berilgan Sektorlar (Dostup):', { ru: 'Только Разрешенные Секторы (Доступ):', en: 'Allowed Sectors (Access):' }],
+  ['Xodim Ma\'lumotlarini Saqlash', { ru: 'Сохранить Данные Сотрудника', en: 'Save Staff Member' }],
+  // Bojxona xizmati modal
+  ['Xizmat Narxini Tahrirlash:', { ru: 'Редактирование Тарифа Услуги:', en: 'Edit Service Price:' }],
+  ['Yangi Bojxona Xizmati Qo\'shish', { ru: 'Добавить Новую Таможенную Услугу', en: 'Add New Customs Service' }],
+  ['«JB GROUP» Bojxona ombori rasmiy preyskurantiga o\'zgartirish kiritish', {
+    ru: 'Внесение изменений в официальный прейскурант таможенного склада «JB GROUP»',
+    en: 'Modify JB GROUP official customs price list'
+  }],
+  ['XIZMAT KATEGORIYASI (BO\'LIMI) *', { ru: 'КАТЕГОРИЯ (РАЗДЕЛ) УСЛУГИ *', en: 'SERVICE CATEGORY (SECTION) *' }],
+  ['XIZMAT NOMI (RUSCHA / RASMIY) *', { ru: 'НАИМЕНОВАНИЕ УСЛУГИ (ОФИЦИАЛЬНОЕ) *', en: 'SERVICE NAME (OFFICIAL) *' }],
+  ['O\'ZBEKCHA TUSHUNTIRISHI (IZOHI)', { ru: 'ОПИСАНИЕ НА УЗБЕКСКОМ ЯЗЫКЕ', en: 'UZBEK DESCRIPTION' }],
+  ['ASOSIY NARXI (QQS-SIZ) UZS *', { ru: 'БАЗОВАЯ СТОИМОСТЬ (БЕЗ НДС) UZS *', en: 'BASE PRICE (EXCL. VAT) UZS *' }],
+  ['QQS STAVKASI (12%)', { ru: 'СТАВКА НДС (12%)', en: 'VAT RATE (12%)' }],
+  ['QO\'SHIMCHA MA\'LUMOT / TAVSIF', { ru: 'ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ / ОПИСАНИЕ', en: 'ADDITIONAL INFO / DESCRIPTION' }],
+  ['Xizmatni Saqlash', { ru: 'Сохранить Услугу', en: 'Save Service' }],
+  // Tarix modal & Nakladnoy
+  ['Yuk Qaydnomasi & Harakatlar Tarixi', { ru: 'Карточка Груза и История Движений', en: 'Cargo Card & Movements History' }],
+  ['Birlamchi Qabul (Kirim)', { ru: 'Первичный Прием (Приход)', en: 'Initial Inbound (Receipt)' }],
+  ['Chiqim Operatsiyalari', { ru: 'Операции Выдачи (Расход)', en: 'Outbound Operations (Release)' }],
+  ['Dastlabki kirim:', { ru: 'Первичный приход:', en: 'Initial inbound:' }],
+  ['Chiqarilgan:', { ru: 'Выдано:', en: 'Released:' }],
+  ['Rasmiy Nakladnoyni Chop Etish', { ru: 'Печать Официальной Накладной', en: 'Print Official Waybill' }],
+  // Excel / CSV tugmalari
+  ['📊 Excel Yuklash', { ru: '📊 Скачать Excel', en: '📊 Download Excel' }],
+  ['📊 Excel (CSV) Yuklash', { ru: '📊 Скачать Excel (CSV)', en: '📊 Download Excel (CSV)' }],
+  ['📥 Excel (CSV) Yuklab Olish', { ru: '📥 Скачать Excel (CSV)', en: '📥 Download Excel (CSV)' }]
 ];
 
 // Uzunroq iboralar birinchi almashtirilishi uchun uzunligi bo'yicha saralaymiz
@@ -1796,6 +2015,11 @@ const UNIT_MAP: Record<string, { ru: string; en: string }> = {
   konteyner: { ru: 'контейнеров', en: 'containers' }
 };
 
+function normalizeApos(str: string): string {
+  if (!str) return '';
+  return str.replace(/[\u2018\u2019\u02BC\u02BB`]|&apos;|&#39;/g, "'");
+}
+
 /**
  * Har qanday matn tugunini (Text node / string) tanlangan tilga (uz, ru, en) o'giruvchi funksiya.
  */
@@ -1816,12 +2040,27 @@ export function translateTextNode(rawText: string, lang: Language): string {
     return text;
   }
 
-  // 1. To'liq va qisman iboralarni almashtirish
+  // 1. To'liq va qisman iboralarni almashtirish (Apostrof va Katta-kichik harflar bilan bardoshli)
+  const normText = normalizeApos(text);
   for (const [uzPhrase, trans] of PHRASE_MAP) {
     const target = lang === 'ru' ? trans.ru : trans.en;
-    if (text === uzPhrase) return target;
+    const normPhrase = normalizeApos(uzPhrase);
+
+    if (text === uzPhrase || normText === normPhrase) return target;
+    if (normText.trim() === normPhrase.trim()) {
+      return text.replace(text.trim(), target);
+    }
+
     if (text.includes(uzPhrase)) {
       text = text.split(uzPhrase).join(target);
+    } else if (normText.includes(normPhrase)) {
+      text = text.split(normPhrase).join(target);
+    } else {
+      // Case-insensitive / Uppercase match (Masalan: "SEKTOR NOMI *" -> "НАЗВАНИЕ СЕКТОРА *")
+      const upperPhrase = normPhrase.toUpperCase();
+      if (normText.includes(upperPhrase)) {
+        text = text.split(upperPhrase).join(target.toUpperCase());
+      }
     }
   }
 

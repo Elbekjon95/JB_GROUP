@@ -17,6 +17,7 @@ import { EditLogsReportView } from '@/components/views/EditLogsReportView';
 import { api } from '@/lib/api-client';
 import { t, translateTextNode } from '@/lib/i18n';
 import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from '@/lib/date-utils';
+import { downloadExcelCSV } from '@/lib/excel-export';
 
 // Saqlangan kunlar sonini aniq hisoblash (kamida 1 kun)
 function calculateDaysStored(entryDateStr: string, exitDateStr?: string): number {
@@ -668,71 +669,137 @@ export default function Home() {
     return Array.from(map.values()).sort((a, b) => b.totalAmountUZS - a.totalAmountUZS);
   }, [filteredOutMovements, payers]);
 
-  // Buxgalteriya hisobotini CSV formatida eksport qilish
+  // Buxgalteriya hisobotini professional Excel (CSV) formatida eksport qilish
   const exportAccountingToCSV = () => {
     if (filteredOutMovements.length === 0) {
-      showToast('Eksport qilish uchun chiqim ma\'lumotlari topilmadi!');
+      showToast(lang === 'ru' ? 'Нет данных для экспорта!' : 'Eksport qilish uchun chiqim ma\'lumotlari topilmadi!');
       return;
     }
 
-    const headers = [
-      '№',
-      'Hujjat_Raqami',
-      'Sana',
-      'Vaqt',
-      'Mahsulot_Nomi',
-      'Miqdor',
-      'Birlik',
-      'Ogirlik_kg',
-      'Ombor_Sektori',
-      'Chiqargan_Xodim',
-      'Xodim_Roli',
-      'Mijoz_Tashkilot',
-      'Qabul_Qiluvchi_STIR_INN',
-      'Qabul_Qiluvchi_Shaxs',
-      'Saqlangan_Kunlar',
-      'Saqlash_Summasi_UZS',
-      'Tushirish_Summasi_UZS',
-      'Ortish_Summasi_UZS',
-      'QQS_12_UZS',
-      'Jami_Tolov_UZS',
-      'Tolov_Holati'
+    const isRu = lang === 'ru';
+
+    const columns = [
+      { header: '№' },
+      { header: isRu ? '1. Номер инвойса / документа' : '1. Invoys / Hujjat raqami' },
+      { header: isRu ? '2. Дата выбытия' : '2. Chiqim sanasi' },
+      { header: isRu ? '3. Время выбытия' : '3. Chiqim vaqti' },
+      { header: isRu ? '4. Наименование товара' : '4. Yuk / Mahsulot nomi' },
+      { header: isRu ? '5. Количество' : '5. Miqdori' },
+      { header: isRu ? '6. Ед. изм.' : '6. Birligi' },
+      { header: isRu ? '7. Вес (кг)' : '7. Og\'irligi (kg)' },
+      { header: isRu ? '8. Сектор склада' : '8. Ombor sektori' },
+      { header: isRu ? '9. Плательщик / Организация' : '9. To\'lovchi / Tashkilot' },
+      { header: isRu ? '10. ИНН плательщика' : '10. To\'lovchi STIR (INN)' },
+      { header: isRu ? '11. Получатель груза' : '11. Qabul qiluvchi' },
+      { header: isRu ? '12. ИНН получателя' : '12. Qabul qiluvchi STIR' },
+      { header: isRu ? '13. Представитель (Ф.И.О)' : '13. Mas\'ul vakil (F.I.Sh)' },
+      { header: isRu ? '14. Дней хранения' : '14. Saqlangan kunlar' },
+      { header: isRu ? '15. Хранение (сум)' : '15. Saqlash to\'lovi (so\'m)' },
+      { header: isRu ? '16. Выгрузка (сум)' : '16. Tushirish xizmati (so\'m)' },
+      { header: isRu ? '17. Погрузка (сум)' : '17. Ortish xizmati (so\'m)' },
+      { header: isRu ? '18. Доп. услуги (сум)' : '18. Qo\'shimcha xizmatlar (so\'m)' },
+      { header: isRu ? '19. НДС 12% (сум)' : '19. QQS 12% (so\'m)' },
+      { header: isRu ? '20. ИТОГО К ОПЛАТЕ (сум)' : '20. JAMI TO\'LOV (so\'m)' },
+      { header: isRu ? '21. Статус оплаты' : '21. To\'lov holati' },
+      { header: isRu ? '22. Ответственный сотрудник' : '22. Mas\'ul xodim' }
     ];
 
-    const rows = filteredOutMovements.map((m, idx) => [
-      idx + 1,
-      `"${m.invoiceNo || m.id}"`,
-      m.date,
-      m.time,
-      `"${(m.productName || '').replace(/"/g, '""')}"`,
-      m.quantity,
-      `"${m.unit}"`,
-      m.weightKg || 0,
-      `"${m.sectorName}"`,
-      `"${(m.userName || '').replace(/"/g, '""')}"`,
-      `"${m.userRole || ''}"`,
-      `"${(m.clientName || m.receiverName || '').replace(/"/g, '""')}"`,
-      `"${m.receiverInn || ''}"`,
-      `"${(m.receiverPerson || '').replace(/"/g, '""')}"`,
-      m.daysStored || 1,
-      m.storageCostUZS || 0,
-      m.obrabotkaCostUZS || 0,
-      m.loadingCostUZS || 0,
-      m.vatTotalUZS || 0,
-      m.grandTotalUZS || m.totalCostUZS || 0,
-      m.paymentStatus === 'PAID' ? 'To\'langan' : 'Kutilmoqda'
-    ]);
+    let totalQty = 0;
+    let totalWeight = 0;
+    let totalStorage = 0;
+    let totalUnloading = 0;
+    let totalLoading = 0;
+    let totalExtra = 0;
+    let totalVat = 0;
+    let totalGrand = 0;
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `JB_GROUP_Chiqimlar_Hisoboti_${accountingMonth || 'Buxgalteriya'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Buxgalteriya hisoboti CSV formatida yuklab olindi!');
+    const rows = filteredOutMovements.map((m, idx) => {
+      const qty = Number(m.quantity) || 0;
+      const weight = Number(m.weightKg) || 0;
+      const storage = Number(m.storageCostUZS) || 0;
+      const unloading = Number(m.obrabotkaCostUZS) || 0;
+      const loading = Number(m.loadingCostUZS) || 0;
+      const extra = Number(m.additionalCostUZS) || 0;
+      const vat = Number(m.vatTotalUZS) || 0;
+      const grand = Number(m.grandTotalUZS || m.totalCostUZS) || 0;
+
+      totalQty += qty;
+      totalWeight += weight;
+      totalStorage += storage;
+      totalUnloading += unloading;
+      totalLoading += loading;
+      totalExtra += extra;
+      totalVat += vat;
+      totalGrand += grand;
+
+      const paymentLabel = m.paymentStatus === 'PAID'
+        ? (isRu ? 'Оплачено' : 'To\'langan')
+        : (isRu ? 'Ожидается' : 'Kutilmoqda');
+
+      return [
+        idx + 1,
+        m.invoiceNo || m.id,
+        m.date || '',
+        m.time || '',
+        m.productName || '',
+        qty,
+        m.unit || 'dona',
+        weight,
+        m.sectorName || '',
+        m.clientName || m.receiverName || '',
+        m.receiverInn || '',
+        m.receiverName || '',
+        m.receiverInn || '',
+        m.receiverPerson || '',
+        m.daysStored || 1,
+        storage,
+        unloading,
+        loading,
+        extra,
+        vat,
+        grand,
+        paymentLabel,
+        m.userName || ''
+      ];
+    });
+
+    const summaryRow = [
+      isRu ? 'ИТОГО:' : 'JAMI:',
+      `${filteredOutMovements.length} ta chiqim`,
+      '',
+      '',
+      '',
+      totalQty,
+      '',
+      totalWeight,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      totalStorage,
+      totalUnloading,
+      totalLoading,
+      totalExtra,
+      totalVat,
+      totalGrand,
+      '',
+      ''
+    ];
+
+    downloadExcelCSV({
+      filename: `JB_GROUP_Buxgalteriya_${accountingMonth || 'Barchasi'}`,
+      title: isRu ? 'JB GROUP ТАМОЖЕННЫЙ СКЛАД — БУХГАЛТЕРСКИЙ ОТЧЕТ ВЫБЫТИЙ' : 'JB GROUP BOJXONA OMBORI — BUXGALTERIYA CHIQIMLAR HISOBOTI',
+      period: accountingMonth || (isRu ? 'Все периоды' : 'Barcha davrlar'),
+      subtitle: isRu ? `Всего операций: ${filteredOutMovements.length}` : `Jami chiqimlar soni: ${filteredOutMovements.length} ta`,
+      columns,
+      rows,
+      summaryRow
+    });
+
+    showToast(isRu ? 'Бухгалтерский отчет успешно выгружен в Excel!' : 'Buxgalteriya hisoboti muvaffaqiyatli Excel (CSV) formatida yuklab olindi!');
   };
 
   // Chiqim to'lov holatini o'zgartirish (Buxgalter uchun: To'langan / Kutilmoqda)
@@ -1906,56 +1973,262 @@ export default function Home() {
     }
   };
 
-  // Oylik tahrirlar hisobotini Excel (CSV) formatida yuklab olish
+  // Oylik tahrirlar hisobotini professional Excel (CSV) formatida yuklab olish
   const exportEditLogsToCSV = (logsToExport: ProductEditLog[], month: string) => {
     if (logsToExport.length === 0) {
-      showToast('Eksport qilish uchun tahrirlar topilmadi!');
+      showToast(lang === 'ru' ? 'Нет записей для экспорта!' : 'Eksport qilish uchun tahrirlar topilmadi!');
       return;
     }
 
-    const headers = [
-      '№',
-      'Amal_Turi',
-      'Sana',
-      'Vaqt',
-      'Mas\'ul_Xodim',
-      'Xodim_Roli',
-      'Yuk_Nomi',
-      'Sektor',
-      'Mijoz_Tolovchi',
-      'Tafsilotlar_Ozgarishlar',
-      'Amal_Sababi'
+    const isRu = lang === 'ru';
+
+    const columns = [
+      { header: '№' },
+      { header: isRu ? '1. Тип операции' : '1. Amal turi' },
+      { header: isRu ? '2. Дата' : '2. Sana' },
+      { header: isRu ? '3. Время' : '3. Vaqt' },
+      { header: isRu ? '4. Ответственный сотрудник' : '4. Mas\'ul xodim' },
+      { header: isRu ? '5. Роль сотрудника' : '5. Xodim roli' },
+      { header: isRu ? '6. Наименование груза' : '6. Yuk / Mahsulot nomi' },
+      { header: isRu ? '7. Сектор склада' : '7. Ombor sektori' },
+      { header: isRu ? '8. Клиент / Организация' : '8. Mijoz / Tashkilot' },
+      { header: isRu ? '9. Детали внесенных изменений' : '9. Kiritilgan o\'zgarishlar tafsiloti' },
+      { header: isRu ? '10. Причина операции' : '10. Amal sababi' }
     ];
 
     const rows = logsToExport.map((l, idx) => {
       const changesStr = (l.changes || [])
         .map(c => `${c.label}: ${c.oldValue} -> ${c.newValue}`)
         .join(' | ');
+
+      const actionLabel = l.actionType === 'DELETE'
+        ? (isRu ? 'УДАЛЕНО' : 'O\'CHIRILDI')
+        : (isRu ? 'ИЗМЕНЕНО' : 'TAHRIRLANDI');
+
       return [
         idx + 1,
-        l.actionType === 'DELETE' ? '"O\'CHIRILDI"' : '"TAHRIRLANDI"',
-        l.date,
-        l.time,
-        `"${(l.userName || '').replace(/"/g, '""')}"`,
-        `"${l.userRole || ''}"`,
-        `"${(l.productName || '').replace(/"/g, '""')}"`,
-        `"${(l.sectorName || '').replace(/"/g, '""')}"`,
-        `"${(l.clientName || '').replace(/"/g, '""')}"`,
-        `"${changesStr.replace(/"/g, '""')}"`,
-        `"${(l.reason || '').replace(/"/g, '""')}"`
+        actionLabel,
+        l.date || '',
+        l.time || '',
+        l.userName || '',
+        l.userRole || '',
+        l.productName || '',
+        l.sectorName || '',
+        l.clientName || '',
+        changesStr,
+        l.reason || ''
       ];
     });
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `JB_GROUP_Tahrirlar_Hisoboti_${month || 'Barchasi'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Tahrirlar hisoboti Excel (CSV) formatida yuklab olindi!');
+    const summaryRow = [
+      isRu ? 'ИТОГО:' : 'JAMI:',
+      `${logsToExport.length} ta yozuv`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ];
+
+    downloadExcelCSV({
+      filename: `JB_GROUP_Tahrirlar_${month || 'Barchasi'}`,
+      title: isRu ? 'JB GROUP ТАМОЖЕННЫЙ СКЛАД — ЖУРНАЛ АУДИТА И РЕДАКТИРОВАНИЯ' : 'JB GROUP BOJXONA OMBORI — TAHRIRLAR VA AUDIT JURNALI',
+      period: month || (isRu ? 'Все месяцы' : 'Barcha oylar'),
+      subtitle: isRu ? `Всего записей: ${logsToExport.length}` : `Jami yozuvlar: ${logsToExport.length} ta`,
+      columns,
+      rows,
+      summaryRow
+    });
+
+    showToast(isRu ? 'Журнал изменений успешно выгружен в Excel!' : 'Tahrirlar hisoboti Excel (CSV) formatida yuklab olindi!');
+  };
+
+  // Ombordagi mavjud mahsulotlar qoldig'ini Excel formatida yuklab olish
+  const exportWarehouseStockToCSV = () => {
+    if (accessibleProducts.length === 0) {
+      showToast(lang === 'ru' ? 'В складе нет товаров для экспорта!' : 'Omborda eksport qilish uchun tovarlar mavjud emas!');
+      return;
+    }
+
+    const isRu = lang === 'ru';
+
+    const columns = [
+      { header: '№' },
+      { header: isRu ? '1. Наименование товара / груза' : '1. Yuk / Mahsulot nomi' },
+      { header: isRu ? '2. Дата поступления' : '2. Kirim sanasi' },
+      { header: isRu ? '3. Время поступления' : '3. Kirim vaqti' },
+      { header: isRu ? '4. Дней на складе' : '4. Saqlangan kunlar' },
+      { header: isRu ? '5. Текущий остаток' : '5. Qoldiq miqdori' },
+      { header: isRu ? '6. Ед. изм.' : '6. Birligi' },
+      { header: isRu ? '7. Общий вес (кг)' : '7. Og\'irligi (kg)' },
+      { header: isRu ? '8. Сектор склада' : '8. Ombor sektori' },
+      { header: isRu ? '9. Плательщик / Клиент' : '9. To\'lovchi / Mijoz' },
+      { header: isRu ? '10. Тариф хранения' : '10. Saqlash tarifi' },
+      { header: isRu ? '11. Принявший сотрудник' : '11. Qabul qilgan xodim' },
+      { header: isRu ? '12. Примечание' : '12. Izoh' }
+    ];
+
+    let totalQty = 0;
+    let totalWeight = 0;
+
+    const rows = accessibleProducts.map((p, idx) => {
+      const sec = warehouse.sectors.find((s: Sector) => s.id === p.sectorId);
+      const tar = tariffs.find((t: Tariff) => t.id === p.storageTariffId);
+      const days = calculateDaysStored(p.entryDate || getTashkentDateStr());
+      const qty = Number(p.quantity) || 0;
+      const weight = Number(p.weightKg) || 0;
+
+      totalQty += qty;
+      totalWeight += weight;
+
+      return [
+        idx + 1,
+        p.name || '',
+        p.entryDate || '',
+        p.entryTime || '',
+        days,
+        qty,
+        p.unit || 'dona',
+        weight,
+        p.sectorName || sec?.name || p.sectorId || '',
+        p.clientName || '',
+        p.storageTariffName || tar?.name || '',
+        p.placedBy || '',
+        p.notes || ''
+      ];
+    });
+
+    const summaryRow = [
+      isRu ? 'ИТОГО:' : 'JAMI:',
+      `${accessibleProducts.length} xil partiya`,
+      '',
+      '',
+      '',
+      totalQty,
+      '',
+      totalWeight,
+      '',
+      '',
+      '',
+      '',
+      ''
+    ];
+
+    downloadExcelCSV({
+      filename: `JB_GROUP_Ombor_Qoldiq_${getTashkentDateStr()}`,
+      title: isRu ? 'JB GROUP ТАМОЖЕННЫЙ СКЛАД — ТОВАРНЫЙ ОСТАТОК СКЛАДА' : 'JB GROUP BOJXONA OMBORI — OMBORDAGI TOVARLAR QOLDIG\'I HISOBOTI',
+      period: getTashkentDateStr(),
+      subtitle: isRu ? `Всего партий: ${accessibleProducts.length}` : `Jami tovar partiyalari: ${accessibleProducts.length} ta`,
+      columns,
+      rows,
+      summaryRow
+    });
+
+    showToast(isRu ? 'Отчет по остаткам успешно выгружен в Excel!' : 'Ombor tovarlari qoldig\'i Excel (CSV) formatida yuklab olindi!');
+  };
+
+  // Harakatlar tarixi (Kirim va Chiqim) ni Excel formatida yuklab olish
+  const exportMovementsToCSV = () => {
+    const listToExport = accessibleMovements.filter((m: CargoMovement) => {
+      if (historySectorFilter !== 'ALL' && m.sectorId !== historySectorFilter) return false;
+      if (historyFilter === 'IN' && m.type !== 'IN') return false;
+      if (historyFilter === 'OUT' && m.type !== 'OUT') return false;
+      if (historySearch.trim()) {
+        const q = historySearch.toLowerCase();
+        const matchProd = (m.productName || '').toLowerCase().includes(q);
+        const matchClient = (m.clientName || '').toLowerCase().includes(q);
+        const matchReceiver = (m.receiverName || '').toLowerCase().includes(q);
+        const matchInn = (m.receiverInn || '').includes(q);
+        const matchUser = (m.userName || '').toLowerCase().includes(q);
+        return matchProd || matchClient || matchReceiver || matchInn || matchUser;
+      }
+      return true;
+    });
+
+    if (listToExport.length === 0) {
+      showToast(lang === 'ru' ? 'Нет данных о движениях для экспорта!' : 'Eksport qilish uchun harakatlar topilmadi!');
+      return;
+    }
+
+    const isRu = lang === 'ru';
+
+    const columns = [
+      { header: '№' },
+      { header: isRu ? '1. Тип движения' : '1. Harakat turi' },
+      { header: isRu ? '2. Номер документа / Инвойс' : '2. Hujjat / Invoys raqami' },
+      { header: isRu ? '3. Дата' : '3. Sana' },
+      { header: isRu ? '4. Время' : '4. Vaqt' },
+      { header: isRu ? '5. Наименование товара' : '5. Yuk / Mahsulot nomi' },
+      { header: isRu ? '6. Количество' : '6. Miqdori' },
+      { header: isRu ? '7. Ед. изм.' : '7. Birligi' },
+      { header: isRu ? '8. Вес (кг)' : '8. Og\'irligi (kg)' },
+      { header: isRu ? '9. Сектор склада' : '9. Ombor sektori' },
+      { header: isRu ? '10. Клиент / Получатель' : '10. Mijoz / Qabul qiluvchi' },
+      { header: isRu ? '11. Ответственный сотрудник' : '11. Mas\'ul xodim' },
+      { header: isRu ? '12. Примечание' : '12. Izoh' }
+    ];
+
+    let totalQty = 0;
+    let totalWeight = 0;
+
+    const rows = listToExport.map((m: CargoMovement, idx: number) => {
+      const qty = Number(m.quantity) || 0;
+      const weight = Number(m.weightKg) || 0;
+      totalQty += qty;
+      totalWeight += weight;
+
+      const typeLabel = m.type === 'IN'
+        ? (isRu ? '📥 ПОСТУПЛЕНИЕ (КИРИМ)' : '📥 KIRIM')
+        : (isRu ? '📤 ВЫБЫТИЕ (ЧИКИМ)' : '📤 CHIQIM');
+
+      return [
+        idx + 1,
+        typeLabel,
+        m.invoiceNo || m.id,
+        m.date || '',
+        m.time || '',
+        m.productName || '',
+        qty,
+        m.unit || 'dona',
+        weight,
+        m.sectorName || '',
+        m.clientName || m.receiverName || '',
+        m.userName || '',
+        m.notes || ''
+      ];
+    });
+
+    const summaryRow = [
+      isRu ? 'ИТОГО:' : 'JAMI:',
+      `${listToExport.length} ta operatsiya`,
+      '',
+      '',
+      '',
+      '',
+      totalQty,
+      '',
+      totalWeight,
+      '',
+      '',
+      '',
+      ''
+    ];
+
+    downloadExcelCSV({
+      filename: `JB_GROUP_Harakatlar_Tarixi_${getTashkentDateStr()}`,
+      title: isRu ? 'JB GROUP ТАМОЖЕННЫЙ СКЛАД — ЖУРНАЛ ДВИЖЕНИЙ ГРУЗОВ' : 'JB GROUP BOJXONA OMBORI — YUK HARAKATLARI TARIXI JURNALI',
+      period: getTashkentDateStr(),
+      subtitle: isRu ? `Всего движений: ${listToExport.length}` : `Jami harakatlar: ${listToExport.length} ta`,
+      columns,
+      rows,
+      summaryRow
+    });
+
+    showToast(isRu ? 'Журнал движений успешно выгружен в Excel!' : 'Yuk harakatlari tarixi Excel (CSV) formatida yuklab olindi!');
   };
 
   // =========================================================================
@@ -2888,6 +3161,15 @@ export default function Home() {
                       <span>➕ Sektor Qo&apos;shish</span>
                     </button>
                   )}
+
+                  <button
+                    onClick={exportWarehouseStockToCSV}
+                    className="btn-secondary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    title={lang === 'ru' ? 'Скачать остатки в Excel' : 'Ombor qoldig\'ini Excelda yuklash'}
+                  >
+                    <span>📊 Excel (CSV)</span>
+                  </button>
                 </div>
               </div>
 
@@ -3813,6 +4095,23 @@ export default function Home() {
                       📤 Chiqimlar
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={exportMovementsToCSV}
+                    className="btn-secondary"
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title={lang === 'ru' ? 'Скачать историю движений в Excel' : 'Harakatlar tarixini Excelda yuklash'}
+                  >
+                    <span>📊 Excel (CSV)</span>
+                  </button>
                 </div>
               </div>
 

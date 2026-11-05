@@ -19,6 +19,8 @@ export function AutoDomTranslator({ lang }: { lang: Language }) {
   const textCacheRef = useRef<WeakMap<Text, TextCacheEntry>>(new WeakMap());
   const attrCacheRef = useRef<WeakMap<Element, AttrCacheEntry>>(new WeakMap());
   const isApplyingRef = useRef(false);
+  const selfModifiedNodes = useRef<WeakSet<Node>>(new WeakSet());
+  const selfModifiedAttrs = useRef<WeakSet<Element>>(new WeakSet());
   const langRef = useRef<Language>(lang);
   langRef.current = lang;
 
@@ -55,6 +57,7 @@ export function AutoDomTranslator({ lang }: { lang: Language }) {
       textCache.set(node, { baseText, lastOutput: translated });
 
       if (node.nodeValue !== translated) {
+        selfModifiedNodes.current.add(node);
         node.nodeValue = translated;
       }
     };
@@ -77,6 +80,7 @@ export function AutoDomTranslator({ lang }: { lang: Language }) {
         entry.basePlaceholder = basePlaceholder;
         entry.lastPlaceholder = translatedPlaceholder;
         if (placeholder !== translatedPlaceholder) {
+          selfModifiedAttrs.current.add(el);
           el.setAttribute('placeholder', translatedPlaceholder);
         }
       }
@@ -90,6 +94,7 @@ export function AutoDomTranslator({ lang }: { lang: Language }) {
         entry.baseTitle = baseTitle;
         entry.lastTitle = translatedTitle;
         if (title !== translatedTitle) {
+          selfModifiedAttrs.current.add(el);
           el.setAttribute('title', translatedTitle);
         }
       }
@@ -151,15 +156,20 @@ export function AutoDomTranslator({ lang }: { lang: Language }) {
     };
 
     const observer = new MutationObserver((mutations) => {
-      if (isApplyingRef.current) return;
       for (const mutation of mutations) {
         if (mutation.type === 'characterData') {
+          if (selfModifiedNodes.current.has(mutation.target)) {
+            continue;
+          }
           pendingNodes.add(mutation.target);
         } else if (mutation.type === 'childList') {
           mutation.addedNodes.forEach((added) => {
             pendingNodes.add(added);
           });
         } else if (mutation.type === 'attributes') {
+          if (selfModifiedAttrs.current.has(mutation.target as Element)) {
+            continue;
+          }
           pendingNodes.add(mutation.target);
         }
       }
