@@ -1601,7 +1601,8 @@ export default function Home() {
 
   // Chiqish
   const handleLogout = () => {
-    api.auth.logout();
+    const uid = currentUser?.id;
+    api.auth.logout(uid);
     setCurrentUser(null);
     setLoginEmail('');
     setLoginPassword('');
@@ -1625,11 +1626,23 @@ export default function Home() {
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     events.forEach(ev => window.addEventListener(ev, updateActivity, { passive: true }));
 
-    // Har 10 soniyada nofaollikni tekshirish
+    // Brauzer yoki tab yopilganda sessiyani darhol tozalash (sendBeacon orqali)
+    const handleBeforeUnload = () => {
+      if (currentUser?.id) {
+        try {
+          const blob = new Blob([JSON.stringify({ userId: currentUser.id })], { type: 'application/json' });
+          navigator.sendBeacon('/api/auth/logout', blob);
+        } catch {}
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
+    // Har 10 soniyada 20 daqiqalik nofaollikni tekshirish
     const timer = setInterval(() => {
       const diff = Date.now() - lastActivityTime;
       if (diff >= INACTIVITY_LIMIT_MS) {
-        api.auth.logout();
+        api.auth.logout(currentUser?.id);
         setCurrentUser(null);
         alert(
           lang === 'ru'
@@ -1639,13 +1652,20 @@ export default function Home() {
       }
     }, 10000);
 
-    // Har 1 daqiqada serverga heartbeat yuborib sessiya faolligini saqlash
+    // Har 15 soniyada serverga heartbeat yuborib faollikni bildirish
+    const token = typeof window !== 'undefined' ? localStorage.getItem('uzw_token') : null;
     const heartbeat = setInterval(() => {
-      fetch('/api/auth/heartbeat', { method: 'POST' })
+      fetch('/api/auth/heartbeat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
         .then(res => res.json())
         .then(data => {
           if (data && data.active === false) {
-            api.auth.logout();
+            api.auth.logout(currentUser?.id);
             setCurrentUser(null);
             alert(
               lang === 'ru'
@@ -1655,10 +1675,12 @@ export default function Home() {
           }
         })
         .catch(() => {});
-    }, 60000);
+    }, 15000);
 
     return () => {
       events.forEach(ev => window.removeEventListener(ev, updateActivity));
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
       clearInterval(timer);
       clearInterval(heartbeat);
     };

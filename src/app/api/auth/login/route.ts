@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         { 
           error: loginCheck.reason,
           isAlreadyLoggedIn: true,
-          remainingMinutes: loginCheck.remainingMinutes
+          remainingSeconds: loginCheck.remainingSeconds
         },
         { status: 403 }
       );

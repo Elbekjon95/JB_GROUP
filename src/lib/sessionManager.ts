@@ -1,5 +1,5 @@
 // Global singleton active session manager for preventing concurrent logins
-// and enforcing 20-minute inactivity timeout
+// and ensuring real-time presence detection
 
 export interface ActiveUserSession {
   userId: string;
@@ -8,18 +8,20 @@ export interface ActiveUserSession {
   lastActiveAt: number;
 }
 
-const INACTIVITY_TIMEOUT_MS = 20 * 60 * 1000; // 20 daqiqa
+// Brauzer har 15 soniyada faollik (heartbeat) yuboradi.
+// Agar 45 soniya davomida xabar kelmasa — demak foydalanuvchi brauzerni yopgan va saytda yo'q!
+const PRESENCE_HEARTBEAT_TIMEOUT_MS = 45 * 1000; // 45 soniya
 
 // Next.js hot-reload va turli route'lar orasida yagona xotirada saqlanishi uchun globalThis ishlatamiz
 const globalSessionStore = (globalThis as any).__uzw_active_sessions as Map<string, ActiveUserSession> || new Map<string, ActiveUserSession>();
 (globalThis as any).__uzw_active_sessions = globalSessionStore;
 
 /**
- * Foydalanuvchi tizimga kira oladimi yoki ayni paytda boshqa odam kirib turibdimi tekshirish
+ * Foydalanuvchi tizimga kira oladimi yoki ayni paytda rostdan ham boshqa odam kirib turibdimi tekshirish
  */
 export function canUserLogin(userId: string, incomingSessionId?: string): {
   allowed: boolean;
-  remainingMinutes?: number;
+  remainingSeconds?: number;
   reason?: string;
 } {
   const existing = globalSessionStore.get(userId);
@@ -30,8 +32,8 @@ export function canUserLogin(userId: string, incomingSessionId?: string): {
   const now = Date.now();
   const diff = now - existing.lastActiveAt;
 
-  // Agar 20 daqiqadan ko'p vaqt o'tgan bo'lsa — sessiya muddati tugagan
-  if (diff >= INACTIVITY_TIMEOUT_MS) {
+  // Agar 45 soniyadan oshgan bo'lsa — oldingi foydalanuvchi brauzerni yopgan, demak saytda yo'q!
+  if (diff >= PRESENCE_HEARTBEAT_TIMEOUT_MS) {
     globalSessionStore.delete(userId);
     return { allowed: true };
   }
@@ -42,12 +44,12 @@ export function canUserLogin(userId: string, incomingSessionId?: string): {
     return { allowed: true };
   }
 
-  // Boshqa odam / boshqa qurilma kirmoqchi — QAT'IY TAQIQLANADI
-  const remainingMinutes = Math.max(1, Math.ceil((INACTIVITY_TIMEOUT_MS - diff) / 60000));
+  // Ayni paytda boshqa qurilma REAL VAQTDA onlayn turibdi
+  const remainingSeconds = Math.max(5, Math.ceil((PRESENCE_HEARTBEAT_TIMEOUT_MS - diff) / 1000));
   return {
     allowed: false,
-    remainingMinutes,
-    reason: `Ushbu foydalanuvchi hisobidan hozirda boshqa qurilma/shaxs tizimda ishlamoqda! Bitta hisob bilan bir vaqtda faqat bitta odam kirishi mumkin. Oldingi sessiya ${remainingMinutes} daqiqalik nofaollikdan so'ng tugaydi yoki oldingi qurilmadan "Chiqish" (Logout) tugmasi bosilishi shart.`
+    remainingSeconds,
+    reason: `Ushbu hisobdan ayni paytda boshqa qurilmada foydalanilmoqda! Xavfsizlik qoidasiga ko'ra bir vaqtda ikkita odam bitta login bilan ishlay olmaydi. Oldingi qurilmadan "Chiqish" (Logout) tugmasini bosing yoki oldingi oyna yopilgan bo'lsa ${remainingSeconds} soniyadan keyin qayta urinib ko'ring.`
   };
 }
 
@@ -86,7 +88,7 @@ export function touchSession(userId: string, sessionId?: string): boolean {
 
   const diff = now - existing.lastActiveAt;
 
-  if (diff >= INACTIVITY_TIMEOUT_MS) {
+  if (diff >= PRESENCE_HEARTBEAT_TIMEOUT_MS) {
     globalSessionStore.delete(userId);
     return false;
   }
@@ -101,7 +103,7 @@ export function touchSession(userId: string, sessionId?: string): boolean {
 }
 
 /**
- * Tizimdan chiqish (Logout) — boshqa qurilma darhol kira oladi
+ * Tizimdan chiqish (Logout) — sessiya darhol o'chiriladi
  */
 export function destroySession(userId: string) {
   globalSessionStore.delete(userId);
@@ -115,7 +117,7 @@ export function isSessionActive(userId: string, sessionId: string): boolean {
   if (!existing) return false;
 
   const diff = Date.now() - existing.lastActiveAt;
-  if (diff >= INACTIVITY_TIMEOUT_MS) {
+  if (diff >= PRESENCE_HEARTBEAT_TIMEOUT_MS) {
     globalSessionStore.delete(userId);
     return false;
   }

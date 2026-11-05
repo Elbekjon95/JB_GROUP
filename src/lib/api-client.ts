@@ -98,11 +98,27 @@ export const api = {
     me: async () => {
       return request<{ user: User | null }>('/api/auth/me');
     },
-    logout: () => {
+    logout: (userId?: string) => {
       if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('uzw_token');
+        let targetUserId = userId;
+        if (!targetUserId) {
+          try {
+            const raw = localStorage.getItem('uzw_active_user');
+            if (raw) targetUserId = JSON.parse(raw)?.id;
+          } catch {}
+        }
         localStorage.removeItem('uzw_token');
         localStorage.removeItem('uzw_active_user');
-        fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ userId: targetUserId })
+        }).catch(() => {});
       }
     }
   },

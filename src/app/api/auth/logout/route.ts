@@ -5,8 +5,13 @@ import { destroySession } from '@/lib/sessionManager';
 export async function POST(req: Request) {
   try {
     const payload = getAuthPayloadFromRequest(req);
-    if (payload && payload.userId) {
-      destroySession(payload.userId);
+    let userId = payload?.userId;
+    if (!userId) {
+      const body = await req.json().catch(() => null);
+      if (body?.userId) userId = body.userId;
+    }
+    if (userId) {
+      destroySession(userId);
     }
   } catch (err) {
     console.warn('Logout session destroy error:', err);
