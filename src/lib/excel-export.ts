@@ -84,3 +84,4 @@ export function downloadExcelCSV(options: ExcelExportOptions): void {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
