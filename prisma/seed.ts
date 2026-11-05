@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import {
   INITIAL_WAREHOUSE,
   INITIAL_TARIFFS,
@@ -142,7 +143,118 @@ async function main() {
     });
   }
   console.log(`✓ ${INITIAL_CUSTOMS_SERVICES.length} ta rasmiy bojxona preyskurant xizmati saqlandi.`);
-  console.log('=== Baza to\'liq tozalandi! Tizim birinchi Super Admin ro\'yxatdan o\'tishiga tayyor. ===');
+
+  // 4. Standart Tizim Foydalanuvchilari va Login/Parollari (Mavjud bo'lsa tegilmaydi, yo'q bo'lsa yaratiladi)
+  const defaultPasswordHash = await bcrypt.hash('password123', 10);
+
+  const defaultUsers = [
+    {
+      email: 'superadmin@jbgroup.uz',
+      fullName: 'Sardor Alimov (Super Admin)',
+      role: 'SUPER_ADMIN',
+      company: 'JB GROUP',
+      canManageTariffs: true,
+      canCreateProducts: true,
+      canDeleteProducts: true,
+      canManageWarehouses: true,
+      canStockMovement: true,
+      permissions: {
+        canManageTariffs: true,
+        canManageWarehouse: true,
+        canLinkTariffs: true,
+        canHandleHazardous: true,
+        allowedSectorIds: ['ALL'],
+        canManageUsers: true,
+        canDeleteProducts: true,
+        canEditHistoricalData: true,
+        canViewAuditLogs: true,
+        canViewFinances: true
+      }
+    },
+    {
+      email: 'admin@jbgroup.uz',
+      fullName: 'Akmal Rahimov (Katta Admin)',
+      role: 'ADMIN',
+      company: 'JB GROUP',
+      canManageTariffs: true,
+      canCreateProducts: true,
+      canDeleteProducts: false,
+      canManageWarehouses: false,
+      canStockMovement: true,
+      permissions: {
+        canManageTariffs: true,
+        canManageWarehouse: false,
+        canLinkTariffs: true,
+        canHandleHazardous: true,
+        allowedSectorIds: ['ALL'],
+        canManageUsers: false,
+        canDeleteProducts: false,
+        canEditHistoricalData: false,
+        canViewAuditLogs: true,
+        canViewFinances: true
+      }
+    },
+    {
+      email: 'buxgalter@jbgroup.uz',
+      fullName: 'Shahnoza Karimova (Bosh Buxgalter)',
+      role: 'ACCOUNTANT',
+      company: 'JB GROUP',
+      canManageTariffs: false,
+      canCreateProducts: false,
+      canDeleteProducts: false,
+      canManageWarehouses: false,
+      canStockMovement: false,
+      permissions: {
+        canManageTariffs: false,
+        canManageWarehouse: false,
+        canLinkTariffs: false,
+        canHandleHazardous: false,
+        allowedSectorIds: ['ALL'],
+        canManageUsers: false,
+        canDeleteProducts: false,
+        canEditHistoricalData: false,
+        canViewAuditLogs: true,
+        canViewFinances: true
+      }
+    },
+    {
+      email: 'user@jbgroup.uz',
+      fullName: 'Botir Qodirov (Katta Omborchi)',
+      role: 'USER',
+      company: 'JB GROUP',
+      canManageTariffs: false,
+      canCreateProducts: false,
+      canDeleteProducts: false,
+      canManageWarehouses: false,
+      canStockMovement: true,
+      permissions: {
+        canManageTariffs: false,
+        canManageWarehouse: false,
+        canLinkTariffs: false,
+        canHandleHazardous: false,
+        allowedSectorIds: ['ALL'],
+        canManageUsers: false,
+        canDeleteProducts: false,
+        canEditHistoricalData: false,
+        canViewAuditLogs: false,
+        canViewFinances: false
+      }
+    }
+  ];
+
+  for (const u of defaultUsers) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {}, // Mavjud foydalanuvchi ma'lumotlari saqlanadi, o'zgartirilmaydi!
+      create: {
+        ...u,
+        password: defaultPasswordHash
+      }
+    });
+  }
+  console.log('✓ Foydalanuvchilar tekshirildi (Super Admin paroli: password123).');
+
+  console.log('=== Baza tayyor va barcha login-parollar faol! ===');
 }
 
 main()
