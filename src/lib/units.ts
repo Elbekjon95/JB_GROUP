@@ -11,302 +11,302 @@ export interface WarehouseUnitOption {
 
 export const TARIFF_UNIT_OPTIONS: WarehouseUnitOption[] = [
   // =========================================================================
-  // 1. STORAGE UNITS (Kunlik saqlash birliklari)
+  // 1. STORAGE UNITS (Kunlik saqlash birliklari — kuniga ko'paytiriladi)
   // =========================================================================
   {
     value: '1 tn / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 tn / kun (Tonna bo\'yicha kunlik stavka)',
-    labelRu: '1 тн / сут (Посуточно за 1 тонну)',
-    labelEn: '1 ton / day (Daily rate per ton)',
+    labelUz: '📅 Bir kunlik (1 tn / sutka — tonna bo\'yicha)',
+    labelRu: '📅 Посуточно (1 тн / сут — за 1 тонну)',
+    labelEn: '📅 Daily (1 ton / day)',
     calcType: 'PER_TON'
   },
   {
     value: '1 tn / sutka',
     category: 'STORAGE',
-    labelUz: '1 tn / sutka (Tonna bo\'yicha kunlik stavka)',
-    labelRu: '1 тн / сут (Посуточно за 1 тонну)',
-    labelEn: '1 ton / day (Daily rate per ton)',
+    labelUz: '📅 Bir kunlik (1 tn / sutka — tonna bo\'yicha)',
+    labelRu: '📅 Посуточно (1 тн / сут — за 1 тонну)',
+    labelEn: '📅 Daily (1 ton / day)',
     calcType: 'PER_TON'
   },
   {
     value: '1 kg / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 kg / kun (Muzlatkich / sovutkich kunlik stavkasi)',
-    labelRu: '1 кг / сут (Посуточно за 1 кг — холодильник)',
-    labelEn: '1 kg / day (Daily cold storage per kg)',
+    labelUz: '📅 Bir kunlik (1 kg / sutka — muzlatkich/sovutgich)',
+    labelRu: '📅 Посуточно (1 кг / сут — холодильник)',
+    labelEn: '📅 Daily (1 kg / day — cold storage)',
     calcType: 'PER_KG'
   },
   {
     value: '1 kg / sutka',
     category: 'STORAGE',
-    labelUz: '1 kg / sutka (Muzlatkich / sovutkich kunlik stavkasi)',
-    labelRu: '1 кг / сут (Посуточно за 1 кг — холодильник)',
-    labelEn: '1 kg / day (Daily cold storage per kg)',
+    labelUz: '📅 Bir kunlik (1 kg / sutka — muzlatkich/sovutgich)',
+    labelRu: '📅 Посуточно (1 кг / сут — холодильник)',
+    labelEn: '📅 Daily (1 kg / day — cold storage)',
     calcType: 'PER_KG'
   },
   {
     value: '1 pallet / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 pallet / kun (Pallet o\'rni bo\'yicha kunlik stavka)',
-    labelRu: '1 паллет / сут (Посуточно за паллетоместо)',
-    labelEn: '1 pallet / day (Daily per pallet space)',
+    labelUz: '📅 Bir kunlik (1 pallet / sutka — poddon o\'rni)',
+    labelRu: '📅 Посуточно (1 паллет / сут — паллетоместо)',
+    labelEn: '📅 Daily (1 pallet / day)',
     calcType: 'PER_PALLET'
   },
   {
     value: '1 pallet / sutka',
     category: 'STORAGE',
-    labelUz: '1 pallet / sutka (Pallet o\'rni bo\'yicha kunlik stavka)',
-    labelRu: '1 паллет / сут (Посуточно за паллетоместо)',
-    labelEn: '1 pallet / day (Daily per pallet space)',
+    labelUz: '📅 Bir kunlik (1 pallet / sutka — poddon o\'rni)',
+    labelRu: '📅 Посуточно (1 паллет / сут — паллетоместо)',
+    labelEn: '📅 Daily (1 pallet / day)',
     calcType: 'PER_PALLET'
   },
   {
     value: '1 dona / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 dona / kun (Dona bo\'yicha kunlik stavka)',
-    labelRu: '1 шт / сут (Посуточно за 1 штуку)',
-    labelEn: '1 pc / day (Daily rate per piece)',
+    labelUz: '📅 Bir kunlik (1 dona / sutka — tovar birligi)',
+    labelRu: '📅 Посуточно (1 шт / сут — за 1 штуку)',
+    labelEn: '📅 Daily (1 pc / day)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 dona / sutka',
     category: 'STORAGE',
-    labelUz: '1 dona / sutka (Dona bo\'yicha kunlik stavka)',
-    labelRu: '1 шт / сут (Посуточно за 1 штуку)',
-    labelEn: '1 pc / day (Daily rate per piece)',
+    labelUz: '📅 Bir kunlik (1 dona / sutka — tovar birligi)',
+    labelRu: '📅 Посуточно (1 шт / сут — за 1 штуку)',
+    labelEn: '📅 Daily (1 pc / day)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 avto / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 avto / kun (Avtotransport kunlik saqlash)',
-    labelRu: '1 авто / сут (Посуточно за единицу автотранспорта)',
-    labelEn: '1 vehicle / day (Daily rate per vehicle)',
+    labelUz: '📅 Bir kunlik (1 avto / sutka — avtotransport)',
+    labelRu: '📅 Посуточно (1 авто / сут — автотранспорт)',
+    labelEn: '📅 Daily (1 vehicle / day)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 fura / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 fura / kun (To\'liq fura kunlik saqlash)',
-    labelRu: '1 фура / сут (Посуточно за полную фуру)',
-    labelEn: '1 truck / day (Daily rate per truck)',
+    labelUz: '📅 Bir kunlik (1 fura / sutka — to\'liq fura)',
+    labelRu: '📅 Посуточно (1 фура / сут — полная фура)',
+    labelEn: '📅 Daily (1 truck / day)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 konteyner / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 konteyner / kun (Konteyner kunlik stavkasi)',
-    labelRu: '1 контейнер / сут (Посуточно за контейнер)',
-    labelEn: '1 container / day (Daily per container)',
+    labelUz: '📅 Bir kunlik (1 konteyner / sutka)',
+    labelRu: '📅 Посуточно (1 контейнер / сут)',
+    labelEn: '📅 Daily (1 container / day)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 birlik / kun (kunlik stavka)',
     category: 'STORAGE',
-    labelUz: '1 birlik / kun (Shartli birlik kunlik stavkasi)',
-    labelRu: '1 ед / сут (Посуточно за единицу)',
-    labelEn: '1 unit / day (Daily rate per unit)',
+    labelUz: '📅 Bir kunlik (1 birlik / sutka — shartli birlik)',
+    labelRu: '📅 Посуточно (1 ед / сут — за единицу)',
+    labelEn: '📅 Daily (1 unit / day)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 quti / sutka',
     category: 'STORAGE',
-    labelUz: '1 quti / sutka (Karobka / quti bo\'yicha)',
-    labelRu: '1 коробка / сут (Посуточно за коробку)',
-    labelEn: '1 box / day (Daily rate per box)',
+    labelUz: '📅 Bir kunlik (1 quti / sutka — karobka)',
+    labelRu: '📅 Посуточно (1 коробка / сут — за коробку)',
+    labelEn: '📅 Daily (1 box / day)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 qop / sutka',
     category: 'STORAGE',
-    labelUz: '1 qop / sutka (Qop / meshok bo\'yicha)',
-    labelRu: '1 мешок / сут (Посуточно за мешок)',
-    labelEn: '1 bag / day (Daily rate per bag)',
+    labelUz: '📅 Bir kunlik (1 qop / sutka — meshok)',
+    labelRu: '📅 Посуточно (1 мешок / сут — за мешок)',
+    labelEn: '📅 Daily (1 bag / day)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 m² / sutka',
     category: 'STORAGE',
-    labelUz: '1 m² / sutka (Maydon bo\'yicha kunlik stavka)',
-    labelRu: '1 м² / сут (Посуточно за кв. метр)',
-    labelEn: '1 sq.m / day (Daily rate per sq.m)',
+    labelUz: '📅 Bir kunlik (1 m² / sutka — kvadrat metr)',
+    labelRu: '📅 Посуточно (1 м² / сут — за кв. метр)',
+    labelEn: '📅 Daily (1 sq.m / day)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 m³ / sutka',
     category: 'STORAGE',
-    labelUz: '1 m³ / sutka (Hajm bo\'yicha kunlik stavka)',
-    labelRu: '1 м³ / сут (Посуточно за куб. метр)',
-    labelEn: '1 cu.m / day (Daily rate per cu.m)',
+    labelUz: '📅 Bir kunlik (1 m³ / sutka — kub metr)',
+    labelRu: '📅 Посуточно (1 м³ / сут — за куб. метр)',
+    labelEn: '📅 Daily (1 cu.m / day)',
     calcType: 'PER_PIECE'
   },
 
   // =========================================================================
-  // 2. UNLOADING / LOADING (Ortish va Tushirish birliklari — 1 martalik)
+  // 2. UNLOADING / LOADING (Ortish va Tushirish — 1 martalik to'lovlar)
   // =========================================================================
   {
     value: '1 martalik (40ft konteyner)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (40 futlik konteyner)',
-    labelRu: 'разовый (контейнер 40 футов)',
-    labelEn: 'one-time (40ft container)',
+    labelUz: '⚡ 1 martalik — 40 futlik konteyner',
+    labelRu: '⚡ Разовый — 40-футовый контейнер',
+    labelEn: '⚡ One-time — 40ft container',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (20ft konteyner)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (20 futlik konteyner)',
-    labelRu: 'разовый (контейнер 20 футов)',
-    labelEn: 'one-time (20ft container)',
+    labelUz: '⚡ 1 martalik — 20 futlik konteyner',
+    labelRu: '⚡ Разовый — 20-футовый контейнер',
+    labelEn: '⚡ One-time — 20ft container',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (1 vagon)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (Temiryo\'l vagoni 60 tn)',
-    labelRu: 'разовый (ж/д вагон 60 тн)',
-    labelEn: 'one-time (railcar 60 tn)',
+    labelUz: '⚡ 1 martalik — Temiryo\'l vagoni (60 tn)',
+    labelRu: '⚡ Разовый — ж/д вагон (60 тн)',
+    labelEn: '⚡ One-time — railcar (60 tn)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (<90 m³ fura)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (Standart fura <90 m³)',
-    labelRu: 'разовый (фура <90 м³)',
-    labelEn: 'one-time (truck <90 m³)',
+    labelUz: '⚡ 1 martalik — Standart fura (<90 m³)',
+    labelRu: '⚡ Разовый — стандартная фура (<90 м³)',
+    labelEn: '⚡ One-time — standard truck (<90 m³)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (to\'liq fura)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (To\'liq fura / 20 tn gacha)',
-    labelRu: 'разовый (полная фура / до 20 тн)',
-    labelEn: 'one-time (full truck / up to 20 tn)',
+    labelUz: '⚡ 1 martalik — To\'liq fura (20 tn gacha)',
+    labelRu: '⚡ Разовый — полная фура (до 20 тн)',
+    labelEn: '⚡ One-time — full truck (up to 20 tn)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (mega fura)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (Katta fura >90 m³ / mega fura)',
-    labelRu: 'разовый (фура >90 м³ / мега фура)',
-    labelEn: 'one-time (truck >90 m³ / mega truck)',
+    labelUz: '⚡ 1 martalik — Katta fura (>90 m³ / mega fura)',
+    labelRu: '⚡ Разовый — большая фура (>90 м³ / мега)',
+    labelEn: '⚡ One-time — mega truck (>90 m³)',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (1 tn)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (1 tn yuk / tonna bo\'yicha)',
-    labelRu: 'разовый (за 1 тн груза)',
-    labelEn: 'one-time (per 1 ton of cargo)',
+    labelUz: '⚡ 1 martalik — 1 tonna yuk bo\'yicha',
+    labelRu: '⚡ Разовый — за 1 тонну груза',
+    labelEn: '⚡ One-time — per 1 ton of cargo',
     calcType: 'PER_TON'
   },
   {
     value: '1 martalik (1 pallet)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (1 pallet / poddon bo\'yicha)',
-    labelRu: 'разовый (за 1 паллет / поддон)',
-    labelEn: 'one-time (per 1 pallet)',
+    labelUz: '⚡ 1 martalik — 1 pallet (poddon) bo\'yicha',
+    labelRu: '⚡ Разовый — за 1 паллет (поддон)',
+    labelEn: '⚡ One-time — per 1 pallet',
     calcType: 'PER_PALLET'
   },
   {
     value: '1 martalik (1 dona)',
     category: 'UNLOADING_LOADING',
-    labelUz: '1 martalik (1 dona / tovar birligi bo\'yicha)',
-    labelRu: 'разовый (за 1 штуку)',
-    labelEn: 'one-time (per 1 piece)',
+    labelUz: '⚡ 1 martalik — 1 dona (shtuk) bo\'yicha',
+    labelRu: '⚡ Разовый — за 1 штуку',
+    labelEn: '⚡ One-time — per 1 piece',
     calcType: 'PER_PIECE'
   },
 
   // =========================================================================
-  // 3. ADDITIONAL SERVICES (Qo'shimcha xizmatlar)
+  // 3. ADDITIONAL SERVICES (Qo'shimcha xizmatlar — 1 martalik to'lovlar)
   // =========================================================================
   {
     value: '1 martalik (1 operatsiya)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 operatsiya / xizmat)',
-    labelRu: 'разовый (1 операция / услуга)',
-    labelEn: 'one-time (1 operation)',
+    labelUz: '⚡ 1 martalik — 1 ta operatsiya / xizmat',
+    labelRu: '⚡ Разовый — 1 операция / услуga',
+    labelEn: '⚡ One-time — 1 operation',
     calcType: 'FIXED'
   },
   {
     value: '1 martalik (1 p/m)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 p/m — streych / o\'rash)',
-    labelRu: 'разовый (1 п/м — стретч-пленка)',
-    labelEn: 'one-time (1 linear meter)',
+    labelUz: '⚡ 1 martalik — 1 p/m (streych o\'rash)',
+    labelRu: '⚡ Разовый — 1 п/м (стретч-пленка)',
+    labelEn: '⚡ One-time — 1 linear meter (stretch)',
     calcType: 'PER_PIECE'
   },
   {
     value: '1 martalik (1 poddon)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 poddon / pallet)',
-    labelRu: 'разовый (1 поддон)',
-    labelEn: 'one-time (1 pallet)',
+    labelUz: '⚡ 1 martalik — 1 ta poddon / pallet',
+    labelRu: '⚡ Разовый — 1 поддон / паллет',
+    labelEn: '⚡ One-time — 1 pallet',
     calcType: 'PER_PALLET'
   },
   {
     value: '1 martalik (1 tn)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 tn yuk / tonna bo\'yicha)',
-    labelRu: 'разовый (за 1 тн)',
-    labelEn: 'one-time (per 1 ton)',
+    labelUz: '⚡ 1 martalik — 1 tonna bo\'yicha',
+    labelRu: '⚡ Разовый — за 1 тонну',
+    labelEn: '⚡ One-time — per 1 ton',
     calcType: 'PER_TON'
   },
   {
     value: '1 martalik (1 transport)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 transport vositasi)',
-    labelRu: 'разовый (1 автотранспорт)',
-    labelEn: 'one-time (1 vehicle)',
+    labelUz: '⚡ 1 martalik — 1 ta transport vositasi',
+    labelRu: '⚡ Разовый — 1 автотранспорт',
+    labelEn: '⚡ One-time — 1 vehicle',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (1 vagon)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 temiryo\'l vagoni)',
-    labelRu: 'разовый (1 ж/д вагон)',
-    labelEn: 'one-time (1 railcar)',
+    labelUz: '⚡ 1 martalik — 1 ta temiryo\'l vagoni',
+    labelRu: '⚡ Разовый — 1 ж/д вагон',
+    labelEn: '⚡ One-time — 1 railcar',
     calcType: 'PER_TRANSPORT'
   },
   {
     value: '1 martalik (har bir mijozdan)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (Har bir mijozdan / shartnomaviy)',
-    labelRu: 'разовый (с каждого клиента)',
-    labelEn: 'one-time (per client)',
+    labelUz: '⚡ 1 martalik — Har bir mijozdan',
+    labelRu: '⚡ Разовый — с каждого клиента',
+    labelEn: '⚡ One-time — per client',
     calcType: 'FIXED'
   },
   {
     value: '1 martalik (shartnoma bo\'yicha)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (Shartnoma bo\'yicha kelishilgan)',
-    labelRu: 'разовый (по договору)',
-    labelEn: 'one-time (per contract)',
+    labelUz: '⚡ 1 martalik — Shartnoma bo\'yicha',
+    labelRu: '⚡ Разовый — по договору',
+    labelEn: '⚡ One-time — per contract',
     calcType: 'FIXED'
   },
   {
     value: '1 martalik (1 reys)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 reys / qatnov)',
-    labelRu: 'разовый (1 рейс)',
-    labelEn: 'one-time (1 trip)',
+    labelUz: '⚡ 1 martalik — 1 ta reys / qatnov',
+    labelRu: '⚡ Разовый — 1 рейс',
+    labelEn: '⚡ One-time — 1 trip',
     calcType: 'FIXED'
   },
   {
     value: '1 martalik (1 sutka)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 sutka — stoyanka)',
-    labelRu: 'разовый (1 сутки — стоянка)',
-    labelEn: 'one-time (1 day parking)',
+    labelUz: '⚡ 1 martalik — 1 sutka (avtoturargoh / stoyanka)',
+    labelRu: '⚡ Разовый — 1 сутки (стоянка)',
+    labelEn: '⚡ One-time — 1 day parking',
     calcType: 'FIXED'
   },
   {
     value: '1 martalik (1 kross-doking)',
     category: 'ADDITIONAL',
-    labelUz: '1 martalik (1 kross-doking)',
-    labelRu: 'разовый (1 кросс-докинг)',
-    labelEn: 'one-time (1 cross-docking)',
+    labelUz: '⚡ 1 martalik — 1 ta kross-doking operatsiyasi',
+    labelRu: '⚡ Разовый — 1 кросс-докинг',
+    labelEn: '⚡ One-time — 1 cross-docking',
     calcType: 'FIXED'
   }
 ];

@@ -160,9 +160,20 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
 
               {/* O'lchov birligi (Foydalanuvchi talabi: tanlanadigan select) */}
               <div>
-                <label className="form-label">
-                  {isRu ? 'ЕДИНИЦА ИЗМЕРЕНИЯ *' : isEn ? 'UNIT OF MEASUREMENT *' : 'O\'LCHOV BIRLIGI *'}
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>
+                    {isRu ? 'ЕДИНИЦА ИЗМЕРЕНИЯ *' : isEn ? 'UNIT OF MEASUREMENT *' : 'O\'LCHOV BIRLIGI *'}
+                  </label>
+                  {customsServiceForm.category === 'STORAGE' ? (
+                    <span style={{ fontSize: '11px', color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                      📅 {isRu ? 'ПОСУТОЧНЫЙ ТАРИФ' : isEn ? 'DAILY RATE' : 'KUNLIK SAQLASH TARIFI'}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                      ⚡ {isRu ? 'РАЗОВЫЙ ПЛАТЁЖ' : isEn ? 'ONE-TIME CHARGE' : '1 MARTALIK TO\'LOV'}
+                    </span>
+                  )}
+                </div>
                 <select
                   className="form-select-clean"
                   value={showCustomInput ? '__custom__' : customsServiceForm.unit}
