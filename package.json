@@ -10,7 +10,6 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node prisma/seed.js",
-    "prisma:seed:5years": "node prisma/seed-5-years.js",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {

@@ -14,3 +14,4 @@ echo "🔄 [4/4] PM2 xizmatini qayta ishga tushirish..."
 pm2 restart all
 
 echo "✅ Muvaffaqiyatli yangilandi va server ishga tushirildi!"
+
