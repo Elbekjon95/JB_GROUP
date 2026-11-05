@@ -1591,9 +1591,7 @@ export default function Home() {
         showToast(`Xush kelibsiz, ${res.user.fullName}! (${res.user.role})`);
       }
     } catch (err: any) {
-      const errMsg = err.message || (lang === 'ru' ? 'Неверный логин или пароль!' : 'Login yoki parol noto\'g\'ri!');
-      alert(errMsg);
-      showToast(errMsg);
+      showToast(err.message || 'Login yoki parol noto\'g\'ri!');
     } finally {
       setLoginLoading(false);
     }
@@ -1601,90 +1599,12 @@ export default function Home() {
 
   // Chiqish
   const handleLogout = () => {
-    const uid = currentUser?.id;
-    api.auth.logout(uid);
+    api.auth.logout();
     setCurrentUser(null);
     setLoginEmail('');
     setLoginPassword('');
     showToast('Tizimdan muvaffaqiyatli chiqildi.');
   };
-
-  // =========================================================================
-  // FOYDALANUVCHI TALABI: 20 DAQIQA NOFAOL BO'LSA AVTOMATIK LOGOUT VA
-  // BIR VAQTDA FAQAT BITTA QURILMADAN ISHLASH (CONCURRENT LOGIN HIMOYA)
-  // =========================================================================
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const INACTIVITY_LIMIT_MS = 20 * 60 * 1000; // 20 daqiqa (1 200 000 ms)
-    let lastActivityTime = Date.now();
-
-    const updateActivity = () => {
-      lastActivityTime = Date.now();
-    };
-
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
-    events.forEach(ev => window.addEventListener(ev, updateActivity, { passive: true }));
-
-    // Brauzer yoki tab yopilganda sessiyani darhol tozalash (sendBeacon orqali)
-    const handleBeforeUnload = () => {
-      if (currentUser?.id) {
-        try {
-          const blob = new Blob([JSON.stringify({ userId: currentUser.id })], { type: 'application/json' });
-          navigator.sendBeacon('/api/auth/logout', blob);
-        } catch {}
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pagehide', handleBeforeUnload);
-
-    // Har 10 soniyada 20 daqiqalik nofaollikni tekshirish
-    const timer = setInterval(() => {
-      const diff = Date.now() - lastActivityTime;
-      if (diff >= INACTIVITY_LIMIT_MS) {
-        api.auth.logout(currentUser?.id);
-        setCurrentUser(null);
-        alert(
-          lang === 'ru'
-            ? '⚠️ Вы были неактивны более 20 минут. В целях безопасности сеанс был автоматически завершен. Пожалуйста, войдите в систему заново.'
-            : '⚠️ Siz 20 daqiqadan ko\'proq vaqt davomida nofaol bo\'lganingiz sababli tizim xavfsizlik maqsadida avtomatik yopildi. Iltimos, tizimga qayta kiring.'
-        );
-      }
-    }, 10000);
-
-    // Har 15 soniyada serverga heartbeat yuborib faollikni bildirish
-    const token = typeof window !== 'undefined' ? localStorage.getItem('uzw_token') : null;
-    const heartbeat = setInterval(() => {
-      fetch('/api/auth/heartbeat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.active === false) {
-            api.auth.logout(currentUser?.id);
-            setCurrentUser(null);
-            alert(
-              lang === 'ru'
-                ? '⚠️ Ваша сессия завершена. Возможно, выполнен вход с другого устройства или истекло время активности.'
-                : '⚠️ Sessiyangiz yakunlandi. Ehtimol ushbu login bilan boshqa qurilmadan kirildi yoki vaqt tugadi.'
-            );
-          }
-        })
-        .catch(() => {});
-    }, 15000);
-
-    return () => {
-      events.forEach(ev => window.removeEventListener(ev, updateActivity));
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pagehide', handleBeforeUnload);
-      clearInterval(timer);
-      clearInterval(heartbeat);
-    };
-  }, [currentUser, lang]);
 
   // =========================================================================
   // SUPER ADMIN: XODIMLARNI QO'SHISH VA HUQUQLARNI BELGILASH

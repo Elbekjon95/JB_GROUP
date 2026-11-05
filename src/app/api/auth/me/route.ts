@@ -1,20 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getUserFromRequest, getAuthPayloadFromRequest } from '@/lib/auth';
-import { touchSession } from '@/lib/sessionManager';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
-    const payload = getAuthPayloadFromRequest(req);
     const user = await getUserFromRequest(req);
-    if (!user || !payload) {
+    if (!user) {
       return NextResponse.json({ user: null });
-    }
-
-    if (payload.sessionId) {
-      const active = touchSession(user.id, payload.sessionId);
-      if (!active) {
-        return NextResponse.json({ user: null, sessionExpired: true });
-      }
     }
 
     const { password: _, ...safeUser } = user;
@@ -23,4 +14,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ user: null });
   }
 }
-

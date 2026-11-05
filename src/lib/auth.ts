@@ -7,7 +7,6 @@ export interface TokenPayload {
   userId: string;
   email: string;
   role: string;
-  sessionId?: string;
 }
 
 export function signToken(payload: TokenPayload): string {
@@ -52,26 +51,3 @@ export async function getUserFromRequest(req: Request) {
     return null;
   }
 }
-
-export function getAuthPayloadFromRequest(req: Request): TokenPayload | null {
-  try {
-    const authHeader = req.headers.get('authorization');
-    let token = '';
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    } else {
-      const cookieHeader = req.headers.get('cookie');
-      if (cookieHeader) {
-        const match = cookieHeader.match(/uzw_token=([^;]+)/);
-        if (match) token = match[1];
-      }
-    }
-
-    if (!token) return null;
-    return verifyToken(token);
-  } catch {
-    return null;
-  }
-}
-
