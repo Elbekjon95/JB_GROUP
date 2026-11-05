@@ -82,32 +82,18 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
               </div>
             </div>
 
-            {/* 1. Yuk nomi va Toifasi */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px', marginBottom: '14px' }}>
-              <div>
-                <label className="form-label">
-                  {isRu ? 'НАИМЕНОВАНИЕ ГРУЗА (ПАРТИИ) *' : isEn ? 'CARGO (BATCH) NAME *' : 'YUK / MAHSULOT NOMI *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="form-input-clean"
-                  value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="form-label">
-                  {isRu ? 'КАТЕГОРИЯ ГРУЗА' : isEn ? 'CARGO CATEGORY' : 'YUK TOIFASI'}
-                </label>
-                <input
-                  type="text"
-                  className="form-input-clean"
-                  value={editForm.category}
-                  onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                />
-              </div>
+            {/* 1. Yuk nomi */}
+            <div style={{ marginBottom: '14px' }}>
+              <label className="form-label">
+                {isRu ? 'НАИМЕНОВАНИЕ ГРУЗА (ПАРТИИ) *' : isEn ? 'CARGO (BATCH) NAME *' : 'YUK / MAHSULOT NOMI *'}
+              </label>
+              <input
+                type="text"
+                required
+                className="form-input-clean"
+                value={editForm.name}
+                onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+              />
             </div>
 
             {/* 2. Sektor va Mijoz/To'lovchi */}

@@ -209,7 +209,7 @@ export default function Home() {
     sectorId: '',
     storageTariffId: 'cs-12', // Standart 10. Хранение 1тн груза в сутки (8 000 UZS)
     name: '',
-    category: 'Oziq-ovqat',
+    category: 'Umumiy',
     quantity: '', // Soni
     unit: 'dona', // dona, quti, qop, pallet, bochka
     weightKg: '', // Og'irligi (kg da)
@@ -1752,7 +1752,7 @@ export default function Home() {
     setEditProductForm({
       id: prod.id,
       name: prod.name,
-      category: prod.category || 'Oziq-ovqat',
+      category: prod.category || 'Umumiy',
       sectorId: prod.sectorId,
       quantity: prod.quantity,
       unit: prod.unit || 'dona',
@@ -3183,7 +3183,7 @@ export default function Home() {
                           sectorId: sec?.id || '',
                           storageTariffId: defStorageTariff,
                           name: '',
-                          category: 'Oziq-ovqat',
+                          category: 'Umumiy',
                           quantity: '',
                           unit: 'dona',
                           weightKg: '',
@@ -3341,8 +3341,8 @@ export default function Home() {
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: '11px', fontWeight: 700, color: access.allowed ? '#0284c7' : '#94a3b8', marginTop: '1px' }}>
-                                📐 Hajmi: {sec.capacity.toLocaleString('uz-UZ')} m²
+                              <div style={{ fontSize: '11px', fontWeight: 700, color: access.allowed ? '#0284c7' : '#94a3b8', marginTop: '1px' }} title={lang === 'ru' ? 'Только для информации' : 'Faqat ma\'lumot uchun'}>
+                                📐 {lang === 'ru' ? 'Площадь / Объём: ' : 'Maydon / Hajm: '}{sec.capacity.toLocaleString('uz-UZ')} m²
                               </div>
                               {sec.subSections && (
                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>
@@ -3432,7 +3432,7 @@ export default function Home() {
                             <span>{t(lang, 'warehouseAllCargoSub')}</span>
                           ) : selectedSector ? (
                             <>
-                              <strong style={{ color: '#0284c7' }}>📐 Maydon: {selectedSector.capacity.toLocaleString('uz-UZ')} m²</strong>
+                              <strong style={{ color: '#0284c7' }}>📐 {lang === 'ru' ? 'Площадь / Объём: ' : 'Maydon / Hajm: '}{selectedSector.capacity.toLocaleString('uz-UZ')} m²</strong>
                               {selectedSector.subSections && (
                                 <span style={{ marginLeft: '8px', color: '#64748b' }}>(Otseklar: {selectedSector.subSections})</span>
                               )}
@@ -3455,7 +3455,7 @@ export default function Home() {
                             sectorId: targetSec?.id || '',
                             storageTariffId: defStorageTariff,
                             name: '',
-                            category: 'Oziq-ovqat',
+                            category: 'Umumiy',
                             quantity: '',
                             unit: 'dona',
                             weightKg: '',
@@ -3644,12 +3644,11 @@ export default function Home() {
                                     >
                                       📦 <span data-no-translate="true">{prod.name}</span>
                                     </div>
-                                    <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                      <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
-                                        {prod.category || 'Umumiy'}
-                                      </span>
-                                      {prod.notes && <span>• {prod.notes}</span>}
-                                    </div>
+                                    {prod.notes && (
+                                      <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px' }}>
+                                        • {prod.notes}
+                                      </div>
+                                    )}
                                   </td>
 
                                   {/* Sektor */}
@@ -3877,8 +3876,6 @@ export default function Home() {
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: '#64748b', flexWrap: 'wrap', marginTop: '3px' }}>
                                     <span>Mijoz: <strong style={{ color: '#334155' }}>{prod.clientName || 'Ichki zaxira'}</strong></span>
-                                    <span>•</span>
-                                    <span>Kategoriya: <strong>{prod.category || 'Umumiy'}</strong></span>
                                   </div>
                                 </div>
 
@@ -5968,9 +5965,32 @@ export default function Home() {
 
             <form onSubmit={handleSaveSector}>
               <div className="modal-body-clean">
-                <div className="form-field">
-                  <label className="form-label">SEKTOR NOMI *</label>
-                  <input type="text" required className="form-input-clean" value={sectorForm.name} onChange={e => setSectorForm({ ...sectorForm, name: e.target.value })} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <label className="form-label">{lang === 'ru' ? 'НАИМЕНОВАНИЕ СЕКТОРА *' : 'SEKTOR NOMI *'}</label>
+                    <input type="text" required className="form-input-clean" value={sectorForm.name} onChange={e => setSectorForm({ ...sectorForm, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="form-label">
+                      {lang === 'ru' ? '📐 ПЛОЩАДЬ / ОБЪЁМ (m²) *' : '📐 MAYDON / HAJM (m²) *'}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      required
+                      className="form-input-clean"
+                      value={sectorForm.capacity}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setSectorForm({ ...sectorForm, capacity: val === '' ? ('' as any) : Number(val) });
+                      }}
+                      placeholder="1200"
+                    />
+                    <span style={{ fontSize: '10.5px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                      {lang === 'ru' ? 'ℹ️ Только для информации' : 'ℹ️ Faqat ma\'lumot uchun'}
+                    </span>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
