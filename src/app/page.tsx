@@ -2620,12 +2620,12 @@ export default function Home() {
       placedByRole: currentUser?.role || 'USER',
       clientName: finalClientName,
       notes: productForm.notes || undefined,
-      obrabotkaService: includeKirimUnloading && kirimCalculation.transportSvc 
-        ? formatUnloadingServiceName(lang === 'ru' ? kirimCalculation.transportSvc.name : (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name), lang)
-        : (lang === 'ru' ? 'Без услуг разгрузки (силами клиента)' : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)'),
-      obrabotkaCost: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.baseCost : 0,
-      obrabotkaVat: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.vatAmount : 0,
-      kirimAdditionalServices: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id),
+      obrabotkaService: lang === 'ru' 
+        ? 'Разгрузка тарно-упакованного груза с помощью автокары' 
+        : 'Tarno-o\'ralgan yukni tushirish (avtokara yordamida)',
+      obrabotkaCost: 800000,
+      obrabotkaVat: 96000,
+      kirimAdditionalServices: [],
       exitHistory: []
     };
 
@@ -2653,9 +2653,9 @@ export default function Home() {
       notes: newProd.notes,
       clientName: newProd.clientName,
       receiverInn: matchedPayer?.inn,
-      transportType: includeKirimUnloading && kirimCalculation.transportSvc 
-        ? formatUnloadingServiceName(lang === 'ru' ? kirimCalculation.transportSvc.name : (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name), lang)
-        : (lang === 'ru' ? 'Без услуг разгрузки (силами клиента)' : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)'),
+      transportType: lang === 'ru' 
+        ? 'Разгрузка тарно-упакованного груза с помощью автокары' 
+        : 'Tarno-o\'ralgan yukni tushirish (avtokara yordamida)',
       servicesApplied: kirimCalculation.applied,
       obrabotkaCostUZS: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.totalCost : 0,
       additionalCostUZS: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id).reduce((s, x) => s + x.totalPrice, 0),
@@ -6444,195 +6444,6 @@ export default function Home() {
                   })()}
                 </div>
 
-                {/* ========================================================
-                    YUK KELGAN TRANSPORT TURI VA TUSHIRISH (РАЗГРУЗКА)
-                    ======================================================== */}
-                <div style={{ background: includeKirimUnloading ? '#f8fafc' : '#f1f5f9', border: includeKirimUnloading ? '1.5px solid #cbd5e1' : '1.5px dashed #94a3b8', borderRadius: '10px', padding: '14px', marginBottom: '14px', transition: 'all 0.2s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '16px' }}>🚛</span>
-                      <span style={{ fontWeight: 800, color: '#002d62', fontSize: '13px' }}>
-                        YUK KELGAN TRANSPORT TURI VA TUSHIRISH (РАЗГРУЗКА) USULI *
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', color: includeKirimUnloading ? '#0284c7' : '#64748b', background: includeKirimUnloading ? '#e0f2fe' : '#e2e8f0', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                        {includeKirimUnloading ? '⚡ 1 MARTALIK TUSHIRISH' : '⛔ XIZMATSIZ (0 UZS)'}
-                      </span>
-                      {/* YOQISH / O'CHIRISH TOGGLE TUGMASI */}
-                      <button
-                        type="button"
-                        onClick={() => setIncludeKirimUnloading(!includeKirimUnloading)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '5px 12px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          border: includeKirimUnloading ? '1.5px solid #0284c7' : '1.5px solid #64748b',
-                          background: includeKirimUnloading ? '#0284c7' : '#ffffff',
-                          color: includeKirimUnloading ? '#ffffff' : '#475569',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <span>{includeKirimUnloading ? '✅ Yoqilgan' : '❌ O\'chirilgan'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {includeKirimUnloading ? (
-                    <>
-                      <select
-                        className="form-select-clean"
-                        value={selectedTransportServiceId}
-                        onChange={e => setSelectedTransportServiceId(e.target.value)}
-                        required
-                        style={{ background: '#ffffff', fontWeight: 700, fontSize: '13px', color: '#002d62', border: '1.5px solid #0284c7' }}
-                      >
-                        {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                          const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
-                          const cleanName = formatUnloadingServiceName(rawName, lang);
-                          return (
-                            <option key={s.id} value={s.id}>
-                              №{s.itemNo}: {cleanName} {canViewFinances ? `— ${s.totalPrice.toLocaleString('uz-UZ')} UZS (${s.unit})` : `(${s.unit})`}
-                            </option>
-                          );
-                        })}
-                      </select>
-
-                      {/* Preyskurant Hisob-Kitob Kartochkasi */}
-                      {(() => {
-                        const svc = customsServices.find(s => s.id === selectedTransportServiceId);
-                        if (!svc) return null;
-                        const costRes = kirimCalculation.transportCostResult;
-                        const dispBase = costRes ? costRes.baseCost : svc.basePrice;
-                        const dispVat = costRes ? costRes.vatAmount : svc.vatAmount;
-                        const dispTotal = costRes ? costRes.totalCost : svc.totalPrice;
-                        const formattedSvcName = formatUnloadingServiceName(lang === 'ru' ? svc.name : (svc.nameUz || svc.name), lang);
-                        if (!canViewFinances) {
-                          return (
-                            <div style={{ marginTop: '10px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#002d62', textTransform: 'uppercase' }}>
-                                📋 {lang === 'ru' ? 'Выбранный способ разгрузки (разовый):' : 'Tanlangan Tushirish (Разгрузка) Usuli (1 martalik):'}
-                              </span>
-                              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                                №{svc.itemNo}: {formattedSvcName} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div style={{ marginTop: '10px', background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '8px', padding: '10px 14px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase' }}>
-                                📋 {lang === 'ru' ? 'Выбранная разгрузка — Разовая оплата:' : 'Tanlangan Tushirish (Разгрузка) — 1 Martalik To\'lov:'}
-                              </span>
-                              <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                                {lang === 'ru' ? `Тариф №${svc.itemNo} • разовый` : `Tarif №${svc.itemNo} • 1 martalik`}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
-                              {formattedSvcName} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
-                              {costRes?.formulaText && (
-                                <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
-                                  🧮 {lang === 'ru' ? 'Расчет:' : 'Hisob:'} {costRes.formulaText}
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e0f2fe' }}>
-                              <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Базовая цена:' : 'Bazaviy narx:'}</span>
-                                <strong style={{ color: '#0f172a' }}>{dispBase.toLocaleString('uz-UZ')} UZS</strong>
-                              </div>
-                              <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? '12% НДС:' : '12% QQS:'}</span>
-                                <strong style={{ color: '#0284c7' }}>+{dispVat.toLocaleString('uz-UZ')} UZS</strong>
-                              </div>
-                              <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Итого разовый:' : 'Jami 1 Martalik:'}</span>
-                                <strong style={{ color: '#059669', fontSize: '14px' }}>{dispTotal.toLocaleString('uz-UZ')} UZS</strong>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '6px' }}>
-                        ⚡ {lang === 'ru' ? 'Разовая оплата: Данная услуга разгрузки рассчитывается только один раз и не умножается на дни хранения.' : '1 martalik to\'lov: Ushbu yuk tushirish xizmati faqat bir marta hisoblanadi va saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.'}
-                      </span>
-                    </>
-                  ) : (
-                    <div style={{ marginTop: '6px', padding: '12px 14px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '20px' }}>⛔</span>
-                      <div style={{ fontSize: '12px', color: '#475569' }}>
-                        <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>
-                          Omborga tushirish (Разгрузка) xizmati o&apos;chirilgan (0 UZS)
-                        </strong>
-                        Yuk mijoz tomonidan o&apos;z kuchi / o&apos;z texnikasi bilan tushiriladi yoki bu xizmat uchun to&apos;lov olinmaydi.
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Qo'shimcha Kirim Xizmatlari (1 MARTALIK XIZMATLAR) */}
-                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
-                  <label className="form-label" style={{ color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>🛠️</span>
-                      <span>QO&apos;SHIMCHA BOJXONA VA OMBORXONA XIZMATLARI (IXTIYORIY)</span>
-                    </span>
-                    <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                      ⚡ 1 MARTALIK (kunlik emas)
-                    </span>
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    {customsServices.filter(s => s.category === 'ADDITIONAL').map(item => {
-                      const isChecked = selectedKirimAdditionalIds.includes(item.id);
-                      return (
-                        <label
-                          key={item.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '8px',
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            border: isChecked ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
-                            background: isChecked ? '#eff6ff' : '#f8fafc',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={e => {
-                              if (e.target.checked) {
-                                setSelectedKirimAdditionalIds([...selectedKirimAdditionalIds, item.id]);
-                              } else {
-                                setSelectedKirimAdditionalIds(selectedKirimAdditionalIds.filter(id => id !== item.id));
-                              }
-                            }}
-                            style={{ width: '15px', height: '15px', accentColor: '#2563eb', marginTop: '2px' }}
-                          />
-                          <div>
-                            <strong style={{ color: '#0f172a', display: 'block', fontSize: '11px' }}>
-                              №{item.itemNo}: {item.nameUz || item.name}
-                            </strong>
-                            <span style={{ fontSize: '10px', color: '#64748b' }}>
-                              ⚡ 1 martalik ({item.unit}) {canViewFinances ? `• ${item.totalPrice.toLocaleString('uz-UZ')} UZS` : ''}
-                            </span>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* FAKTIK QABUL QILISH VA XIZMATLAR QAYDI (PULSIZ, SOF MA'LUMOT) */}
                 <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -6642,7 +6453,7 @@ export default function Home() {
                         Omborga Qabul Qilish va Bajarilgan Xizmatlar Qaydnomasi
                       </strong>
                       <span style={{ fontSize: '11px', color: '#64748b' }}>
-                        Belgilangan yuk miqdori va ko&apos;rsatilgan xizmatlar ombor jurnalida faktik saqlanadi.
+                        Yuk qabul qilinganda xizmat to&apos;lovlari hisoblanmaydi. Barcha to&apos;lovlar (tushirish, saqlash kunlari) yuk chiqarilayotganda rasmiy nakladnoyda to&apos;liq va shaffof hisoblab beriladi.
                       </span>
                     </div>
                   </div>
