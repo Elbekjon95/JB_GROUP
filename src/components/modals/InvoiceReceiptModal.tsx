@@ -147,12 +147,16 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
               </div>
               {movement.type === 'OUT' && (
                 <div style={{ marginTop: '6px', fontSize: '11px', lineHeight: '1.6' }}>
-                  <div style={{ color: '#0369a1', fontWeight: 700 }}>
-                    📥 {isRu ? 'Разгрузка при приходе:' : 'Tushirilgan transport (Разгрузка):'} <strong>{formatUnloadingServiceName(movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : 'Kirimda yuk tushirish'), lang)}</strong>
-                  </div>
-                  <div style={{ color: '#b91c1c', fontWeight: 700 }}>
-                    🚛 {isRu ? 'Погрузка при выдаче:' : 'Yuk ortilgan transport (Погрузка):'} <strong>{formatLoadingServiceName(movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish'), lang)}</strong>
-                  </div>
+                  {(movement.unloadingType || (movement.obrabotkaCostUZS && movement.obrabotkaCostUZS > 0)) && (
+                    <div style={{ color: '#0369a1', fontWeight: 700 }}>
+                      📥 {isRu ? 'Разгрузка при приходе:' : 'Tushirilgan transport (Разгрузка):'} <strong>{formatUnloadingServiceName(movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : 'Kirimda yuk tushirish'), lang)}</strong>
+                    </div>
+                  )}
+                  {movement.loadingType && (
+                    <div style={{ color: '#b91c1c', fontWeight: 700 }}>
+                      🚛 {isRu ? 'Погрузка при выдаче:' : 'Yuk ortilgan transport (Погрузка):'} <strong>{formatLoadingServiceName(movement.loadingType, lang)}</strong>
+                    </div>
+                  )}
                 </div>
               )}
               {movement.placedBy && (
@@ -277,33 +281,35 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
                   <>
                     {movement.type === 'OUT' && (
                       <>
-                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
-                          <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                            {isRu ? 'Разгрузка на склад' : 'Yukni tushirish (Разгрузка)'}: {formatUnloadingServiceName(movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : '1 martalik'), lang)}
-                          </td>
-                          {canViewFinances ? (
-                            <>
-                              <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
-                                {Math.round((movement.obrabotkaCostUZS || 0) / 1.12).toLocaleString('uz-UZ')} UZS
-                              </td>
-                              <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
-                                {((movement.obrabotkaCostUZS || 0) - Math.round((movement.obrabotkaCostUZS || 0) / 1.12)).toLocaleString('uz-UZ')} UZS
-                              </td>
-                              <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
-                                {(movement.obrabotkaCostUZS || 0).toLocaleString('uz-UZ')} UZS
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>{isRu ? 'разовый' : '1 transport'}</td>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>{isRu ? 'Выполнено ✅' : 'Bajarildi ✅'}</td>
-                            </>
-                          )}
-                        </tr>
+                        {(movement.obrabotkaCostUZS || 0) > 0 && (
+                          <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
+                              {isRu ? 'Разгрузка на склад' : 'Yukni tushirish (Разгрузка)'}: {formatUnloadingServiceName(movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : '1 martalik'), lang)}
+                            </td>
+                            {canViewFinances ? (
+                              <>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
+                                  {Math.round((movement.obrabotkaCostUZS || 0) / 1.12).toLocaleString('uz-UZ')} UZS
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
+                                  {((movement.obrabotkaCostUZS || 0) - Math.round((movement.obrabotkaCostUZS || 0) / 1.12)).toLocaleString('uz-UZ')} UZS
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
+                                  {(movement.obrabotkaCostUZS || 0).toLocaleString('uz-UZ')} UZS
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>{isRu ? 'разовый' : '1 transport'}</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>{isRu ? 'Выполнено ✅' : 'Bajarildi ✅'}</td>
+                              </>
+                            )}
+                          </tr>
+                        )}
                         <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>2</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>{(movement.obrabotkaCostUZS || 0) > 0 ? 2 : 1}</td>
                           <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
                             {isRu ? 'Хранение на таможенном складе' : 'Bojxona omborida saqlash xizmati'}
                             <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>
@@ -330,31 +336,33 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
                             </>
                           )}
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                          <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>3</td>
-                          <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                            {isRu ? 'Погрузка со склада' : 'Yukni ortish (Погрузка)'}: {formatLoadingServiceName(movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish xizmati'), lang)}
-                          </td>
-                          {canViewFinances ? (
-                            <>
-                              <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
-                                {Math.round((movement.loadingCostUZS || 0) / 1.12).toLocaleString('uz-UZ')} UZS
-                              </td>
-                              <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
-                                {((movement.loadingCostUZS || 0) - Math.round((movement.loadingCostUZS || 0) / 1.12)).toLocaleString('uz-UZ')} UZS
-                              </td>
-                              <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
-                                {(movement.loadingCostUZS || 0).toLocaleString('uz-UZ')} UZS
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>{isRu ? 'разовый' : '1 transport'}</td>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
-                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>{isRu ? 'Выполнено ✅' : 'Bajarildi ✅'}</td>
-                            </>
-                          )}
-                        </tr>
+                        {(movement.loadingCostUZS || 0) > 0 && (
+                          <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>{(movement.obrabotkaCostUZS || 0) > 0 ? 3 : 2}</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
+                              {isRu ? 'Погрузка со склада' : 'Yukni ortish (Погрузка)'}: {formatLoadingServiceName(movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish xizmati'), lang)}
+                            </td>
+                            {canViewFinances ? (
+                              <>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>
+                                  {Math.round((movement.loadingCostUZS || 0) / 1.12).toLocaleString('uz-UZ')} UZS
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0070ba', fontWeight: 600 }}>
+                                  {((movement.loadingCostUZS || 0) - Math.round((movement.loadingCostUZS || 0) / 1.12)).toLocaleString('uz-UZ')} UZS
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, color: '#047857' }}>
+                                  {(movement.loadingCostUZS || 0).toLocaleString('uz-UZ')} UZS
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>{isRu ? 'разовый' : '1 transport'}</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', color: '#166534', fontWeight: 700 }}>{isRu ? 'Выполнено ✅' : 'Bajarildi ✅'}</td>
+                              </>
+                            )}
+                          </tr>
+                        )}
                       </>
                     )}
                   </>

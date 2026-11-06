@@ -1243,7 +1243,18 @@ export default function Home() {
 
     // -------------------------------------------------------------------------
     // 1-XIZMAT: OMBORGA TUSHIRISH (РАЗГРУЗКА)
+    // Foydalanuvchi talabi:
+    // 1) Chiqimda faqat razgruzka ko'rinsin, pogruzka ko'rinishi kerak emas
+    // 2) Bu xizmat (razgruzka) ko'rsatilgan bo'lsa, yana bir marta ko'rinishi va hisoblanishi kerak emas!
     // -------------------------------------------------------------------------
+    const isAlreadyUnloaded = Boolean(
+      (selectedProductToExit.exitHistory && selectedProductToExit.exitHistory.length > 0 && selectedProductToExit.exitHistory.some(e => (e.unloadingCost || 0) > 0)) ||
+      (selectedProductToExit.initialQuantity && selectedProductToExit.quantity < selectedProductToExit.initialQuantity) ||
+      (selectedProductToExit.obrabotkaService && (selectedProductToExit.obrabotkaService.includes('xizmatisiz') || selectedProductToExit.obrabotkaService.includes('силами клиента')))
+    );
+
+    const effectiveIncludeUnloading = includeExitUnloading && !isAlreadyUnloaded;
+
     const unloadingSvc = customsServices.find(s => s.id === selectedUnloadingServiceId)
       || customsServices.find(s => s.category === 'UNLOADING_LOADING' && (selectedProductToExit.obrabotkaService?.toLowerCase().includes(s.name.toLowerCase()) || selectedProductToExit.obrabotkaService?.toLowerCase().includes((s.nameUz || '').toLowerCase())))
       || customsServices.find(s => s.id === 'cs-8')
@@ -1252,9 +1263,11 @@ export default function Home() {
     let unloadingBase = 0;
     let unloadingVat = 0;
     let unloadingTotal = 0;
-    let unloadingCleanName = 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)';
+    let unloadingCleanName = isAlreadyUnloaded 
+      ? (lang === 'ru' ? 'Разгрузка уже оказана ранее (0 UZS)' : 'Yuk tushirish xizmati avval ko\'rsatilgan (0 UZS)')
+      : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)';
 
-    if (includeExitUnloading) {
+    if (effectiveIncludeUnloading) {
       const rawUnlName = lang === 'ru' ? (unloadingSvc?.name || 'Услуга разгрузки') : (unloadingSvc?.nameUz || unloadingSvc?.name || 'Tushirish xizmati');
       unloadingCleanName = formatUnloadingServiceName(rawUnlName, lang);
 
@@ -1302,36 +1315,16 @@ export default function Home() {
     const storageDetailNote = storResult.detailNote;
 
     // -------------------------------------------------------------------------
-    // 3-XIZMAT: YUKNI ORTISH (ПОГРУЗКА)
+    // 3-XIZMAT: YUKNI ORTISH (ПОГРУЗКА) — Chiqimda hisoblanmaydi (Foydalanuvchi talabi)
     // -------------------------------------------------------------------------
     const loadingSvc = customsServices.find(s => s.id === selectedLoadingServiceId)
       || customsServices.find(s => s.id === 'cs-8')
       || fallbackUnloading;
 
-    let loadingBase = 0;
-    let loadingVat = 0;
-    let loadingTotal = 0;
-    let loadingCleanName = 'Ortish xizmatisiz (Mijoz o\'z kuchi bilan)';
-
-    if (includeExitLoading) {
-      const count = Math.max(1, Number(exitLoadingCount) || 1);
-      const rawLoadName = lang === 'ru' ? (loadingSvc?.name || 'Услуга погрузки') : (loadingSvc?.nameUz || loadingSvc?.name || 'Ortish xizmati');
-      const baseClean = formatLoadingServiceName(rawLoadName, lang);
-      loadingCleanName = count > 1 ? `${baseClean} (×${count} ta)` : baseClean;
-
-      const loadResult = calculateServiceCharge({
-        unit: loadingSvc?.unit || '1 martalik (to\'liq fura)',
-        category: 'UNLOADING_LOADING',
-        basePrice: loadingSvc?.basePrice || 800000,
-        weightKg: validWeightKg,
-        quantity: validQty,
-        transportCount: count
-      });
-
-      loadingBase = loadResult.baseCost;
-      loadingVat = loadResult.vatAmount;
-      loadingTotal = loadResult.totalCost;
-    }
+    const loadingBase = 0;
+    const loadingVat = 0;
+    const loadingTotal = 0;
+    const loadingCleanName = '';
 
     // -------------------------------------------------------------------------
     // 4-XIZMAT: QO'SHIMCHA XIZMATLAR
@@ -1368,7 +1361,7 @@ export default function Home() {
     // Nakladnoy va hisob uchun appliedExitServices:
     const appliedExitServices: AppliedService[] = [];
 
-    if (includeExitUnloading && unloadingTotal > 0) {
+    if (effectiveIncludeUnloading && unloadingTotal > 0) {
       appliedExitServices.push({
         serviceId: unloadingSvc?.id || 'cs-8',
         name: `Omborga tushirish (Разгрузка): ${unloadingCleanName} (⚡ 1 martalik to'lov)`,
@@ -1390,23 +1383,10 @@ export default function Home() {
       totalPrice: storageTotal
     });
 
-    if (includeExitLoading && loadingTotal > 0) {
-      const count = Math.max(1, Number(exitLoadingCount) || 1);
-      appliedExitServices.push({
-        serviceId: loadingSvc?.id || 'cs-8',
-        name: `Yukni ortish (Погрузка): ${loadingCleanName} (⚡ ${count} ta transport)`,
-        quantity: count,
-        unit: loadingSvc?.unit || '1 martalik',
-        basePrice: loadingBase,
-        vatAmount: loadingVat,
-        totalPrice: loadingTotal
-      });
-    }
-
     appliedExitServices.push(...additionalApplied);
 
-    const totalBase = unloadingBase + storageBase + loadingBase + additionalExitBase;
-    const totalVat = unloadingVat + storageVat + loadingVat + additionalExitVat;
+    const totalBase = unloadingBase + storageBase + additionalExitBase;
+    const totalVat = unloadingVat + storageVat + additionalExitVat;
     const grandTotal = totalBase + totalVat;
 
     return {
@@ -1416,8 +1396,9 @@ export default function Home() {
       remainingQty,
       remainingWeightKg,
       unit: selectedProductToExit.unit,
+      isAlreadyUnloaded,
       // 1. Tushirish
-      includeUnloading: includeExitUnloading,
+      includeUnloading: effectiveIncludeUnloading,
       unloadingSvc: unloadingSvc || fallbackUnloading,
       unloadingCleanName,
       unloadingBase,
@@ -1430,8 +1411,8 @@ export default function Home() {
       storageTotal,
       storageFormulaText,
       storageDetailNote,
-      // 3. Ortish
-      includeLoading: includeExitLoading,
+      // 3. Ortish (Chiqimda doim 0)
+      includeLoading: false,
       loadingSvc,
       loadingCleanName,
       loadingBase,
@@ -2786,14 +2767,14 @@ export default function Home() {
       }
     }
 
-    // 3. Tushirish va Ortish xizmatlarini boshlang'ich yoqilganlik holati
-    // Agar yukdan avval ham qisman chiqim qilingan bo'lsa, tushirish xizmati 2-marta hisoblanmasligi uchun default o'chiq bo'ladi
-    const isSubsequentExit = Boolean(prod.exitHistory && prod.exitHistory.length > 0);
-    const hadUnloading = !isSubsequentExit && (prod.obrabotkaService 
-      ? (!prod.obrabotkaService.includes('xizmatisiz') && (prod.obrabotkaCost !== undefined ? prod.obrabotkaCost > 0 : true)) 
-      : true);
-    setIncludeExitUnloading(hadUnloading);
-    setIncludeExitLoading(true);
+    // 3. Tushirish xizmati (Foydalanuvchi talabi: "bu xizmat ko'rsatilgan bo'lsa yana birmarta ko'rinishi kerak emas")
+    const isAlreadyUnloaded = Boolean(
+      (prod.exitHistory && prod.exitHistory.length > 0 && prod.exitHistory.some(e => (e.unloadingCost || 0) > 0)) ||
+      (prod.initialQuantity && prod.quantity < prod.initialQuantity) ||
+      (prod.obrabotkaService && (prod.obrabotkaService.includes('xizmatisiz') || prod.obrabotkaService.includes('силами клиента')))
+    );
+    setIncludeExitUnloading(!isAlreadyUnloaded);
+    setIncludeExitLoading(false); // Chiqimda yuk ortish (погрузка) umuman ko'rinmasin va hisoblanmasin!
     setExitLoadingCount(1);
     setExitDate(getTashkentDateStr());
     setExitTime(getTashkentTimeStr());
@@ -2898,12 +2879,12 @@ export default function Home() {
       date: exitDate || getTashkentDateStr(),
       time: exitTime || getTashkentTimeStr(),
       notes: exitNotes 
-        ? `${exitNotes} | Tushirish: ${unloadingSvcName} | Ortish: ${loadingSvcName}` 
-        : `Tushirish: ${unloadingSvcName} | Ortish: ${loadingSvcName} | Saqlash: ${exitBillingCalculation.storageTotal.toLocaleString('uz-UZ')} UZS | Qoldiq: ${remainingQty} ${selectedProductToExit.unit}`,
+        ? `${exitNotes}${exitBillingCalculation.unloadingTotal > 0 ? ` | Tushirish: ${unloadingSvcName}` : ''}` 
+        : `${exitBillingCalculation.unloadingTotal > 0 ? `Tushirish: ${unloadingSvcName} | ` : ''}Saqlash: ${exitBillingCalculation.storageTotal.toLocaleString('uz-UZ')} UZS | Qoldiq: ${remainingQty} ${selectedProductToExit.unit}`,
       clientName: selectedProductToExit.clientName,
-      transportType: unloadingSvcName,
-      unloadingType: unloadingSvcName,
-      loadingType: loadingSvcName,
+      transportType: exitBillingCalculation.unloadingTotal > 0 ? unloadingSvcName : undefined,
+      unloadingType: exitBillingCalculation.unloadingTotal > 0 ? unloadingSvcName : undefined,
+      loadingType: undefined,
       daysStored: exitBillingCalculation.daysStored,
       tariffId: exitBillingCalculation.storageSvc?.id || 'cs-12',
       tariffName: storageTariffName,
@@ -6911,76 +6892,79 @@ export default function Home() {
                 </div>
 
                 {/* ========================================================
-                    1. OMBORGA TUSHIRISH (РАЗГРУЗКА) XIZMATI (FOYDALANUVCHI TALABI)
+                    1. OMBORGA TUSHIRISH (РАЗГРУЗКА) XIZMATI
+                    Foydalanuvchi talabi: Faqat razgruzka ko'rinsin. Agar bu xizmat ko'rsatilgan bo'lsa, yana bir marta ko'rinmasin!
                     ======================================================== */}
-                <div style={{ background: includeExitUnloading ? '#f8fafc' : '#f1f5f9', border: includeExitUnloading ? '1.5px solid #cbd5e1' : '1.5px dashed #94a3b8', borderRadius: '10px', padding: '14px', marginBottom: '14px', transition: 'all 0.2s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#002d62', fontWeight: 800, fontSize: '13px' }}>
-                      <span>📥</span>
-                      <span>1. OMBORGA TUSHIRISH (РАЗГРУЗКА) XIZMATI *</span>
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', background: includeExitUnloading ? '#eff6ff' : '#e2e8f0', color: includeExitUnloading ? '#1d4ed8' : '#64748b', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                        {includeExitUnloading ? '⚡ 1 MARTALIK TO\'LOV' : '⛔ TO\'LOV YO\'Q (0 UZS)'}
+                {!exitBillingCalculation.isAlreadyUnloaded && (
+                  <div style={{ background: includeExitUnloading ? '#f8fafc' : '#f1f5f9', border: includeExitUnloading ? '1.5px solid #cbd5e1' : '1.5px dashed #94a3b8', borderRadius: '10px', padding: '14px', marginBottom: '14px', transition: 'all 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#002d62', fontWeight: 800, fontSize: '13px' }}>
+                        <span>📥</span>
+                        <span>{lang === 'ru' ? '1. УСЛУГА РАЗГРУЗКИ НА СКЛАД (ПРИ ПРИХОДЕ) *' : '1. OMBORGA TUSHIRISH (РАЗГРУЗКА) XIZMATI *'}</span>
                       </span>
-                      {/* TOGGLE TUGMASI */}
-                      <button
-                        type="button"
-                        onClick={() => setIncludeExitUnloading(!includeExitUnloading)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          border: includeExitUnloading ? '1.5px solid #1d4ed8' : '1.5px solid #64748b',
-                          background: includeExitUnloading ? '#1d4ed8' : '#ffffff',
-                          color: includeExitUnloading ? '#ffffff' : '#475569',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <span>{includeExitUnloading ? '✅ Yoqilgan' : '❌ O\'chirilgan'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {includeExitUnloading ? (
-                    <>
-                      <select
-                        className="form-select-clean"
-                        value={selectedUnloadingServiceId}
-                        onChange={e => setSelectedUnloadingServiceId(e.target.value)}
-                        required
-                        style={{ background: '#ffffff', fontWeight: 600 }}
-                      >
-                        {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                          const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
-                          const cleanName = formatUnloadingServiceName(rawName, lang);
-                          return (
-                            <option key={s.id} value={s.id}>
-                              №{s.itemNo}: {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [${lang === 'ru' ? 'разовый' : '1 martalik'}]` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
-                        ⚡ {lang === 'ru' ? 'Разовая оплата: Данная услуга разгрузки груза рассчитывается только один раз и не умножается на дни хранения.' : '1 martalik to\'lov: Ushbu yuk tushirish (разгрузка) xizmati bir martalik bo\'lib, saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.'}
-                      </span>
-                    </>
-                  ) : (
-                    <div style={{ marginTop: '4px', padding: '10px 12px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
-                      <span style={{ fontSize: '18px' }}>⛔</span>
-                      <div>
-                        <strong style={{ color: '#0f172a' }}>{lang === 'ru' ? 'Услуга разгрузки на склад не начисляется (0 UZS)' : 'Omborga tushirish (Разгрузка) xizmati hisoblanmaydi (0 UZS)'}</strong>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>{lang === 'ru' ? 'Клиент разгрузил своими силами или оплачено ранее. В расход не включается.' : 'Mijoz o\'z kuchi bilan tushirgan yoki oldindan to\'langan. Chiqim hisobiga kiritilmaydi.'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', background: includeExitUnloading ? '#eff6ff' : '#e2e8f0', color: includeExitUnloading ? '#1d4ed8' : '#64748b', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                          {includeExitUnloading ? (lang === 'ru' ? '⚡ РАЗОВЫЙ ПЛАТЕЖ' : '⚡ 1 MARTALIK TO\'LOV') : (lang === 'ru' ? '⛔ ПЛАТЕЖ ОТКЛЮЧЕН' : '⛔ TO\'LOV YO\'Q (0 UZS)')}
+                        </span>
+                        {/* TOGGLE TUGMASI */}
+                        <button
+                          type="button"
+                          onClick={() => setIncludeExitUnloading(!includeExitUnloading)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 12px',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            border: includeExitUnloading ? '1.5px solid #1d4ed8' : '1.5px solid #64748b',
+                            background: includeExitUnloading ? '#1d4ed8' : '#ffffff',
+                            color: includeExitUnloading ? '#ffffff' : '#475569',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <span>{includeExitUnloading ? (lang === 'ru' ? '✅ Включено' : '✅ Yoqilgan') : (lang === 'ru' ? '❌ Отключено' : '❌ O\'chirilgan')}</span>
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {includeExitUnloading ? (
+                      <>
+                        <select
+                          className="form-select-clean"
+                          value={selectedUnloadingServiceId}
+                          onChange={e => setSelectedUnloadingServiceId(e.target.value)}
+                          required
+                          style={{ background: '#ffffff', fontWeight: 600 }}
+                        >
+                          {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
+                            const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
+                            const cleanName = formatUnloadingServiceName(rawName, lang);
+                            return (
+                              <option key={s.id} value={s.id}>
+                                №{s.itemNo}: {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [${lang === 'ru' ? 'разовый' : '1 martalik'}]` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                          ⚡ {lang === 'ru' ? 'Разовая оплата: Данная услуга разгрузки груза рассчитывается только один раз и не умножается на дни хранения.' : '1 martalik to\'lov: Ushbu yuk tushirish (разгрузка) xizmati bir martalik bo\'lib, saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.'}
+                        </span>
+                      </>
+                    ) : (
+                      <div style={{ marginTop: '4px', padding: '10px 12px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
+                        <span style={{ fontSize: '18px' }}>⛔</span>
+                        <div>
+                          <strong style={{ color: '#0f172a' }}>{lang === 'ru' ? 'Услуга разгрузки на склад не начисляется (0 UZS)' : 'Omborga tushirish (Разгрузка) xizmati hisoblanmaydi (0 UZS)'}</strong>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>{lang === 'ru' ? 'Клиент разгрузил своими силами или оплачено ранее. В расход не включается.' : 'Mijoz o\'z kuchi bilan tushirgan yoki oldindan to\'langan. Chiqim hisobiga kiritilmaydi.'}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* ========================================================
                     2. SAQLASH TARIFI (2-RASMDAGI RASMIY PREYSKURANT 10-19 BANDLAR) (FOYDALANUVCHI TALABI)
@@ -7014,93 +6998,6 @@ export default function Home() {
                   {canViewFinances && (
                     <div style={{ marginTop: '8px', fontSize: '11px', color: '#0369a1', background: '#f0f9ff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #bae6fd' }}>
                       Hisoblash formulasi: <strong>{exitBillingCalculation.storageFormulaText}</strong> = <strong>{exitBillingCalculation.storageBase.toLocaleString('uz-UZ')} UZS</strong> (+12% QQS: {exitBillingCalculation.storageVat.toLocaleString('uz-UZ')} UZS = <strong>{exitBillingCalculation.storageTotal.toLocaleString('uz-UZ')} UZS</strong>)
-                    </div>
-                  )}
-                </div>
-
-                {/* ========================================================
-                    3. YUKNI ORTISH VA YUKLASH (ПОГРУЗКА) TRANSPORT TURI (FOYDALANUVCHI TALABI)
-                    ======================================================== */}
-                <div style={{ background: includeExitLoading ? '#f8fafc' : '#f1f5f9', border: includeExitLoading ? '1.5px solid #cbd5e1' : '1.5px dashed #94a3b8', borderRadius: '10px', padding: '14px', marginBottom: '14px', transition: 'all 0.2s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#002d62', fontWeight: 800, fontSize: '13px' }}>
-                      <span>🚛</span>
-                      <span>3. YUKNI ORTISH VA YUKLASH (ПОГРУЗКА) TRANSPORT TURI *</span>
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', background: includeExitLoading ? '#eff6ff' : '#e2e8f0', color: includeExitLoading ? '#1d4ed8' : '#64748b', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                        {includeExitLoading ? '⚡ 1 MARTALIK TO\'LOV' : '⛔ TO\'LOV YO\'Q (0 UZS)'}
-                      </span>
-                      {/* TOGGLE TUGMASI */}
-                      <button
-                        type="button"
-                        onClick={() => setIncludeExitLoading(!includeExitLoading)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          border: includeExitLoading ? '1.5px solid #1d4ed8' : '1.5px solid #64748b',
-                          background: includeExitLoading ? '#1d4ed8' : '#ffffff',
-                          color: includeExitLoading ? '#ffffff' : '#475569',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <span>{includeExitLoading ? '✅ Yoqilgan' : '❌ O\'chirilgan'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {includeExitLoading ? (
-                    <>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '10px', alignItems: 'center' }}>
-                        <select
-                          className="form-select-clean"
-                          value={selectedLoadingServiceId}
-                          onChange={e => setSelectedLoadingServiceId(e.target.value)}
-                          required
-                          style={{ background: '#ffffff', fontWeight: 600 }}
-                        >
-                          {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                            const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
-                            const cleanName = formatLoadingServiceName(rawName, lang);
-                            return (
-                              <option key={s.id} value={s.id}>
-                                №{s.itemNo}: {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS)` : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>Soni:</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={50}
-                            className="form-input-clean"
-                            style={{ background: '#ffffff', fontWeight: 800, textAlign: 'center', padding: '7px 8px' }}
-                            value={exitLoadingCount}
-                            onChange={e => setExitLoadingCount(Math.max(1, Number(e.target.value) || 1))}
-                            title="Yuk ortilgan mashinalar (transportlar) soni"
-                          />
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 600, display: 'block', marginTop: '5px' }}>
-                        🚛 Har bir chiqimda (yuk 2 yoki 3 bo&apos;lib olib chiqilsa ham) mijoz transportiga ortib berish (Погрузка) xizmati hisoblanadi. Agar bir vaqtda bir nechta mashinaga ortilsa, &quot;Soni&quot; maydonidan mashinalar sonini belgilang.
-                      </span>
-                    </>
-                  ) : (
-                    <div style={{ marginTop: '4px', padding: '10px 12px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
-                      <span style={{ fontSize: '18px' }}>⛔</span>
-                      <div>
-                        <strong style={{ color: '#0f172a' }}>Yukni ortish (Погрузка) xizmati hisoblanmaydi (0 UZS)</strong>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>Mijoz o&apos;z kuchi / o&apos;z texnikasi bilan yuklaydi. Chiqim hisobiga kiritilmaydi.</div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -7199,23 +7096,21 @@ export default function Home() {
 
                     {/* Saqlash va xizmatlar summasi: 5 ustun */}
                     <div style={{ borderTop: '1px solid #bbf7d0', paddingTop: '10px', marginTop: '10px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', fontSize: '11px', color: '#334155', marginBottom: '10px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', fontSize: '11px', color: '#334155', marginBottom: '10px' }}>
                         <div>
-                          <span style={{ color: '#166534' }}>1. Tushirish (⚡ 1 martalik):</span>
-                          <strong style={{ display: 'block', fontSize: '12px', color: includeExitUnloading ? '#0284c7' : '#94a3b8', marginTop: '2px' }}>
-                            {includeExitUnloading ? `${exitBillingCalculation.unloadingBase.toLocaleString('uz-UZ')} UZS` : '0 UZS (O\'chirilgan)'}
+                          <span style={{ color: '#166534' }}>1. Tushirish (Разгрузка):</span>
+                          <strong style={{ display: 'block', fontSize: '12px', color: exitBillingCalculation.unloadingBase > 0 ? '#0284c7' : '#94a3b8', marginTop: '2px' }}>
+                            {exitBillingCalculation.unloadingBase > 0 
+                              ? `${exitBillingCalculation.unloadingBase.toLocaleString('uz-UZ')} UZS` 
+                              : exitBillingCalculation.isAlreadyUnloaded 
+                                ? '0 UZS (Avval ko\'rsatilgan)' 
+                                : '0 UZS'}
                           </strong>
                         </div>
                         <div>
                           <span style={{ color: '#166534' }}>2. Saqlash (📅 {exitBillingCalculation.daysStored} kun):</span>
                           <strong style={{ display: 'block', fontSize: '12px', color: '#0f172a', marginTop: '2px' }}>
                             {exitBillingCalculation.storageBase.toLocaleString('uz-UZ')} UZS
-                          </strong>
-                        </div>
-                        <div>
-                          <span style={{ color: '#166534' }}>3. Ortish (⚡ 1 martalik):</span>
-                          <strong style={{ display: 'block', fontSize: '12px', color: includeExitLoading ? '#0284c7' : '#94a3b8', marginTop: '2px' }}>
-                            {includeExitLoading ? `${exitBillingCalculation.loadingBase.toLocaleString('uz-UZ')} UZS` : '0 UZS (O\'chirilgan)'}
                           </strong>
                         </div>
                         <div>
@@ -7233,7 +7128,7 @@ export default function Home() {
                       </div>
 
                       <div style={{ fontSize: '11px', color: '#15803d', marginBottom: '8px', background: 'rgba(255,255,255,0.7)', padding: '6px 10px', borderRadius: '6px', border: '1px solid #86efac' }}>
-                        💡 <strong>Hisoblash qoidasi:</strong> Tushirish, Ortish va Qo&apos;shimcha xizmatlar 1 martalik to&apos;lov bo&apos;lib, saqlash kuniga ko&apos;paytirilmaydi. <strong>FAQAT Saqlash xizmati</strong> tovar omborda turgan kunlar soniga ({exitBillingCalculation.daysStored} kun) ko&apos;paytirilib hisoblangan.
+                        💡 <strong>Hisoblash qoidasi:</strong> Yuk tushirish (разгрузка) xizmati bir martalik bo&apos;lib, saqlangan kunlar soniga mutlaqo ko&apos;paytirilmaydi. <strong>FAQAT Saqlash xizmati</strong> tovar omborda turgan kunlar soniga ({exitBillingCalculation.daysStored} kun) ko&apos;paytirilib hisoblangan.
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', borderTop: '1px solid #86efac', paddingTop: '8px' }}>
