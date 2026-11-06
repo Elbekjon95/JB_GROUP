@@ -19,6 +19,7 @@ import { t, translateTextNode } from '@/lib/i18n';
 import { getTashkentDateStr, getTashkentTimeStr, formatOfficialInvoiceNo } from '@/lib/date-utils';
 import { downloadExcelCSV } from '@/lib/excel-export';
 import { calculateServiceCharge } from '@/lib/units';
+import { formatUnloadingServiceName, formatLoadingServiceName } from '@/lib/customs-formatters';
 
 // Saqlangan kunlar sonini aniq hisoblash (kamida 1 kun)
 function calculateDaysStored(entryDateStr: string, exitDateStr?: string): number {
@@ -1138,9 +1139,14 @@ export default function Home() {
       baseSum += transportCostResult.baseCost;
       vatSum += transportCostResult.vatAmount;
 
+      const formattedUnloadingName = formatUnloadingServiceName(
+        lang === 'ru' ? transportSvc.name : (transportSvc.nameUz || transportSvc.name),
+        lang
+      );
+
       applied.push({
         serviceId: transportSvc.id,
-        name: transportSvc.nameUz || transportSvc.name,
+        name: formattedUnloadingName,
         quantity: 1,
         unit: transportSvc.unit,
         basePrice: transportCostResult.baseCost,
@@ -1183,7 +1189,7 @@ export default function Home() {
       grandTotal: baseSum + vatSum,
       applied
     };
-  }, [includeKirimUnloading, selectedTransportServiceId, selectedKirimAdditionalIds, customsServices, productForm.weightKg, productForm.quantity]);
+  }, [includeKirimUnloading, selectedTransportServiceId, selectedKirimAdditionalIds, customsServices, productForm.weightKg, productForm.quantity, lang]);
 
   // =========================================================================
   // BOJXONA KALKULYATORI: CHIQIM AMALI (TUSHIRISH + SAQLASH + ORTISH + QO'SHIMCHA)
@@ -1249,10 +1255,8 @@ export default function Home() {
     let unloadingCleanName = 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)';
 
     if (includeExitUnloading) {
-      unloadingCleanName = (unloadingSvc?.nameUz || unloadingSvc?.name || 'Tushirish xizmati')
-        .replace('ortish / tushirish', 'tushirish (Разгрузка)')
-        .replace('yuklash / tushirish', 'tushirish (Разгрузка)')
-        .replace('tushirish/ortish', 'tushirish (Разгрузка)');
+      const rawUnlName = lang === 'ru' ? (unloadingSvc?.name || 'Услуга разгрузки') : (unloadingSvc?.nameUz || unloadingSvc?.name || 'Tushirish xizmati');
+      unloadingCleanName = formatUnloadingServiceName(rawUnlName, lang);
 
       const unlResult = calculateServiceCharge({
         unit: unloadingSvc?.unit || '1 martalik (to\'liq fura)',
@@ -1311,10 +1315,8 @@ export default function Home() {
 
     if (includeExitLoading) {
       const count = Math.max(1, Number(exitLoadingCount) || 1);
-      const baseClean = (loadingSvc?.nameUz || loadingSvc?.name || 'Ortish xizmati')
-        .replace('ortish / tushirish', 'ortish (Погрузка)')
-        .replace('yuklash / tushirish', 'ortish (Погрузка)')
-        .replace('tushirish/ortish', 'ortish (Погрузка)');
+      const rawLoadName = lang === 'ru' ? (loadingSvc?.name || 'Услуга погрузки') : (loadingSvc?.nameUz || loadingSvc?.name || 'Ortish xizmati');
+      const baseClean = formatLoadingServiceName(rawLoadName, lang);
       loadingCleanName = count > 1 ? `${baseClean} (×${count} ta)` : baseClean;
 
       const loadResult = calculateServiceCharge({
@@ -2638,8 +2640,8 @@ export default function Home() {
       clientName: finalClientName,
       notes: productForm.notes || undefined,
       obrabotkaService: includeKirimUnloading && kirimCalculation.transportSvc 
-        ? (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name) 
-        : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)',
+        ? formatUnloadingServiceName(lang === 'ru' ? kirimCalculation.transportSvc.name : (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name), lang)
+        : (lang === 'ru' ? 'Без услуг разгрузки (силами клиента)' : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)'),
       obrabotkaCost: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.baseCost : 0,
       obrabotkaVat: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.vatAmount : 0,
       kirimAdditionalServices: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id),
@@ -2670,7 +2672,9 @@ export default function Home() {
       notes: newProd.notes,
       clientName: newProd.clientName,
       receiverInn: matchedPayer?.inn,
-      transportType: includeKirimUnloading && kirimCalculation.transportSvc ? (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name) : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)',
+      transportType: includeKirimUnloading && kirimCalculation.transportSvc 
+        ? formatUnloadingServiceName(lang === 'ru' ? kirimCalculation.transportSvc.name : (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name), lang)
+        : (lang === 'ru' ? 'Без услуг разгрузки (силами клиента)' : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)'),
       servicesApplied: kirimCalculation.applied,
       obrabotkaCostUZS: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.totalCost : 0,
       additionalCostUZS: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id).reduce((s, x) => s + x.totalPrice, 0),
@@ -3721,7 +3725,7 @@ export default function Home() {
                                   {/* Tushirish xizmati */}
                                   <td style={{ padding: '8px 8px' }}>
                                     <span style={{ color: '#0369a1', fontSize: '11px', fontWeight: 600, display: 'block' }}>
-                                      🚛 {prod.obrabotkaService || 'Yuk tushirish (Разгрузка)'}
+                                      🚛 {formatUnloadingServiceName(prod.obrabotkaService || 'Yuk tushirish (Разгрузка)', lang)}
                                     </span>
                                   </td>
 
@@ -4216,7 +4220,11 @@ export default function Home() {
                             <div>
                               <strong style={{ color: '#047857', display: 'block' }}>👤 {m.userName}</strong>
                               <span style={{ fontSize: '10px', color: '#64748b' }}>({m.userRole})</span>
-                              {m.transportType && <span style={{ display: 'block', fontSize: '10px', color: '#0284c7', fontWeight: 600 }}>🚛 Kelgan: {m.transportType}</span>}
+                              {m.transportType && (
+                                <span style={{ display: 'block', fontSize: '10px', color: '#0284c7', fontWeight: 600 }}>
+                                  🚛 {lang === 'ru' ? 'Разгрузка:' : 'Tushirish:'} {formatUnloadingServiceName(m.transportType, lang)}
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <div style={{ fontSize: '11px', color: '#64748b' }}>
@@ -4234,7 +4242,7 @@ export default function Home() {
                               <span style={{ fontSize: '10px', color: '#64748b' }}>({m.userRole})</span>
                               {(m.loadingType || m.transportType) && (
                                 <span style={{ display: 'block', fontSize: '10px', color: '#b91c1c', fontWeight: 600 }}>
-                                  🚛 Ortish: {m.loadingType || m.transportType}
+                                  🚛 {lang === 'ru' ? 'Погрузка:' : 'Ortish:'} {formatLoadingServiceName(m.loadingType || m.transportType, lang)}
                                 </span>
                               )}
                             </div>
@@ -6505,7 +6513,8 @@ export default function Home() {
                         style={{ background: '#ffffff', fontWeight: 700, fontSize: '13px', color: '#002d62', border: '1.5px solid #0284c7' }}
                       >
                         {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                          const cleanName = s.nameUz || s.name;
+                          const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
+                          const cleanName = formatUnloadingServiceName(rawName, lang);
                           return (
                             <option key={s.id} value={s.id}>
                               №{s.itemNo}: {cleanName} {canViewFinances ? `— ${s.totalPrice.toLocaleString('uz-UZ')} UZS (${s.unit})` : `(${s.unit})`}
@@ -6522,14 +6531,15 @@ export default function Home() {
                         const dispBase = costRes ? costRes.baseCost : svc.basePrice;
                         const dispVat = costRes ? costRes.vatAmount : svc.vatAmount;
                         const dispTotal = costRes ? costRes.totalCost : svc.totalPrice;
+                        const formattedSvcName = formatUnloadingServiceName(lang === 'ru' ? svc.name : (svc.nameUz || svc.name), lang);
                         if (!canViewFinances) {
                           return (
                             <div style={{ marginTop: '10px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
                               <span style={{ fontSize: '11px', fontWeight: 800, color: '#002d62', textTransform: 'uppercase' }}>
-                                📋 Tanlangan Tushirish (Разгрузка) Usuli (1 martalik):
+                                📋 {lang === 'ru' ? 'Выбранный способ разгрузки (разовый):' : 'Tanlangan Tushirish (Разгрузка) Usuli (1 martalik):'}
                               </span>
                               <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                                №{svc.itemNo}: {svc.nameUz || svc.name} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
+                                №{svc.itemNo}: {formattedSvcName} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
                               </div>
                             </div>
                           );
@@ -6538,31 +6548,31 @@ export default function Home() {
                           <div style={{ marginTop: '10px', background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '8px', padding: '10px 14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                               <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase' }}>
-                                📋 Tanlangan Tushirish (Разгрузка) — 1 Martalik To&apos;lov:
+                                📋 {lang === 'ru' ? 'Выбранная разгрузка — Разовая оплата:' : 'Tanlangan Tushirish (Разгрузка) — 1 Martalik To\'lov:'}
                               </span>
                               <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                                Tarif №{svc.itemNo} • 1 martalik
+                                {lang === 'ru' ? `Тариф №${svc.itemNo} • разовый` : `Tarif №${svc.itemNo} • 1 martalik`}
                               </span>
                             </div>
                             <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
-                              {svc.nameUz || svc.name} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
+                              {formattedSvcName} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
                               {costRes?.formulaText && (
                                 <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
-                                  🧮 Hisob: {costRes.formulaText}
+                                  🧮 {lang === 'ru' ? 'Расчет:' : 'Hisob:'} {costRes.formulaText}
                                 </div>
                               )}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e0f2fe' }}>
                               <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Bazaviy narx:</span>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Базовая цена:' : 'Bazaviy narx:'}</span>
                                 <strong style={{ color: '#0f172a' }}>{dispBase.toLocaleString('uz-UZ')} UZS</strong>
                               </div>
                               <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>12% QQS:</span>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? '12% НДС:' : '12% QQS:'}</span>
                                 <strong style={{ color: '#0284c7' }}>+{dispVat.toLocaleString('uz-UZ')} UZS</strong>
                               </div>
                               <div>
-                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Jami 1 Martalik:</span>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Итого разовый:' : 'Jami 1 Martalik:'}</span>
                                 <strong style={{ color: '#059669', fontSize: '14px' }}>{dispTotal.toLocaleString('uz-UZ')} UZS</strong>
                               </div>
                             </div>
@@ -6571,7 +6581,7 @@ export default function Home() {
                       })()}
 
                       <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '6px' }}>
-                        ⚡ 1 martalik to&apos;lov: Ushbu yuk tushirish xizmati faqat bir marta hisoblanadi va saqlangan kunlar soniga mutlaqo ko&apos;paytirilmaydi.
+                        ⚡ {lang === 'ru' ? 'Разовая оплата: Данная услуга разгрузки рассчитывается только один раз и не умножается на дни хранения.' : '1 martalik to\'lov: Ushbu yuk tushirish xizmati faqat bir marta hisoblanadi va saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.'}
                       </span>
                     </>
                   ) : (
@@ -6948,27 +6958,25 @@ export default function Home() {
                         style={{ background: '#ffffff', fontWeight: 600 }}
                       >
                         {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                          const cleanName = (s.nameUz || s.name)
-                            .replace('ortish / tushirish', 'tushirish (Разгрузка)')
-                            .replace('yuklash / tushirish', 'tushirish (Разгрузка)')
-                            .replace('tushirish/ortish', 'tushirish (Разгрузка)');
+                          const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
+                          const cleanName = formatUnloadingServiceName(rawName, lang);
                           return (
                             <option key={s.id} value={s.id}>
-                              {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [1 martalik]` : ''}
+                              №{s.itemNo}: {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [${lang === 'ru' ? 'разовый' : '1 martalik'}]` : ''}
                             </option>
                           );
                         })}
                       </select>
                       <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
-                        ⚡ 1 martalik to&apos;lov: Ushbu yuk tushirish (разгрузка) xizmati bir martalik bo&apos;lib, saqlangan kunlar soniga mutlaqo ko&apos;paytirilmaydi.
+                        ⚡ {lang === 'ru' ? 'Разовая оплата: Данная услуга разгрузки груза рассчитывается только один раз и не умножается на дни хранения.' : '1 martalik to\'lov: Ushbu yuk tushirish (разгрузка) xizmati bir martalik bo\'lib, saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.'}
                       </span>
                     </>
                   ) : (
                     <div style={{ marginTop: '4px', padding: '10px 12px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
                       <span style={{ fontSize: '18px' }}>⛔</span>
                       <div>
-                        <strong style={{ color: '#0f172a' }}>Omborga tushirish (Разгрузка) xizmati hisoblanmaydi (0 UZS)</strong>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>Mijoz o&apos;z kuchi bilan tushirgan yoki oldindan to&apos;langan. Chiqim hisobiga kiritilmaydi.</div>
+                        <strong style={{ color: '#0f172a' }}>{lang === 'ru' ? 'Услуга разгрузки на склад не начисляется (0 UZS)' : 'Omborga tushirish (Разгрузка) xizmati hisoblanmaydi (0 UZS)'}</strong>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{lang === 'ru' ? 'Клиент разгрузил своими силами или оплачено ранее. В расход не включается.' : 'Mijoz o\'z kuchi bilan tushirgan yoki oldindan to\'langan. Chiqim hisobiga kiritilmaydi.'}</div>
                       </div>
                     </div>
                   )}
@@ -7059,13 +7067,11 @@ export default function Home() {
                           style={{ background: '#ffffff', fontWeight: 600 }}
                         >
                           {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
-                            const cleanName = (s.nameUz || s.name)
-                              .replace('ortish / tushirish', 'ortish (Погрузка)')
-                              .replace('yuklash / tushirish', 'ortish (Погрузка)')
-                              .replace('tushirish/ortish', 'ortish (Погрузка)');
+                            const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
+                            const cleanName = formatLoadingServiceName(rawName, lang);
                             return (
                               <option key={s.id} value={s.id}>
-                                {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS)` : ''}
+                                №{s.itemNo}: {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS)` : ''}
                               </option>
                             );
                           })}

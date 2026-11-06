@@ -1,5 +1,6 @@
 import React from 'react';
 import { CargoMovement, ContractPayer, Language } from '@/lib/types';
+import { formatUnloadingServiceName, formatLoadingServiceName } from '@/lib/customs-formatters';
 
 interface InvoiceReceiptModalProps {
   movement: CargoMovement | null;
@@ -147,10 +148,10 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
               {movement.type === 'OUT' && (
                 <div style={{ marginTop: '6px', fontSize: '11px', lineHeight: '1.6' }}>
                   <div style={{ color: '#0369a1', fontWeight: 700 }}>
-                    📥 {isRu ? 'Разгрузка при приходе:' : 'Tushirilgan transport (Разгрузка):'} <strong>{movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : 'Kirimda yuk tushirish')}</strong>
+                    📥 {isRu ? 'Разгрузка при приходе:' : 'Tushirilgan transport (Разгрузка):'} <strong>{formatUnloadingServiceName(movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : 'Kirimda yuk tushirish'), lang)}</strong>
                   </div>
                   <div style={{ color: '#b91c1c', fontWeight: 700 }}>
-                    🚛 {isRu ? 'Погрузка при выдаче:' : 'Yuk ortilgan transport (Погрузка):'} <strong>{movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish')}</strong>
+                    🚛 {isRu ? 'Погрузка при выдаче:' : 'Yuk ortilgan transport (Погрузка):'} <strong>{formatLoadingServiceName(movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish'), lang)}</strong>
                   </div>
                 </div>
               )}
@@ -225,7 +226,16 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
                           {idx + 1}
                         </td>
                         <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                          {svc.name}
+                          {(() => {
+                            let displayName = svc.name;
+                            const lower = displayName.toLowerCase();
+                            if (lower.includes('tushirish') || lower.includes('разгруз') || movement.type === 'IN') {
+                              displayName = formatUnloadingServiceName(displayName, lang);
+                            } else if (lower.includes('ortish') || lower.includes('погруз')) {
+                              displayName = formatLoadingServiceName(displayName, lang);
+                            }
+                            return displayName;
+                          })()}
                           {isStorage && (
                             <span style={{ display: 'block', fontSize: '11px', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>
                               {canViewFinances 
@@ -270,7 +280,7 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
                         <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                           <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>1</td>
                           <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                            {isRu ? 'Разгрузка на склад' : 'Yukni tushirish (Разгрузка)'}: {movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : '1 martalik')}
+                            {isRu ? 'Разгрузка на склад' : 'Yukni tushirish (Разгрузка)'}: {formatUnloadingServiceName(movement.unloadingType || movement.transportType || (isRu ? 'Разгрузка' : '1 martalik'), lang)}
                           </td>
                           {canViewFinances ? (
                             <>
@@ -323,7 +333,7 @@ export const InvoiceReceiptModal: React.FC<InvoiceReceiptModalProps> = ({
                         <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                           <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700 }}>3</td>
                           <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0f172a' }}>
-                            {isRu ? 'Погрузка со склада' : 'Yukni ortish (Погрузка)'}: {movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish xizmati')}
+                            {isRu ? 'Погрузка со склада' : 'Yukni ortish (Погрузка)'}: {formatLoadingServiceName(movement.loadingType || (isRu ? 'Погрузка' : 'Yuk ortish xizmati'), lang)}
                           </td>
                           {canViewFinances ? (
                             <>

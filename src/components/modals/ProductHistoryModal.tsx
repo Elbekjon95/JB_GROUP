@@ -1,5 +1,6 @@
 import React from 'react';
 import { StoredProduct, Warehouse, CargoMovement, Language } from '@/lib/types';
+import { formatUnloadingServiceName, formatLoadingServiceName } from '@/lib/customs-formatters';
 
 interface ProductHistoryModalProps {
   product: StoredProduct | null;
@@ -236,7 +237,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                     <div>
                       <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Tushirish xizmati (Разгрузка):</span>
                       <strong style={{ color: '#002d62', fontSize: '12px' }}>
-                        {product.obrabotkaService || 'Standart Tushirish (Разгрузка)'}
+                        {formatUnloadingServiceName(product.obrabotkaService || 'Standart Tushirish (Разгрузка)', lang)}
                       </strong>
                       {canViewFinances && (
                         <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700, display: 'block' }}>
@@ -398,7 +399,8 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                                     sectorName: product.sectorName,
                                     tariffDailyRate: product.dailyRatePerUnit,
                                     storageCostUZS: rec.storageBaseCost + rec.storageVat,
-                                    loadingType: rec.loadingService,
+                                    unloadingType: formatUnloadingServiceName(rec.unloadingService || product.obrabotkaService || '', lang),
+                                    loadingType: formatLoadingServiceName(rec.loadingService || '', lang),
                                     loadingCostUZS: rec.loadingCost,
                                     servicesApplied: rec.additionalServices,
                                     totalCostUZS: rec.storageBaseCost,
