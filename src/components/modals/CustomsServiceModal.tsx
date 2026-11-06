@@ -94,7 +94,7 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
                 onChange={e => {
                   const cat = e.target.value as CustomsServiceCategory;
                   const newUnits = getUnitsForCategory(cat);
-                  const defaultUnit = newUnits[0]?.value || '1 tn / sutka';
+                  const defaultUnit = newUnits[0]?.value || '1 tn';
                   setCustomsServiceForm({
                     ...customsServiceForm,
                     category: cat,
@@ -104,14 +104,17 @@ export const CustomsServiceModal: React.FC<CustomsServiceModalProps> = ({
                 }}
                 required
               >
-                <option value="UNLOADING_LOADING">
-                  {isRu ? '🏗️ Погрузочно-разгрузочные работы (РАЗГРУЗКА/ПОГРУЗКА)' : isEn ? '🏗️ Loading / Unloading Operations' : '🏗️ Ortish-tushirish (РАЗГРУЗКА/ПОГРУЗКА)'}
+                <option value="UNLOADING">
+                  {isRu ? '📥 1. РАЗГРУЗКА (Прием на склад — разовый)' : isEn ? '📥 1. UNLOADING (Warehouse Entry — One-time)' : '📥 1. YUK TUSHIRISH (Omborga qabul — 1 martalik)'}
+                </option>
+                <option value="LOADING">
+                  {isRu ? '📤 2. ПОГРУЗКА (Выдача клиенту — разовый)' : isEn ? '📤 2. LOADING (Exit to Client — One-time)' : '📤 2. YUK ORTISH (Mijozga yuklab berish — 1 martalik)'}
                 </option>
                 <option value="STORAGE">
-                  {isRu ? '❄️ Хранение на таможенном складе (ХРАНЕНИЕ)' : isEn ? '❄️ Customs Warehouse Storage' : '❄️ Bojxona omborida saqlash (ХРАНЕНИЕ)'}
+                  {isRu ? '❄️ 3. ХРАНЕНИЕ (Хранение на складе — посуточный)' : isEn ? '❄️ 3. STORAGE (Warehouse Storage — Daily)' : '❄️ 3. SAQLASH (Omborda saqlash — kunlik)'}
                 </option>
                 <option value="ADDITIONAL">
-                  {isRu ? '🛠️ Дополнительные услуги (ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ)' : isEn ? '🛠️ Additional Services' : '🛠️ Qo\'shimcha xizmatlar (ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ)'}
+                  {isRu ? '🛠️ 4. ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ (Разовый)' : isEn ? '🛠️ 4. ADDITIONAL SERVICES (One-time)' : '🛠️ 4. QO\'SHIMCHA XIZMATLAR (1 martalik)'}
                 </option>
               </select>
             </div>

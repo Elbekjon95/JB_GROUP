@@ -182,151 +182,300 @@ export const INITIAL_TARIFFS: Tariff[] = [
   }
 ];
 
-// JB GROUP Bojxona Ombori Rasmiy Preyskuranti (30 ta xizmat turi va 12% QQS stavkalari)
+// JB GROUP Bojxona Ombori Rasmiy Preyskuranti (Xizmat turlari va 12% QQS stavkalari)
 export const INITIAL_CUSTOMS_SERVICES: CustomsService[] = [
-  // 1. РАЗГРУЗКА/ПОГРУЗКА (Yuk ortish va tushirish — 1 MARTALIK XIZMATLAR)
+  // =========================================================================
+  // 1. РАЗГРУЗКА (Yukni omborga tushirish xizmati — 1 MARTALIK XIZMATLAR)
+  // =========================================================================
   {
     id: 'cs-1',
     itemNo: 1,
-    category: 'UNLOADING_LOADING',
-    name: 'ж/д вагон (60 тн)',
-    nameUz: 'Temiryo\'l vagoni (60 tn) ortish / tushirish',
+    category: 'UNLOADING',
+    name: 'ж/д вагон разгрузка (60 тн)',
+    nameUz: 'Temiryo\'l vagonidan tushirish (60 tn)',
     unit: '1 martalik (1 vagon)',
     basePrice: 2000000,
     vatRate: 0.12,
     vatAmount: 240000,
     totalPrice: 2240000,
-    description: 'Temiryo\'l shoxobcha yo\'lida 60 tonnalik vagonni to\'liq tushirish yoki yuklash (1 martalik xizmat)'
+    description: 'Temiryo\'l shoxobcha yo\'lida 60 tonnalik vagonni omborga tushirish (1 martalik xizmat)'
   },
   {
     id: 'cs-2',
     itemNo: 1.1,
-    category: 'UNLOADING_LOADING',
-    name: 'контейнер 40 футов',
-    nameUz: '40 futlik konteyner yuklash / tushirish',
+    category: 'UNLOADING',
+    name: 'контейнер 40 футов разгрузка',
+    nameUz: '40 futlik konteynerdan tushirish',
     unit: '1 martalik (40ft konteyner)',
     basePrice: 1100000,
     vatRate: 0.12,
     vatAmount: 132000,
     totalPrice: 1232000,
-    description: '40 futlik dengiz yoki temiryo\'l konteyneridan yuk tushirish/yuklash (1 martalik xizmat)'
+    description: '40 futlik dengiz yoki temiryo\'l konteyneridan omborga tushirish (1 martalik xizmat)'
   },
   {
     id: 'cs-3',
     itemNo: 1.2,
-    category: 'UNLOADING_LOADING',
-    name: 'контейнер 20 футов',
-    nameUz: '20 futlik konteyner yuklash / tushirish',
+    category: 'UNLOADING',
+    name: 'контейнер 20 футов разгрузка',
+    nameUz: '20 futlik konteynerdan tushirish',
     unit: '1 martalik (20ft konteyner)',
     basePrice: 800000,
     vatRate: 0.12,
     vatAmount: 96000,
     totalPrice: 896000,
-    description: '20 futlik standart konteynerdan yuk tushirish/yuklash (1 martalik xizmat)'
+    description: '20 futlik standart konteynerdan omborga tushirish (1 martalik xizmat)'
   },
   {
     id: 'cs-4',
     itemNo: 2,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка части груза с помощью кара-погрузчика до 1 тн/за 1тн',
-    nameUz: 'Kara-pogruzchik yordamida qisman yuk tushirish/ortish (1 tn gacha / 1 tn uchun)',
+    category: 'UNLOADING',
+    name: 'Разгрузка части груза с помощью кара-погрузчика до 1 тн/за 1тн',
+    nameUz: 'Kara-pogruzchik yordamida qisman yuk tushirish (1 tn gacha / 1 tn uchun)',
     unit: '1 martalik (1 tn)',
     basePrice: 65000,
     vatRate: 0.12,
     vatAmount: 7800,
     totalPrice: 72800,
-    description: 'Avtokara yordamida mexanizatsiyalashgan usulda ortish-tushirish (1 martalik to\'lov)'
+    description: 'Avtokara yordamida mexanizatsiyalashgan usulda omborga tushirish (1 martalik to\'lov)'
   },
   {
     id: 'cs-5',
     itemNo: 3,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка части груза россыпью до 1 тн/за 1тн',
-    nameUz: 'Sochilma (qo\'lda) qisman yuk tushirish/ortish (1 tn gacha / 1 tn uchun)',
+    category: 'UNLOADING',
+    name: 'Разгрузка части груза россыпью до 1 тн/за 1тн',
+    nameUz: 'Sochilma (qo\'lda) qisman yuk tushirish (1 tn gacha / 1 tn uchun)',
     unit: '1 martalik (1 tn)',
     basePrice: 70000,
     vatRate: 0.12,
     vatAmount: 8400,
     totalPrice: 78400,
-    description: 'Poddonsiz, sochilma holatdagi yuklarni qo\'lda yuklash/tushirish (1 martalik to\'lov)'
+    description: 'Poddonsiz, sochilma holatdagi yuklarni qo\'lda omborga tushirish (1 martalik to\'lov)'
   },
   {
     id: 'cs-6',
     itemNo: 4,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка тарно-упакованного груза с помощью кара-погрузчика для полного объёма меньше 90 кб.м',
-    nameUz: 'Kichik hajm (<90 m³) o\'ralgan yukni kara bilan tushirish/ortish',
+    category: 'UNLOADING',
+    name: 'Разгрузка тарно-упакованного груза с помощью кара-погрузчика для объема <90 м³',
+    nameUz: 'Kichik hajm (<90 m³) o\'ralgan yukni kara bilan tushirish',
     unit: '1 martalik (<90 m³ fura)',
     basePrice: 600000,
     vatRate: 0.12,
     vatAmount: 72000,
     totalPrice: 672000,
-    description: '90 m³ gacha bo\'lgan transport vositalari uchun to\'liq paket (1 martalik to\'lov)'
+    description: '90 m³ gacha bo\'lgan transport vositalaridan omborga tushirish (1 martalik to\'lov)'
   },
   {
     id: 'cs-7',
     itemNo: 5,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка груза россыпью для полного объёма меньше 90 кб.м',
-    nameUz: 'Kichik hajm (<90 m³) sochilma yukni to\'liq tushirish/ortish',
+    category: 'UNLOADING',
+    name: 'Разгрузка груза россыпью для полного объема меньше 90 м³',
+    nameUz: 'Kichik hajm (<90 m³) sochilma yukni to\'liq tushirish',
     unit: '1 martalik (<90 m³ fura)',
     basePrice: 700000,
     vatRate: 0.12,
     vatAmount: 84000,
     totalPrice: 784000,
-    description: '90 m³ dan kam bo\'lgan yuk avtomobilidagi sochilma yuklar (1 martalik to\'lov)'
+    description: '90 m³ dan kam bo\'lgan yuk avtomobilidagi sochilma yuklarni omborga tushirish (1 martalik to\'lov)'
   },
   {
     id: 'cs-8',
     itemNo: 6,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры до 90 кб.м',
-    nameUz: 'To\'liq fura (90 m³ gacha) o\'ralgan yukni kara bilan tushirish/ortish',
+    category: 'UNLOADING',
+    name: 'Разгрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры до 90 м³',
+    nameUz: 'To\'liq fura (90 m³ gacha) o\'ralgan yukni kara bilan tushirish',
     unit: '1 martalik (to\'liq fura)',
     basePrice: 800000,
     vatRate: 0.12,
     vatAmount: 96000,
     totalPrice: 896000,
-    description: 'Standart xalqaro tentli furalar (82–90 m³) uchun 1 martalik tushirish/ortish'
+    description: 'Standart xalqaro tentli furalar (82–90 m³) uchun 1 martalik omborga tushirish'
   },
   {
     id: 'cs-9',
     itemNo: 7,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка груза россыпью для полной фуры до 90 кб.м',
-    nameUz: 'To\'liq fura (90 m³ gacha) sochilma yukni tushirish/ortish',
+    category: 'UNLOADING',
+    name: 'Разгрузка груза россыпью для полной фуры до 90 м³',
+    nameUz: 'To\'liq fura (90 m³ gacha) sochilma yukni tushirish',
     unit: '1 martalik (to\'liq fura)',
     basePrice: 900000,
     vatRate: 0.12,
     vatAmount: 108000,
     totalPrice: 1008000,
-    description: 'Standart furalardagi o\'ramlanmagan sochilma tovarlar (1 martalik to\'lov)'
+    description: 'Standart furalardagi o\'ramlanmagan sochilma tovarlarni omborga tushirish (1 martalik to\'lov)'
   },
   {
     id: 'cs-10',
     itemNo: 8,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры свыше 90 кб.м',
-    nameUz: 'Katta fura (>90 m³) o\'ralgan yukni kara bilan tushirish/ortish',
+    category: 'UNLOADING',
+    name: 'Разгрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры >90 м³',
+    nameUz: 'Katta fura (>90 m³) o\'ralgan yukni kara bilan tushirish',
     unit: '1 martalik (mega fura)',
     basePrice: 900000,
     vatRate: 0.12,
     vatAmount: 108000,
     totalPrice: 1008000,
-    description: 'Mega-treyler, katta hajmli furalar (100–120 m³) uchun 1 martalik to\'lov'
+    description: 'Mega-treyler, katta hajmli furalar (100–120 m³) uchun 1 martalik omborga tushirish'
   },
   {
     id: 'cs-11',
     itemNo: 9,
-    category: 'UNLOADING_LOADING',
-    name: 'Погрузка или разгрузка груза россыпью для полной фуры свыше 90 кб.м',
-    nameUz: 'Katta fura (>90 m³) sochilma yukni tushirish/ortish',
+    category: 'UNLOADING',
+    name: 'Разгрузка груза россыпью для полной фуры свыше 90 м³',
+    nameUz: 'Katta fura (>90 m³) sochilma yukni tushirish',
     unit: '1 martalik (mega fura)',
     basePrice: 1000000,
     vatRate: 0.12,
     vatAmount: 120000,
     totalPrice: 1120000,
-    description: 'Mega-treylerdagi to\'liq sochilma yuklar (1 martalik to\'lov)'
+    description: 'Mega-treylerdagi to\'liq sochilma yuklarni omborga tushirish (1 martalik to\'lov)'
+  },
+
+  // =========================================================================
+  // 2. ПОГРУЗКА (Mijoz transportiga yuk ortish xizmati — 1 MARTALIK XIZMATLAR)
+  // =========================================================================
+  {
+    id: 'cs-load-1',
+    itemNo: 1,
+    category: 'LOADING',
+    name: 'ж/д вагон погрузка (60 тн)',
+    nameUz: 'Temiryo\'l vagoniga ortish (60 tn)',
+    unit: '1 martalik (1 vagon)',
+    basePrice: 2000000,
+    vatRate: 0.12,
+    vatAmount: 240000,
+    totalPrice: 2240000,
+    description: 'Temiryo\'l shoxobcha yo\'lida 60 tonnalik vagoniga yuk ortish (1 martalik xizmat)'
+  },
+  {
+    id: 'cs-load-2',
+    itemNo: 1.1,
+    category: 'LOADING',
+    name: 'контейнер 40 футов погрузка',
+    nameUz: '40 futlik konteynerga ortish',
+    unit: '1 martalik (40ft konteyner)',
+    basePrice: 1100000,
+    vatRate: 0.12,
+    vatAmount: 132000,
+    totalPrice: 1232000,
+    description: '40 futlik dengiz yoki temiryo\'l konteyneriga yuk ortish (1 martalik xizmat)'
+  },
+  {
+    id: 'cs-load-3',
+    itemNo: 1.2,
+    category: 'LOADING',
+    name: 'контейнер 20 футов погрузка',
+    nameUz: '20 futlik konteynerga ortish',
+    unit: '1 martalik (20ft konteyner)',
+    basePrice: 800000,
+    vatRate: 0.12,
+    vatAmount: 96000,
+    totalPrice: 896000,
+    description: '20 futlik standart konteynerga yuk ortish (1 martalik xizmat)'
+  },
+  {
+    id: 'cs-load-4',
+    itemNo: 2,
+    category: 'LOADING',
+    name: 'Погрузка части груза с помощью кара-погрузчика до 1 тн/за 1тн',
+    nameUz: 'Kara-pogruzchik yordamida qisman yuk ortish (1 tn gacha / 1 tn uchun)',
+    unit: '1 martalik (1 tn)',
+    basePrice: 65000,
+    vatRate: 0.12,
+    vatAmount: 7800,
+    totalPrice: 72800,
+    description: 'Avtokara yordamida mexanizatsiyalashgan usulda transportga ortish (1 martalik to\'lov)'
+  },
+  {
+    id: 'cs-load-5',
+    itemNo: 3,
+    category: 'LOADING',
+    name: 'Погрузка части груза россыпью до 1 тн/за 1тн',
+    nameUz: 'Sochilma (qo\'lda) qisman yuk ortish (1 tn gacha / 1 tn uchun)',
+    unit: '1 martalik (1 tn)',
+    basePrice: 70000,
+    vatRate: 0.12,
+    vatAmount: 8400,
+    totalPrice: 78400,
+    description: 'Poddonsiz, sochilma holatdagi yuklarni qo\'lda transportga ortish (1 martalik to\'lov)'
+  },
+  {
+    id: 'cs-load-6',
+    itemNo: 4,
+    category: 'LOADING',
+    name: 'Погрузка тарно-упакованного груза с помощью кара-погрузчика для объема <90 м³',
+    nameUz: 'Kichik hajm (<90 m³) o\'ralgan yukni kara bilan ortish',
+    unit: '1 martalik (<90 m³ fura)',
+    basePrice: 600000,
+    vatRate: 0.12,
+    vatAmount: 72000,
+    totalPrice: 672000,
+    description: '90 m³ gacha bo\'lgan transport vositalariga yuk ortish (1 martalik to\'lov)'
+  },
+  {
+    id: 'cs-load-7',
+    itemNo: 5,
+    category: 'LOADING',
+    name: 'Погрузка груза россыпью для полного объема меньше 90 м³',
+    nameUz: 'Kichik hajm (<90 m³) sochilma yukni to\'liq ortish',
+    unit: '1 martalik (<90 m³ fura)',
+    basePrice: 700000,
+    vatRate: 0.12,
+    vatAmount: 84000,
+    totalPrice: 784000,
+    description: '90 m³ dan kam bo\'lgan yuk avtomobiliga sochilma yuklarni ortish (1 martalik to\'lov)'
+  },
+  {
+    id: 'cs-load-8',
+    itemNo: 6,
+    category: 'LOADING',
+    name: 'Погрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры до 90 м³',
+    nameUz: 'To\'liq fura (90 m³ gacha) o\'ralgan yukni kara bilan ortish',
+    unit: '1 martalik (to\'liq fura)',
+    basePrice: 800000,
+    vatRate: 0.12,
+    vatAmount: 96000,
+    totalPrice: 896000,
+    description: 'Standart xalqaro tentli furalarga (82–90 m³) yuk ortish (1 martalik xizmat)'
+  },
+  {
+    id: 'cs-load-9',
+    itemNo: 7,
+    category: 'LOADING',
+    name: 'Погрузка груза россыпью для полной фуры до 90 м³',
+    nameUz: 'To\'liq fura (90 m³ gacha) sochilma yukni ortish',
+    unit: '1 martalik (to\'liq fura)',
+    basePrice: 900000,
+    vatRate: 0.12,
+    vatAmount: 108000,
+    totalPrice: 1008000,
+    description: 'Standart furalarga o\'ramlanmagan sochilma tovarlarni yuklash (1 martalik to\'lov)'
+  },
+  {
+    id: 'cs-load-10',
+    itemNo: 8,
+    category: 'LOADING',
+    name: 'Погрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры >90 м³',
+    nameUz: 'Katta fura (>90 m³) o\'ralgan yukni kara bilan ortish',
+    unit: '1 martalik (mega fura)',
+    basePrice: 900000,
+    vatRate: 0.12,
+    vatAmount: 108000,
+    totalPrice: 1008000,
+    description: 'Mega-treyler, katta hajmli furalarga (100–120 m³) yuk ortish (1 martalik xizmat)'
+  },
+  {
+    id: 'cs-load-11',
+    itemNo: 9,
+    category: 'LOADING',
+    name: 'Погрузка груза россыпью для полной фуры свыше 90 м³',
+    nameUz: 'Katta fura (>90 m³) sochilma yukni ortish',
+    unit: '1 martalik (mega fura)',
+    basePrice: 1000000,
+    vatRate: 0.12,
+    vatAmount: 120000,
+    totalPrice: 1120000,
+    description: 'Mega-treylerdagi katta hajmli to\'liq sochilma yuklarni ortish (1 martalik to\'lov)'
   },
 
   // 2. ХРАНЕНИЕ (FAQAT USHBU SAQLASH XIZMATLARI KUNLAR SONIGA KO'PAYTIRILADI)

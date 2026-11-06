@@ -133,7 +133,7 @@ export default function Home() {
     basePrice: 50000,
     vatRate: 0.12,
     description: '',
-    category: 'UNLOADING_LOADING'
+    category: 'UNLOADING'
   });
 
   // 3.3. Rasmiy JB GROUP Bojxona Invoysi / Dalolatnoma modali
@@ -1129,7 +1129,7 @@ export default function Home() {
     if (transportSvc) {
       transportCostResult = calculateServiceCharge({
         unit: transportSvc.unit,
-        category: 'UNLOADING_LOADING',
+        category: (transportSvc.category as CustomsServiceCategory) || 'UNLOADING',
         basePrice: transportSvc.basePrice,
         weightKg: Number(productForm.weightKg) || 0,
         quantity: Number(productForm.quantity) || 1,
@@ -1213,18 +1213,32 @@ export default function Home() {
     const remainingWeightKg = Math.max(0, totalProdWeight - validWeightKg);
 
     // Xavfsiz standart zaxira xizmatlari (agar bazada bo'lmasa xato bermasligi uchun)
-    const fallbackUnloading = INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-8') || {
+    const fallbackUnloading = INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-8' || s.id === 'cs-unl-8') || {
       id: 'cs-8',
       itemNo: 6,
-      category: 'UNLOADING_LOADING' as const,
-      name: 'Погрузка или разгрузка тарно-штучного груза с помощью автопогрузчика до 20 тн',
-      nameUz: 'Tarno-donali yuklarni avtopogruzchik bilan tushirish/ortish (20 tn gacha)',
-      unit: '1 martalik (1 fura / 20 tn)',
+      category: 'UNLOADING' as const,
+      name: 'Разгрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры до 90 кб.м',
+      nameUz: 'To\'liq fura (90 m³ gacha) o\'ralgan yukni kara bilan tushirish',
+      unit: '1 martalik (to\'liq fura)',
       basePrice: 800000,
       vatRate: 0.12,
       vatAmount: 96000,
       totalPrice: 896000,
-      description: '20 tonnalik avtotransportdan yuk tushirish yoki ortish (1 martalik xizmat)'
+      description: '20 tonnalik avtotransportdan yuk tushirish (1 martalik xizmat)'
+    };
+
+    const fallbackLoading = INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-load-8') || {
+      id: 'cs-load-8',
+      itemNo: 6,
+      category: 'LOADING' as const,
+      name: 'Погрузка тарно-упакованного груза с помощью кара-погрузчика для полной фуры до 90 кб.м',
+      nameUz: 'To\'liq fura (90 m³ gacha) o\'ralgan yukni kara bilan ortish',
+      unit: '1 martalik (to\'liq fura)',
+      basePrice: 800000,
+      vatRate: 0.12,
+      vatAmount: 96000,
+      totalPrice: 896000,
+      description: 'Mijoz avtotransportiga yuk ortib berish (1 martalik xizmat)'
     };
 
     const fallbackStorage = INITIAL_CUSTOMS_SERVICES.find(s => s.id === 'cs-12') || {
@@ -1242,10 +1256,7 @@ export default function Home() {
     };
 
     // -------------------------------------------------------------------------
-    // 1-XIZMAT: OMBORGA TUSHIRISH (РАЗГРУЗКА)
-    // Foydalanuvchi talabi:
-    // 1) Chiqimda faqat razgruzka ko'rinsin, pogruzka ko'rinishi kerak emas
-    // 2) Bu xizmat (razgruzka) ko'rsatilgan bo'lsa, yana bir marta ko'rinishi va hisoblanishi kerak emas!
+    // 1-XIZMAT: OMBORGA TUSHIRISH (РАЗГРУЗКА) — Kirimda ko'rsatilgan xizmat
     // -------------------------------------------------------------------------
     const isAlreadyUnloaded = Boolean(
       (selectedProductToExit.exitHistory && selectedProductToExit.exitHistory.length > 0 && selectedProductToExit.exitHistory.some(e => (e.unloadingCost || 0) > 0)) ||
@@ -1256,7 +1267,7 @@ export default function Home() {
     const effectiveIncludeUnloading = includeExitUnloading && !isAlreadyUnloaded;
 
     const unloadingSvc = customsServices.find(s => s.id === selectedUnloadingServiceId)
-      || customsServices.find(s => s.category === 'UNLOADING_LOADING' && (selectedProductToExit.obrabotkaService?.toLowerCase().includes(s.name.toLowerCase()) || selectedProductToExit.obrabotkaService?.toLowerCase().includes((s.nameUz || '').toLowerCase())))
+      || customsServices.find(s => (s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING') && (selectedProductToExit.obrabotkaService?.toLowerCase().includes(s.name.toLowerCase()) || selectedProductToExit.obrabotkaService?.toLowerCase().includes((s.nameUz || '').toLowerCase())))
       || customsServices.find(s => s.id === 'cs-8')
       || fallbackUnloading;
 
@@ -1268,12 +1279,11 @@ export default function Home() {
       : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)';
 
     if (effectiveIncludeUnloading) {
-      const rawUnlName = lang === 'ru' ? (unloadingSvc?.name || 'Услуга разгрузки') : (unloadingSvc?.nameUz || unloadingSvc?.name || 'Tushirish xizmati');
-      unloadingCleanName = formatUnloadingServiceName(rawUnlName, lang);
+      unloadingCleanName = lang === 'ru' ? unloadingSvc.name : (unloadingSvc.nameUz || unloadingSvc.name);
 
       const unlResult = calculateServiceCharge({
         unit: unloadingSvc?.unit || '1 martalik (to\'liq fura)',
-        category: 'UNLOADING_LOADING',
+        category: 'UNLOADING',
         basePrice: unloadingSvc?.basePrice || 800000,
         weightKg: validWeightKg,
         quantity: validQty,
@@ -1315,16 +1325,31 @@ export default function Home() {
     const storageDetailNote = storResult.detailNote;
 
     // -------------------------------------------------------------------------
-    // 3-XIZMAT: YUKNI ORTISH (ПОГРУЗКА) — Chiqimda hisoblanmaydi (Foydalanuvchi talabi)
+    // 3-XIZMAT: YUKNI ORTISH (ПОГРУЗКА) — Chiqimda ortish xizmati (1 martalik)
     // -------------------------------------------------------------------------
     const loadingSvc = customsServices.find(s => s.id === selectedLoadingServiceId)
-      || customsServices.find(s => s.id === 'cs-8')
-      || fallbackUnloading;
+      || customsServices.find(s => s.category === 'LOADING')
+      || fallbackLoading;
 
-    const loadingBase = 0;
-    const loadingVat = 0;
-    const loadingTotal = 0;
-    const loadingCleanName = '';
+    let loadingBase = 0;
+    let loadingVat = 0;
+    let loadingTotal = 0;
+    let loadingCleanName = '';
+
+    if (includeExitLoading && loadingSvc) {
+      const loadResult = calculateServiceCharge({
+        unit: loadingSvc.unit,
+        category: 'LOADING',
+        basePrice: loadingSvc.basePrice,
+        weightKg: validWeightKg,
+        quantity: validQty,
+        transportCount: Math.max(1, exitLoadingCount || 1)
+      });
+      loadingBase = loadResult.baseCost;
+      loadingVat = loadResult.vatAmount;
+      loadingTotal = loadResult.totalCost;
+      loadingCleanName = lang === 'ru' ? loadingSvc.name : (loadingSvc.nameUz || loadingSvc.name);
+    }
 
     // -------------------------------------------------------------------------
     // 4-XIZMAT: QO'SHIMCHA XIZMATLAR
@@ -1364,7 +1389,9 @@ export default function Home() {
     if (effectiveIncludeUnloading && unloadingTotal > 0) {
       appliedExitServices.push({
         serviceId: unloadingSvc?.id || 'cs-8',
-        name: `Omborga tushirish (Разгрузка): ${unloadingCleanName} (⚡ 1 martalik to'lov)`,
+        name: lang === 'ru' 
+          ? `Разгрузка груза на склад: ${unloadingCleanName} (разовый)` 
+          : `Omborga tushirish (Разгрузка): ${unloadingCleanName} (⚡ 1 martalik to'lov)`,
         quantity: 1,
         unit: unloadingSvc?.unit || '1 martalik',
         basePrice: unloadingBase,
@@ -1375,7 +1402,9 @@ export default function Home() {
 
     appliedExitServices.push({
       serviceId: storageSvc?.id || 'cs-12',
-      name: `Bojxona omborida saqlash xizmati (${storageSvc?.nameUz || storageSvc?.name || 'Saqlash'}) — 📅 ${daysStored} kun saqlangan (FAQAT saqlash kuniga ko'paytiriladi)`,
+      name: lang === 'ru'
+        ? `Хранение груза: ${storageSvc?.name || 'Хранение'} — ${daysStored} дней`
+        : `Omborda saqlash: ${storageSvc?.nameUz || storageSvc?.name || 'Saqlash'} — 📅 ${daysStored} kun saqlangan`,
       quantity: daysStored,
       unit: storageSvc?.unit || 'sutka',
       basePrice: storageBase,
@@ -1383,10 +1412,24 @@ export default function Home() {
       totalPrice: storageTotal
     });
 
+    if (includeExitLoading && loadingTotal > 0 && loadingSvc) {
+      appliedExitServices.push({
+        serviceId: loadingSvc.id,
+        name: lang === 'ru'
+          ? `Погрузка при выдаче: ${loadingCleanName}${exitLoadingCount > 1 ? ` (${exitLoadingCount} авто)` : ''} (разовый)`
+          : `Yukni ortish (Погрузка): ${loadingCleanName}${exitLoadingCount > 1 ? ` (${exitLoadingCount} ta mashina)` : ''} (⚡ 1 martalik to'lov)`,
+        quantity: exitLoadingCount,
+        unit: loadingSvc.unit,
+        basePrice: loadingBase,
+        vatAmount: loadingVat,
+        totalPrice: loadingTotal
+      });
+    }
+
     appliedExitServices.push(...additionalApplied);
 
-    const totalBase = unloadingBase + storageBase + additionalExitBase;
-    const totalVat = unloadingVat + storageVat + additionalExitVat;
+    const totalBase = unloadingBase + storageBase + loadingBase + additionalExitBase;
+    const totalVat = unloadingVat + storageVat + loadingVat + additionalExitVat;
     const grandTotal = totalBase + totalVat;
 
     return {
@@ -1411,9 +1454,9 @@ export default function Home() {
       storageTotal,
       storageFormulaText,
       storageDetailNote,
-      // 3. Ortish (Chiqimda doim 0)
-      includeLoading: false,
-      loadingSvc,
+      // 3. Ortish
+      includeLoading: includeExitLoading,
+      loadingSvc: loadingSvc || fallbackLoading,
       loadingCleanName,
       loadingBase,
       loadingVat,
@@ -2734,7 +2777,7 @@ export default function Home() {
 
     // 1. Omborga tushirish (Разгрузка) xizmatini aniqlash:
     if (prod.obrabotkaService) {
-      const matched = customsServices.find(s => s.category === 'UNLOADING_LOADING' && (
+      const matched = customsServices.find(s => (s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING') && (
         prod.obrabotkaService?.toLowerCase().includes(s.name.toLowerCase()) || 
         (s.nameUz && prod.obrabotkaService?.toLowerCase().includes(s.nameUz.toLowerCase()))
       ));
@@ -2884,7 +2927,7 @@ export default function Home() {
       clientName: selectedProductToExit.clientName,
       transportType: exitBillingCalculation.unloadingTotal > 0 ? unloadingSvcName : undefined,
       unloadingType: exitBillingCalculation.unloadingTotal > 0 ? unloadingSvcName : undefined,
-      loadingType: undefined,
+      loadingType: exitBillingCalculation.loadingTotal > 0 ? loadingSvcName : undefined,
       daysStored: exitBillingCalculation.daysStored,
       tariffId: exitBillingCalculation.storageSvc?.id || 'cs-12',
       tariffName: storageTariffName,
@@ -5466,7 +5509,7 @@ export default function Home() {
                         basePrice: 50000,
                         vatRate: 0.12,
                         description: '',
-                        category: 'UNLOADING_LOADING'
+                        category: 'UNLOADING'
                       });
                       setIsCustomsServiceModalOpen(true);
                     }}
@@ -5556,19 +5599,36 @@ export default function Home() {
 
                     <button
                       type="button"
-                      onClick={() => setCustomsCategoryFilter('UNLOADING_LOADING')}
+                      onClick={() => setCustomsCategoryFilter('UNLOADING')}
                       style={{
                         padding: '6px 14px',
                         borderRadius: '8px',
                         fontSize: '12px',
                         fontWeight: 700,
                         cursor: 'pointer',
-                        border: customsCategoryFilter === 'UNLOADING_LOADING' ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
-                        background: customsCategoryFilter === 'UNLOADING_LOADING' ? '#e0f2fe' : '#f8fafc',
-                        color: customsCategoryFilter === 'UNLOADING_LOADING' ? '#0369a1' : '#64748b'
+                        border: customsCategoryFilter === 'UNLOADING' ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                        background: customsCategoryFilter === 'UNLOADING' ? '#e0f2fe' : '#f8fafc',
+                        color: customsCategoryFilter === 'UNLOADING' ? '#0369a1' : '#64748b'
                       }}
                     >
-                      🏗️ 1. РАЗГРУЗКА/ПОГРУЗКА (⚡ 1 martalik) ({customsServices.filter(s => s.category === 'UNLOADING_LOADING').length})
+                      📥 1. РАЗГРУЗКА (YUK TUSHIRISH) ({customsServices.filter(s => s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING').length})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCustomsCategoryFilter('LOADING')}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        border: customsCategoryFilter === 'LOADING' ? '1.5px solid #9333ea' : '1px solid #e2e8f0',
+                        background: customsCategoryFilter === 'LOADING' ? '#f3e8ff' : '#f8fafc',
+                        color: customsCategoryFilter === 'LOADING' ? '#7e22ce' : '#64748b'
+                      }}
+                    >
+                      📤 2. ПОГРУЗКА (YUK ORTISH) ({customsServices.filter(s => s.category === 'LOADING').length})
                     </button>
 
                     <button
@@ -5585,7 +5645,7 @@ export default function Home() {
                         color: customsCategoryFilter === 'STORAGE' ? '#047857' : '#64748b'
                       }}
                     >
-                      ❄️📦 2. ХРАНЕНИЕ (📅 FAQAT Saqlash: kunlik) ({customsServices.filter(s => s.category === 'STORAGE').length})
+                      ❄️📦 3. ХРАНЕНИЕ (SAQLASH - KUNLIK) ({customsServices.filter(s => s.category === 'STORAGE').length})
                     </button>
 
                     <button
@@ -5602,7 +5662,7 @@ export default function Home() {
                         color: customsCategoryFilter === 'ADDITIONAL' ? '#b45309' : '#64748b'
                       }}
                     >
-                      🛠️ 3. ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ (⚡ 1 martalik) ({customsServices.filter(s => s.category === 'ADDITIONAL').length})
+                      🛠️ 4. ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ ({customsServices.filter(s => s.category === 'ADDITIONAL').length})
                     </button>
                   </div>
 
@@ -5674,11 +5734,29 @@ export default function Home() {
                                   borderRadius: '6px',
                                   fontSize: '11px',
                                   fontWeight: 800,
-                                  background: s.category === 'UNLOADING_LOADING' ? '#e0f2fe' : s.category === 'STORAGE' ? '#ecfdf5' : '#fef3c7',
-                                  color: s.category === 'UNLOADING_LOADING' ? '#0369a1' : s.category === 'STORAGE' ? '#047857' : '#b45309'
+                                  background: s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING' 
+                                    ? '#e0f2fe' 
+                                    : s.category === 'LOADING'
+                                    ? '#f3e8ff'
+                                    : s.category === 'STORAGE' 
+                                    ? '#ecfdf5' 
+                                    : '#fef3c7',
+                                  color: s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING' 
+                                    ? '#0369a1' 
+                                    : s.category === 'LOADING'
+                                    ? '#7e22ce'
+                                    : s.category === 'STORAGE' 
+                                    ? '#047857' 
+                                    : '#b45309'
                                 }}
                               >
-                                {s.category === 'UNLOADING_LOADING' ? '🏗️ 1 martalik to\'lov' : s.category === 'STORAGE' ? '📅 Kuniga qarab' : '⚡ 1 martalik to\'lov'}
+                                {s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING' 
+                                  ? '📥 Tushirish (1 martalik)' 
+                                  : s.category === 'LOADING'
+                                  ? '📤 Ortish (1 martalik)'
+                                  : s.category === 'STORAGE' 
+                                  ? '📅 Kunlik saqlash' 
+                                  : '⚡ 1 martalik to\'lov'}
                               </span>
                             </td>
 
@@ -6428,7 +6506,7 @@ export default function Home() {
                         required
                         style={{ background: '#ffffff', fontWeight: 700, fontSize: '13px', color: '#002d62', border: '1.5px solid #0284c7' }}
                       >
-                        {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
+                        {customsServices.filter(s => s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING').map(s => {
                           const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
                           const cleanName = formatUnloadingServiceName(rawName, lang);
                           return (
@@ -6954,12 +7032,11 @@ export default function Home() {
                           required
                           style={{ background: '#ffffff', fontWeight: 600 }}
                         >
-                          {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
+                          {customsServices.filter(s => s.category === 'UNLOADING' || s.category === 'UNLOADING_LOADING').map(s => {
                             const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
-                            const cleanName = formatUnloadingServiceName(rawName, lang);
                             return (
                               <option key={s.id} value={s.id}>
-                                №{s.itemNo}: {cleanName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [${lang === 'ru' ? 'разовый' : '1 martalik'}]` : ''}
+                                №{s.itemNo}: {rawName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS) [${lang === 'ru' ? 'разовый' : '1 martalik'}]` : ''}
                               </option>
                             );
                           })}
@@ -7012,6 +7089,103 @@ export default function Home() {
                   {canViewFinances && (
                     <div style={{ marginTop: '8px', fontSize: '11px', color: '#0369a1', background: '#f0f9ff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #bae6fd' }}>
                       Hisoblash formulasi: <strong>{exitBillingCalculation.storageFormulaText}</strong> = <strong>{exitBillingCalculation.storageBase.toLocaleString('uz-UZ')} UZS</strong> (+12% QQS: {exitBillingCalculation.storageVat.toLocaleString('uz-UZ')} UZS = <strong>{exitBillingCalculation.storageTotal.toLocaleString('uz-UZ')} UZS</strong>)
+                    </div>
+                  )}
+                </div>
+
+                {/* ========================================================
+                    3. YUKNI ORTISH (ПОГРУЗКА) XIZMATI
+                    Foydalanuvchi talabi: Tushirish va ortish xizmatlari alohida bo'lsin!
+                    ======================================================== */}
+                <div style={{ background: includeExitLoading ? '#f8fafc' : '#f1f5f9', border: includeExitLoading ? '1.5px solid #cbd5e1' : '1.5px dashed #94a3b8', borderRadius: '10px', padding: '14px', marginBottom: '14px', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#002d62', fontWeight: 800, fontSize: '13px' }}>
+                      <span>🚚</span>
+                      <span>{lang === 'ru' ? '3. УСЛУГА ПОГРУЗКИ ПРИ ВЫДАЧЕ (ТИП ТРАНСПОРТА) *' : '3. YUKNI ORTISH (ПОГРУЗКА) XIZMATI *'}</span>
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', background: includeExitLoading ? '#eff6ff' : '#e2e8f0', color: includeExitLoading ? '#1d4ed8' : '#64748b', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                        {includeExitLoading ? (lang === 'ru' ? '⚡ РАЗОВЫЙ ПЛАТЕЖ' : '⚡ 1 MARTALIK TO\'LOV') : (lang === 'ru' ? '⛔ БЕЗ ПОГРУЗКИ (0 UZS)' : '⛔ ORTISH XIZMATISIZ (0 UZS)')}
+                      </span>
+                      {/* TOGGLE TUGMASI */}
+                      <button
+                        type="button"
+                        onClick={() => setIncludeExitLoading(!includeExitLoading)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 12px',
+                          borderRadius: '20px',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          border: includeExitLoading ? '1.5px solid #1d4ed8' : '1.5px solid #64748b',
+                          background: includeExitLoading ? '#1d4ed8' : '#ffffff',
+                          color: includeExitLoading ? '#ffffff' : '#475569',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <span>{includeExitLoading ? (lang === 'ru' ? '✅ Включено' : '✅ Yoqilgan') : (lang === 'ru' ? '❌ Отключено' : '❌ O\'chirilgan')}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {includeExitLoading ? (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '8px' }}>
+                        <select
+                          className="form-select-clean"
+                          value={selectedLoadingServiceId}
+                          onChange={e => setSelectedLoadingServiceId(e.target.value)}
+                          required
+                          style={{ background: '#ffffff', fontWeight: 600 }}
+                        >
+                          {customsServices.filter(s => s.category === 'LOADING').map(s => {
+                            const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
+                            return (
+                              <option key={s.id} value={s.id}>
+                                №{s.itemNo}: {rawName} ({s.unit}) {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS (+12% QQS)` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <label style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            {lang === 'ru' ? 'Кол-во авто:' : 'Mashina:'}
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            className="form-input-clean"
+                            style={{ width: '60px', padding: '6px 8px', textAlign: 'center', fontWeight: 700 }}
+                            value={exitLoadingCount}
+                            onChange={e => setExitLoadingCount(Math.max(1, Number(e.target.value) || 1))}
+                          />
+                        </div>
+                      </div>
+
+                      {canViewFinances && exitBillingCalculation.loadingTotal > 0 && (
+                        <div style={{ marginTop: '8px', fontSize: '11px', color: '#1d4ed8', background: '#eff6ff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                          Ortish to&apos;lovi: <strong>{exitBillingCalculation.loadingBase.toLocaleString('uz-UZ')} UZS</strong> (+12% QQS: {exitBillingCalculation.loadingVat.toLocaleString('uz-UZ')} UZS = <strong>{exitBillingCalculation.loadingTotal.toLocaleString('uz-UZ')} UZS</strong>)
+                        </div>
+                      )}
+
+                      <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                        🚚 {lang === 'ru' 
+                          ? 'Услуга погрузки при выдаче груза (в авто/вагон клиента). Разовый платеж, не зависит от дней хранения.' 
+                          : 'Mijoz transportiga yukni ortib berish (Погрузка) xizmati. 1 martalik to\'lov bo\'lib, saqlangan kunlarga ko\'paytirilmaydi.'}
+                      </span>
+                    </>
+                  ) : (
+                    <div style={{ marginTop: '4px', padding: '10px 12px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
+                      <span style={{ fontSize: '18px' }}>⛔</span>
+                      <div>
+                        <strong style={{ color: '#0f172a' }}>{lang === 'ru' ? 'Услуга погрузки не оказывается (0 UZS)' : 'Yukni ortish (Погрузка) xizmati o\'chirilgan (0 UZS)'}</strong>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{lang === 'ru' ? 'Клиент грузит своими силами / своим транспортом.' : 'Mijoz o\'z kuchi bilan ortib olib ketadi yoki ortish uchun to\'lov olinmaydi.'}</div>
+                      </div>
                     </div>
                   )}
                 </div>

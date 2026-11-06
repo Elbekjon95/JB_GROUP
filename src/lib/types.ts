@@ -165,7 +165,7 @@ export interface Warehouse {
   sectors: Sector[];
 }
 
-export type CustomsServiceCategory = 'UNLOADING_LOADING' | 'STORAGE' | 'ADDITIONAL';
+export type CustomsServiceCategory = 'UNLOADING' | 'LOADING' | 'STORAGE' | 'ADDITIONAL' | 'UNLOADING_LOADING';
 
 export interface CustomsService {
   id: string;

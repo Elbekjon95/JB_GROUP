@@ -312,7 +312,11 @@ export const TARIFF_UNIT_OPTIONS: WarehouseUnitOption[] = [
 ];
 
 export function getUnitsForCategory(category: CustomsServiceCategory): WarehouseUnitOption[] {
-  const filtered = TARIFF_UNIT_OPTIONS.filter(u => u.category === category || u.category === 'ALL');
+  const filtered = TARIFF_UNIT_OPTIONS.filter(u => 
+    u.category === category || 
+    u.category === 'ALL' || 
+    ((category === 'UNLOADING' || category === 'LOADING') && u.category === 'UNLOADING_LOADING')
+  );
   return filtered.length > 0 ? filtered : TARIFF_UNIT_OPTIONS;
 }
 

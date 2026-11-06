@@ -9,12 +9,24 @@ export async function GET() {
       orderBy: { itemNo: 'asc' }
     });
 
-    // Agar bazada rasmiy 30+ ta preyskurant xizmatlari to'liq bo'lmasa, avtomatik to'ldirish
-    if (services.length === 0) {
+    // Agar bazada xizmatlar bo'lmasa yoki eski UNLOADING_LOADING yozuvlar bo'lsa, avtomatik sinxronlash
+    const hasOldCat = services.some(s => s.category === 'UNLOADING_LOADING');
+    const hasLoading = services.some(s => s.category === 'LOADING');
+    if (services.length === 0 || hasOldCat || !hasLoading) {
       for (const s of INITIAL_CUSTOMS_SERVICES) {
         await prisma.customsService.upsert({
           where: { id: s.id },
-          update: {},
+          update: {
+            category: s.category,
+            name: s.name,
+            nameUz: s.nameUz,
+            unit: s.unit,
+            basePrice: s.basePrice,
+            vatRate: s.vatRate,
+            vatAmount: s.vatAmount,
+            totalPrice: s.totalPrice,
+            description: s.description || ''
+          },
           create: {
             id: s.id,
             itemNo: s.itemNo,
