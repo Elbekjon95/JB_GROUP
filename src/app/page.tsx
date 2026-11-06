@@ -2620,12 +2620,12 @@ export default function Home() {
       placedByRole: currentUser?.role || 'USER',
       clientName: finalClientName,
       notes: productForm.notes || undefined,
-      obrabotkaService: lang === 'ru' 
-        ? 'Разгрузка тарно-упакованного груза с помощью автокары' 
-        : 'Tarno-o\'ralgan yukni tushirish (avtokara yordamida)',
-      obrabotkaCost: 800000,
-      obrabotkaVat: 96000,
-      kirimAdditionalServices: [],
+      obrabotkaService: includeKirimUnloading && kirimCalculation.transportSvc 
+        ? formatUnloadingServiceName(lang === 'ru' ? kirimCalculation.transportSvc.name : (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name), lang)
+        : (lang === 'ru' ? 'Без услуг разгрузки (силами клиента)' : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)'),
+      obrabotkaCost: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.baseCost : 0,
+      obrabotkaVat: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.vatAmount : 0,
+      kirimAdditionalServices: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id),
       exitHistory: []
     };
 
@@ -2653,9 +2653,9 @@ export default function Home() {
       notes: newProd.notes,
       clientName: newProd.clientName,
       receiverInn: matchedPayer?.inn,
-      transportType: lang === 'ru' 
-        ? 'Разгрузка тарно-упакованного груза с помощью автокары' 
-        : 'Tarno-o\'ralgan yukni tushirish (avtokara yordamida)',
+      transportType: includeKirimUnloading && kirimCalculation.transportSvc 
+        ? formatUnloadingServiceName(lang === 'ru' ? kirimCalculation.transportSvc.name : (kirimCalculation.transportSvc.nameUz || kirimCalculation.transportSvc.name), lang)
+        : (lang === 'ru' ? 'Без услуг разгрузки (силами клиента)' : 'Tushirish xizmatisiz (Mijoz o\'z kuchi bilan)'),
       servicesApplied: kirimCalculation.applied,
       obrabotkaCostUZS: includeKirimUnloading && kirimCalculation.transportCostResult ? kirimCalculation.transportCostResult.totalCost : 0,
       additionalCostUZS: kirimCalculation.applied.filter(a => a.serviceId !== kirimCalculation.transportSvc?.id).reduce((s, x) => s + x.totalPrice, 0),
@@ -3178,6 +3178,9 @@ export default function Home() {
                           entryDate: getTashkentDateStr(),
                           entryTime: getTashkentTimeStr()
                         });
+                        setIncludeKirimUnloading(true);
+                        setSelectedTransportServiceId('cs-8');
+                        setSelectedKirimAdditionalIds([]);
                         setIsAddProductModalOpen(true);
                       }}
                       className="btn-primary"
@@ -3450,6 +3453,9 @@ export default function Home() {
                             entryDate: getTashkentDateStr(),
                             entryTime: getTashkentTimeStr()
                           });
+                          setIncludeKirimUnloading(true);
+                          setSelectedTransportServiceId('cs-8');
+                          setSelectedKirimAdditionalIds([]);
                           setIsAddProductModalOpen(true);
                         }}
                         className="btn-primary"
@@ -6362,28 +6368,163 @@ export default function Home() {
 
                 <div className="form-field" style={{ marginBottom: '14px' }}>
                   <label className="form-label" style={{ color: '#475569', fontSize: '12px' }}>
-                    📄 Birlamchi qabul hujjati yoki qo&apos;shimcha izoh (Ixtiyoriy)
+                    📄 {lang === 'ru' ? 'Первичный документ приема или примечание (Необязательно)' : 'Birlamchi qabul hujjati yoki qo\'shimcha izoh (Ixtiyoriy)'}
                   </label>
                   <input
                     type="text"
                     className="form-input-clean"
-                    placeholder="Masalan: Tovar-transport yuk xati №124 / bojxona deklaratsiyasi"
+                    placeholder={lang === 'ru' ? 'Например: Товарно-транспортная накладная №124 / таможенная декларация' : 'Masalan: Tovar-transport yuk xati №124 / bojxona deklaratsiyasi'}
                     value={productForm.notes}
                     onChange={e => setProductForm({ ...productForm, notes: e.target.value })}
                   />
                 </div>
 
                 {/* ========================================================
-                    SAQLASH USULI VA TARIFI (2-RASMDAGI RASMIY PREYSKURANT 10–19 BANDLAR)
+                    6. YUK KELGAN TRANSPORT TURI VA OMBORGA TUSHIRISH (РАЗГРУЗКА)
+                    ======================================================== */}
+                <div style={{ background: includeKirimUnloading ? '#f8fafc' : '#f1f5f9', border: includeKirimUnloading ? '1.5px solid #cbd5e1' : '1.5px dashed #94a3b8', borderRadius: '10px', padding: '14px', marginBottom: '14px', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '16px' }}>🚛</span>
+                      <span style={{ fontWeight: 800, color: '#002d62', fontSize: '13px' }}>
+                        {lang === 'ru' ? '6. ТИП ПРИБЫВШЕГО ТРАНСПОРТА И УСЛУГА РАЗГРУЗКИ НА СКЛАД *' : '6. YUK KELGAN TRANSPORT TURI VA OMBORGA TUSHIRISH (РАЗГРУЗКА) USULI *'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', color: includeKirimUnloading ? '#0284c7' : '#64748b', background: includeKirimUnloading ? '#e0f2fe' : '#e2e8f0', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                        {includeKirimUnloading ? (lang === 'ru' ? '⚡ РАЗОВАЯ РАЗГРУЗКА' : '⚡ 1 MARTALIK TUSHIRISH') : (lang === 'ru' ? '⛔ БЕЗ РАЗГРУЗКИ (0 UZS)' : '⛔ XIZMATSIZ (0 UZS)')}
+                      </span>
+                      {/* YOQISH / O'CHIRISH TOGGLE TUGMASI */}
+                      <button
+                        type="button"
+                        onClick={() => setIncludeKirimUnloading(!includeKirimUnloading)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '5px 12px',
+                          borderRadius: '20px',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          border: includeKirimUnloading ? '1.5px solid #0284c7' : '1.5px solid #64748b',
+                          background: includeKirimUnloading ? '#0284c7' : '#ffffff',
+                          color: includeKirimUnloading ? '#ffffff' : '#475569',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <span>{includeKirimUnloading ? (lang === 'ru' ? '✅ Включено' : '✅ Yoqilgan') : (lang === 'ru' ? '❌ Отключено' : '❌ O\'chirilgan')}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {includeKirimUnloading ? (
+                    <>
+                      <select
+                        className="form-select-clean"
+                        value={selectedTransportServiceId}
+                        onChange={e => setSelectedTransportServiceId(e.target.value)}
+                        required
+                        style={{ background: '#ffffff', fontWeight: 700, fontSize: '13px', color: '#002d62', border: '1.5px solid #0284c7' }}
+                      >
+                        {customsServices.filter(s => s.category === 'UNLOADING_LOADING').map(s => {
+                          const rawName = lang === 'ru' ? s.name : (s.nameUz || s.name);
+                          const cleanName = formatUnloadingServiceName(rawName, lang);
+                          return (
+                            <option key={s.id} value={s.id}>
+                              №{s.itemNo}: {cleanName} {canViewFinances ? `— ${s.totalPrice.toLocaleString('uz-UZ')} UZS (${s.unit})` : `(${s.unit})`}
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {/* Preyskurant Hisob-Kitob Kartochkasi */}
+                      {(() => {
+                        const svc = customsServices.find(s => s.id === selectedTransportServiceId);
+                        if (!svc) return null;
+                        const costRes = kirimCalculation.transportCostResult;
+                        const dispBase = costRes ? costRes.baseCost : svc.basePrice;
+                        const dispVat = costRes ? costRes.vatAmount : svc.vatAmount;
+                        const dispTotal = costRes ? costRes.totalCost : svc.totalPrice;
+                        const rawName = lang === 'ru' ? svc.name : (svc.nameUz || svc.name);
+                        const formattedSvcName = formatUnloadingServiceName(rawName, lang);
+                        if (!canViewFinances) {
+                          return (
+                            <div style={{ marginTop: '10px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '10px 14px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#002d62', textTransform: 'uppercase' }}>
+                                📋 {lang === 'ru' ? 'Выбранный способ разгрузки (разовый):' : 'Tanlangan Tushirish (Разгрузка) Usuli (1 martalik):'}
+                              </span>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                                №{svc.itemNo}: {formattedSvcName} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ marginTop: '10px', background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '8px', padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase' }}>
+                                📋 {lang === 'ru' ? 'ВЫБРАННАЯ РАЗГРУЗКА (РАЗГРУЗКА) — РАЗОВАЯ ОПЛАТА:' : 'TANLANGAN TUSHIRISH (РАЗГРУЗКА) — 1 MARTALIK TO\'LOV:'}
+                              </span>
+                              <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                                {lang === 'ru' ? `Тариф №${svc.itemNo} • разовый` : `Tarif №${svc.itemNo} • 1 martalik`}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                              {formattedSvcName} <span style={{ color: '#64748b', fontSize: '11px' }}>({svc.unit})</span>
+                              {costRes?.formulaText && (
+                                <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
+                                  🧮 {lang === 'ru' ? 'Расчет:' : 'Hisob:'} {costRes.formulaText}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e0f2fe' }}>
+                              <div>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Базовая цена:' : 'Bazaviy narx:'}</span>
+                                <strong style={{ color: '#0f172a' }}>{dispBase.toLocaleString('uz-UZ')} UZS</strong>
+                              </div>
+                              <div>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? '12% НДС:' : '12% QQS:'}</span>
+                                <strong style={{ color: '#0284c7' }}>+{dispVat.toLocaleString('uz-UZ')} UZS</strong>
+                              </div>
+                              <div>
+                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Итого разовый:' : 'Jami 1 Martalik:'}</span>
+                                <strong style={{ color: '#059669', fontSize: '14px' }}>{dispTotal.toLocaleString('uz-UZ')} UZS</strong>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '6px' }}>
+                        ⚡ {lang === 'ru' ? 'Разовая оплата: Данная услуга разгрузки рассчитывается только один раз и не умножается на дни хранения.' : '1 martalik to\'lov: Ushbu yuk tushirish xizmati faqat bir marta hisoblanadi va saqlangan kunlar soniga mutlaqo ko\'paytirilmaydi.'}
+                      </span>
+                    </>
+                  ) : (
+                    <div style={{ marginTop: '6px', padding: '12px 14px', background: '#ffffff', border: '1.5px dashed #94a3b8', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '20px' }}>⛔</span>
+                      <div style={{ fontSize: '12px', color: '#475569' }}>
+                        <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>
+                          {lang === 'ru' ? 'Услуга разгрузки на склад отключена (0 UZS)' : 'Omborga tushirish (Разгрузка) xizmati o\'chirilgan (0 UZS)'}
+                        </strong>
+                        {lang === 'ru' ? 'Груз разгружается силами клиента или оплачено ранее.' : 'Yuk mijoz tomonidan o\'z kuchi / o\'z texnikasi bilan tushiriladi yoki bu xizmat uchun to\'lov olinmaydi.'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ========================================================
+                    7. SAQLASH USULI VA TARIFI (2-RASMDAGI RASMIY PREYSKURANT 10–19 BANDLAR)
                     ======================================================== */}
                 <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
                   <label className="form-label" style={{ color: '#002d62', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>❄️📦</span>
-                      <span style={{ fontWeight: 800 }}>SAQLASH USULI VA TARIFI *</span>
+                      <span style={{ fontWeight: 800 }}>{lang === 'ru' ? '7. СПОСОБ И ТАРИФ ХРАНЕНИЯ *' : '7. SAQLASH USULI VA TARIFI *'}</span>
                     </span>
                     <span style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                      📅 FAQAT SHU KUNLIK HISOBLANADI
+                      📅 {lang === 'ru' ? 'ПОСУТОЧНЫЙ РАСЧЕТ' : 'FAQAT SHU KUNLIK HISOBLANADI'}
                     </span>
                   </label>
                   <select
@@ -6394,7 +6535,7 @@ export default function Home() {
                     style={{ background: '#ffffff', fontWeight: 700, fontSize: '13px', color: '#002d62', border: '1.5px solid #059669' }}
                   >
                     {customsServices.filter(s => s.category === 'STORAGE').map(s => {
-                      const cleanName = s.nameUz || s.name;
+                      const cleanName = lang === 'ru' ? s.name : (s.nameUz || s.name);
                       return (
                         <option key={s.id} value={s.id}>
                           №{s.itemNo}: {cleanName} {canViewFinances ? `— ${s.basePrice.toLocaleString('uz-UZ')} UZS/sutka (+12% QQS) [${s.unit}]` : `[${s.unit}]`}
@@ -6411,38 +6552,100 @@ export default function Home() {
                       <div style={{ marginTop: '10px', background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: '8px', padding: '10px 14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>
-                            📌 Belgilangan Saqlash Usuli (Omborga kirim):
+                            📌 {lang === 'ru' ? 'Выбранный тариф хранения (приход на склад):' : 'Belgilangan Saqlash Usuli (Omborga kirim):'}
                           </span>
                           <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
-                            Tarif №{storSvc.itemNo} • Kunlik stavka
+                            {lang === 'ru' ? `Тариф №${storSvc.itemNo} • Суточная ставка` : `Tarif №${storSvc.itemNo} • Kunlik stavka`}
                           </span>
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
-                          {storSvc.nameUz || storSvc.name} <span style={{ color: '#64748b', fontSize: '11px' }}>({storSvc.unit})</span>
+                          {lang === 'ru' ? storSvc.name : (storSvc.nameUz || storSvc.name)} <span style={{ color: '#64748b', fontSize: '11px' }}>({storSvc.unit})</span>
                         </div>
                         {canViewFinances && (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px', background: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
                             <div>
-                              <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Kunlik stavka:</span>
+                              <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Суточная ставка:' : 'Kunlik stavka:'}</span>
                               <strong style={{ color: '#0f172a' }}>{storSvc.basePrice.toLocaleString('uz-UZ')} UZS</strong>
                             </div>
                             <div>
-                              <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>12% QQS:</span>
+                              <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? '12% НДС:' : '12% QQS:'}</span>
                               <strong style={{ color: '#0284c7' }}>+{storSvc.vatAmount.toLocaleString('uz-UZ')} UZS</strong>
                             </div>
                             <div>
-                              <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>Jami kunlik:</span>
+                              <span style={{ color: '#64748b', fontSize: '11px', display: 'block' }}>{lang === 'ru' ? 'Итого в сутки:' : 'Jami kunlik:'}</span>
                               <strong style={{ color: '#15803d', fontSize: '13px' }}>{storSvc.totalPrice.toLocaleString('uz-UZ')} UZS</strong>
                             </div>
                           </div>
                         )}
                         <div style={{ fontSize: '11px', color: '#15803d', marginTop: '6px', fontWeight: 600 }}>
-                          💡 FAQAT ushbu saqlash xizmati tovar omborda saqlangan kunlariga (kunlar soni × stavka × hajm) qarab chiqimda hisoblanadi. Tushirish, ortish va qo&apos;shimcha xizmatlar esa 1 martalik bo&apos;ladi.
+                          💡 {lang === 'ru' 
+                            ? 'ТОЛЬКО данная услуга хранения рассчитывается по фактическим дням нахождения груза на складе (дни × ставка × вес). Разгрузка и доп. услуги являются разовыми.' 
+                            : 'FAQAT ushbu saqlash xizmati tovar omborda saqlangan kunlariga (kunlar soni × stavka × hajm) qarab chiqimda hisoblanadi. Tushirish va qo\'shimcha xizmatlar esa 1 martalik bo\'ladi.'}
                         </div>
                       </div>
                     );
                   })()}
                 </div>
+
+                {/* ========================================================
+                    8. QO'SHIMCHA BOJXONA VA OMBORXONA XIZMATLARI (IXTIYORIY)
+                    ======================================================== */}
+                {customsServices.filter(s => s.category === 'ADDITIONAL').length > 0 && (
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                    <label className="form-label" style={{ color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>🛠️</span>
+                        <span>{lang === 'ru' ? '8. ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ СКЛАДА (ПО ЖЕЛАНИЮ)' : '8. QO\'SHIMCHA BOJXONA VA OMBORXONA XIZMATLARI (IXTIYORIY)'}</span>
+                      </span>
+                      <span style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: '4px', fontWeight: 800 }}>
+                        ⚡ {lang === 'ru' ? 'РАЗОВЫЕ' : '1 MARTALIK'}
+                      </span>
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      {customsServices.filter(s => s.category === 'ADDITIONAL').map(item => {
+                        const isChecked = selectedKirimAdditionalIds.includes(item.id);
+                        const rawItemName = lang === 'ru' ? item.name : (item.nameUz || item.name);
+                        return (
+                          <label
+                            key={item.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '8px',
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              border: isChecked ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                              background: isChecked ? '#eff6ff' : '#f8fafc',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setSelectedKirimAdditionalIds([...selectedKirimAdditionalIds, item.id]);
+                                } else {
+                                  setSelectedKirimAdditionalIds(selectedKirimAdditionalIds.filter(id => id !== item.id));
+                                }
+                              }}
+                              style={{ width: '15px', height: '15px', accentColor: '#2563eb', marginTop: '2px' }}
+                            />
+                            <div>
+                              <strong style={{ color: '#0f172a', display: 'block', fontSize: '11px' }}>
+                                №{item.itemNo}: {rawItemName}
+                              </strong>
+                              <span style={{ fontSize: '10px', color: '#64748b' }}>
+                                ⚡ {item.unit} {canViewFinances ? `• ${item.totalPrice.toLocaleString('uz-UZ')} UZS` : ''}
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* FAKTIK QABUL QILISH VA XIZMATLAR QAYDI (PULSIZ, SOF MA'LUMOT) */}
                 <div style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '10px', padding: '12px 14px', marginBottom: '8px' }}>
